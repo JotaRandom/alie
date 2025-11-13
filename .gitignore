@@ -1,0 +1,27 @@
+# LMAE Installation Scripts - Git Ignore
+
+# Progress tracking files
+.lmae-progress
+*.lmae-progress
+
+# Build directories
+.cache/
+build/
+*-build/
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.swp
+*~
+
+# OS-specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor-specific
+.vscode/
+.idea/
+*.sublime-*
