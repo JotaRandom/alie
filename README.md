@@ -74,14 +74,17 @@ Manually select which installation step to execute.
 
 ```
 ├── alie.sh                     # Master installer (entry point)
-├── install/                    # Installation scripts (semantic numbering)
-│   ├── 001-base-install.sh     # Base system (Live USB, root only)
-│   ├── 101-configure-system.sh # System config (chroot, root only)
-│   ├── 201-desktop-install.sh  # Desktop env (installed system, root only)
-│   ├── 211-install-yay.sh      # YAY AUR helper (user only)
-│   └── 212-install-packages.sh # Linux Mint packages (user only)
-├── lib/                        # Shared libraries
-│   └── shared-functions.sh     # Common functions and utilities
+├── install/                    # Installation scripts (sequential numbering)
+│   ├── 001-base-install.sh     # Disk partitioning (Live USB, root only)
+│   ├── 002-system-install.sh   # Base system install (pacstrap)
+│   ├── 101-configure-system.sh # System configuration (chroot, root only)
+│   ├── 201-user-setup.sh       # User creation + privilege config (root only)
+│   ├── 211-install-aur-helper.sh # AUR helper (yay/paru) (user only)
+│   ├── 212-cli-tools.sh        # Interactive CLI tools selection (user only)
+│   ├── 213-display-server.sh   # Graphics server choice (Xorg/Wayland) (root only)
+│   └── 221-desktop-install.sh  # Desktop environment (Cinnamon) (root only)
+├── lib/                        # Shared functions and utilities
+│   └── shared-functions.sh     # Common functions for all scripts
 ├── docs/                       # Documentation
 │   ├── CHANGELOG.md            # Project history
 │   ├── GUIA-RAPIDA.md          # Quick start guide (Spanish)
@@ -157,11 +160,14 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 
 | Step | Script | Environment | User | Description |
 |------|--------|-------------|------|-------------|
-| 1 | `001-base-install.sh` | Live USB | root | Partition, format, install base |
-| 2 | `101-configure-system.sh` | Chroot | root | Configure system (grub, locale, etc.) |
-| 3 | `201-desktop-install.sh` | Installed | root | Install desktop & create user |
-| 4 | `211-install-yay.sh` | Installed | user | Install YAY AUR helper |
-| 5 | `212-install-packages.sh` | Installed | user | Install Mint packages |
+| 1 | `001-base-install.sh` | Live USB | root | Disk partitioning and formatting |
+| 2 | `002-system-install.sh` | Live USB | root | Base system installation (pacstrap) |
+| 3 | `101-configure-system.sh` | Chroot | root | System configuration (grub, locale) |
+| 4 | `201-user-setup.sh` | Installed | root | User creation & privilege config |
+| 5 | `211-install-aur-helper.sh` | Installed | user | AUR helper (yay/paru) installation |
+| 6 | `212-cli-tools.sh` | Installed | user | **Interactive** CLI tools selection |
+| 7 | `213-display-server.sh` | Installed | root | **Interactive** graphics server choice |
+| 8 | `221-desktop-install.sh` | Installed | root | Desktop environment (Cinnamon) |
 
 ---
 

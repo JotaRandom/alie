@@ -938,169 +938,43 @@ print_info "Current mount layout:"
 lsblk | grep -E "(NAME|/mnt|SWAP)"
 
 # ===================================
-# STEP 8: MIRROR OPTIMIZATION
-# ===================================
-print_step "STEP 8: Optimizing Package Mirrors"
 
-print_info "Installing reflector..."
-if ! pacman -S --needed --noconfirm reflector; then
-    print_error "Failed to install reflector"
-    print_warning "Continuing with default mirrorlist..."
-else
-    print_info "Fetching fastest mirrors (this may take a minute)..."
-    echo "Using automatic country detection and selecting 20 fastest HTTPS mirrors..."
-    
-    # Use reflector with better defaults - no hardcoded country
-    # The wiki recommends using geographically close mirrors
-    if retry_command 2 "reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist"; then
-        print_success "Mirror list optimized"
-        print_info "Top 5 mirrors:"
-        head -n 5 /etc/pacman.d/mirrorlist | grep "^Server" || true
-    else
-        print_warning "Reflector failed, using default mirrorlist"
-    fi
+# ===================================
+# SAVE CONFIGURATION FOR NEXT STEP
+# ===================================
+print_step "Saving Configuration"
+
+# Detect and populate all system information
+detect_system_info
+
+# Save comprehensive configuration for use by subsequent scripts
+save_system_config "/tmp/.alie-install-config"
+
+# Also save to the new system for later use
+if mountpoint -q /mnt 2>/dev/null; then
+    mkdir -p /mnt/root
+    save_system_config "/mnt/root/.alie-install-config"
+    print_info "Configuration also saved to /mnt/root/.alie-install-config"
 fi
 
 # ===================================
-# STEP 9: BASE SYSTEM INSTALLATION
-# ===================================
-print_step "STEP 9: Installing Base System"
-
-print_info "Installing essential packages..."
-echo "This will take several minutes depending on your connection..."
-echo ""
-
-# Detect CPU vendor for microcode
-CPU_VENDOR=""
-MICROCODE_INSTALLED="no"
-if grep -q "GenuineIntel" /proc/cpuinfo; then
-    CPU_VENDOR="intel"
-    MICROCODE_PKG="intel-ucode"
-    MICROCODE_INSTALLED="yes"
-elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-    CPU_VENDOR="amd"
-    MICROCODE_PKG="amd-ucode"
-    MICROCODE_INSTALLED="yes"
-fi
-
-# Build package list
-PACKAGES="base linux linux-firmware networkmanager grub vim sudo nano"
-
-if [ -n "$MICROCODE_PKG" ]; then
-    print_info "Detected $CPU_VENDOR CPU, will install $MICROCODE_PKG"
-    PACKAGES="$PACKAGES $MICROCODE_PKG"
-fi
-
-if [ "$BOOT_MODE" == "UEFI" ]; then
-    PACKAGES="$PACKAGES efibootmgr"
-fi
-
-# Check available space on /mnt (minimum 2GB recommended for base install)
-AVAILABLE_SPACE_MB=$(df -BM /mnt | awk 'NR==2 {print $4}' | sed 's/M//')
-print_info "Available space on /mnt: ${AVAILABLE_SPACE_MB} MB"
-
-if [ "$AVAILABLE_SPACE_MB" -lt 2048 ]; then
-    print_error "Insufficient space on /mnt! Need at least 2GB, have ${AVAILABLE_SPACE_MB}MB"
-    print_error "Installation cannot proceed"
-    exit 1
-elif [ "$AVAILABLE_SPACE_MB" -lt 5120 ]; then
-    print_warning "Low disk space: ${AVAILABLE_SPACE_MB}MB. Installation may fail if packages are large."
-    read -p "Continue anyway? (y/N): " CONTINUE_LOW_SPACE
-    if [[ ! $CONTINUE_LOW_SPACE =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
-
-# Use -K flag to initialize empty pacman keyring (recommended by wiki)
-print_info "Running: pacstrap -K /mnt $PACKAGES"
-echo ""
-
-# Disable set -e temporarily for pacstrap to handle errors gracefully
-set +e
-pacstrap -K /mnt $PACKAGES
-PACSTRAP_EXIT_CODE=$?
-set -e
-
-if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
-    print_error "pacstrap failed with exit code $PACSTRAP_EXIT_CODE"
-    print_info "This could be due to:"
-    echo "  ??? Network connectivity issues"
-    echo "  ??? Mirror problems"
-    echo "  ??? Insufficient disk space"
-    echo "  ??? Package signing errors"
-    echo ""
-    read -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
-    
-    if [[ ! $RETRY_PACSTRAP =~ ^[Nn]$ ]]; then
-        print_info "Retrying pacstrap..."
-        set +e
-        pacstrap -K /mnt $PACKAGES
-        PACSTRAP_EXIT_CODE=$?
-        set -e
-        
-        if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
-            print_error "pacstrap failed again. Cannot continue."
-            exit 1
-        fi
-    else
-        print_error "Installation cancelled by user"
-        exit 1
-    fi
-fi
-
-print_success "Base system installed!"
-
-# ===================================
-# STEP 10: GENERATE FSTAB
-# ===================================
-print_step "STEP 10: Generating fstab"
-
-print_info "Generating filesystem table with UUIDs..."
-genfstab -U /mnt >> /mnt/etc/fstab
-print_success "fstab generated"
-
-print_info "fstab contents:"
-cat /mnt/etc/fstab
-
-# ===================================
-# STEP 11: SAVE CONFIGURATION
-# ===================================
-print_step "STEP 11: Saving Installation Info"
-
-# Save configuration using shared function
-save_install_info "/mnt/root/.alie-install-info" \
-    BOOT_MODE \
-    PARTITION_TABLE \
-    ROOT_PARTITION \
-    SWAP_PARTITION \
-    EFI_PARTITION \
-    BIOS_BOOT_PARTITION \
-    HOME_PARTITION \
-    ROOT_FS \
-    CPU_VENDOR \
-    MICROCODE_INSTALLED
-
-# ===================================
-# INSTALLATION COMPLETE
+# PARTITIONING COMPLETED
 # ===================================
 echo ""
-print_step "??? Base Installation Completed Successfully!"
+print_step " Disk Partitioning Completed Successfully!"
 
 # Mark progress
-save_progress "01-base-installed"
+save_progress "01-partitions-ready"
 
 echo ""
-print_success "Installation finished!"
+print_success "Partitioning and mounting finished!"
 echo ""
 print_info "Next steps:"
-echo "  ${CYAN}1.${NC} Copy the ALIE scripts to the new system:"
-echo "     ${YELLOW}cp -r $(dirname "$0") /mnt/root/alie-scripts${NC}"
+echo "  ${CYAN}1.${NC} Run the system installation script:"
+echo "     ${YELLOW}bash $(dirname "$0")/002-system-install.sh${NC}"
 echo ""
-echo "  ${CYAN}2.${NC} Enter the new system:"
-echo "     ${YELLOW}arch-chroot /mnt${NC}"
+echo "  ${CYAN}2.${NC} Or continue with the main installer:"
+echo "     ${YELLOW}bash $(dirname "$SCRIPT_DIR")/alie.sh${NC}"
 echo ""
-echo "  ${CYAN}3.${NC} Run the installer again (auto-detects chroot):"
-echo "     ${YELLOW}bash /root/alie-scripts/alie.sh${NC}"
-echo ""
-print_warning "Don't reboot yet! Continue with system configuration."
+print_warning "Don't reboot yet! Continue with system installation."
 echo ""

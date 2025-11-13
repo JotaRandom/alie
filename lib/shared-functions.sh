@@ -621,14 +621,584 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo -e "  ${GREEN}source \"\$(dirname \"\$0\")/shared-functions.sh\"${NC}"
     echo ""
     echo -e "${YELLOW}Available functions:${NC}"
-    echo "  ??? Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
-    echo "  ??? print_info, print_success, print_warning, print_error, print_step"
-    echo "  ??? retry_command, wait_for_operation"
-    echo "  ??? verify_chroot, require_root, require_non_root"
-    echo "  ??? show_alie_banner, show_warning_banner"
-    echo "  ??? load_install_info, save_install_info"
-    echo "  ??? check_internet, wait_for_internet"
-    echo "  ??? is_mounted, safe_unmount"
-    echo "  ??? install_packages, update_package_db"
+    echo "  ✅ Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
+    echo "  ✅ print_info, print_success, print_warning, print_error, print_step"
+    echo "  ✅ retry_command, wait_for_operation"
+    echo "  ✅ verify_chroot, require_root, require_non_root"
+    echo "  ✅ show_alie_banner, show_warning_banner"
+    echo "  ✅ load_install_info, save_install_info"
+    echo "  ✅ check_internet, wait_for_internet"
+    echo "  ✅ is_mounted, safe_unmount"
+    echo "  ✅ install_packages, update_package_db"
+    echo "  ✅ get_aur_helper, aur_install, aur_update, aur_search"
+    echo "  ✅ aur_debug_enabled, show_aur_config"
+    echo "  ✅ detect_boot_mode, detect_cpu_vendor, get_microcode_package"
+    echo "  ✅ detect_system_info, save_system_config, load_system_config"
     echo ""
 fi
+
+# =============================================================================
+# AUR HELPER UNIVERSAL FUNCTIONS
+# =============================================================================
+
+# Get the preferred AUR helper (saved from installation or auto-detect)
+get_aur_helper() {
+    # First try to load saved preference
+    local saved_helper=$(load_install_info "aur_helper" 2>/dev/null || echo "")
+    
+    if [ -n "$saved_helper" ] && command -v "$saved_helper" &>/dev/null; then
+        echo "$saved_helper"
+        return 0
+    fi
+    
+    # Auto-detect if no preference saved
+    if command -v paru &>/dev/null; then
+        echo "paru"
+        return 0
+    fi
+    
+    if command -v yay &>/dev/null; then
+        echo "yay"
+        return 0
+    fi
+    
+    if command -v pacman &>/dev/null; then
+        echo "pacman"
+        return 0
+    fi
+    
+    print_error "No package manager found (yay, paru, or pacman)"
+    return 1
+}
+
+# Universal AUR package installation
+aur_install() {
+    local packages=("$@")
+    local helper=$(get_aur_helper)
+    
+    if [ -z "$helper" ]; then
+        print_error "No AUR helper available"
+        return 1
+    fi
+    
+    print_info "Installing packages using $helper: ${packages[*]}"
+    
+    case "$helper" in
+        "paru")
+            paru -S --needed --noconfirm "${packages[@]}"
+            ;;
+        "yay")
+            yay -S --needed --noconfirm "${packages[@]}"
+            ;;
+        "pacman")
+            sudo pacman -S --needed --noconfirm "${packages[@]}"
+            ;;
+        *)
+            print_error "Unknown package manager: $helper"
+            return 1
+            ;;
+    esac
+}
+
+# Universal AUR system update
+aur_update() {
+    local helper=$(get_aur_helper)
+    
+    if [ -z "$helper" ]; then
+        print_error "No AUR helper available"
+        return 1
+    fi
+    
+    print_info "Updating system using $helper..."
+    
+    case "$helper" in
+        "paru")
+            paru -Syu --noconfirm
+            ;;
+        "yay")
+            yay -Syu --noconfirm
+            ;;
+        "pacman")
+            sudo pacman -Syu --noconfirm
+            ;;
+        *)
+            print_error "Unknown package manager: $helper"
+            return 1
+            ;;
+    esac
+}
+
+# Universal AUR package search
+aur_search() {
+    local search_term="$1"
+    local helper=$(get_aur_helper)
+    
+    if [ -z "$helper" ]; then
+        print_error "No AUR helper available"
+        return 1
+    fi
+    
+    print_info "Searching packages using $helper: $search_term"
+    
+    case "$helper" in
+        "paru")
+            paru -Ss "$search_term"
+            ;;
+        "yay")
+            yay -Ss "$search_term"
+            ;;
+        "pacman")
+            pacman -Ss "$search_term"
+            ;;
+        *)
+            print_error "Unknown package manager: $helper"
+            return 1
+            ;;
+    esac
+}
+
+# Install packages with retry logic and fallback
+aur_install_with_retry() {
+    local packages=("$@")
+    local failed_packages=()
+    
+    # Try to install all packages at once first
+    print_info "Installing packages: ${packages[*]}"
+    
+    if aur_install "${packages[@]}"; then
+        print_success "All packages installed successfully"
+        return 0
+    fi
+    
+    # If batch installation fails, try one by one
+    print_warning "Batch installation failed, trying individual packages"
+    local failed_count=0
+    
+    for package in "${packages[@]}"; do
+        print_info "Installing: $package"
+        
+        if ! aur_install "$package"; then
+            print_error "Failed to install: $package"
+            failed_packages+=("$package")
+            ((failed_count++))
+        else
+            print_success "Installed: $package"
+        fi
+    done
+    
+    if [ $failed_count -eq 0 ]; then
+        print_success "All packages installed individually"
+        return 0
+    elif [ $failed_count -lt ${#packages[@]} ]; then
+        print_warning "Partial installation completed ($failed_count failures)"
+        print_warning "Failed packages: ${failed_packages[*]}"
+        return 2  # Partial success
+    else
+        print_error "All packages failed to install"
+        print_error "Failed packages: ${failed_packages[*]}"
+        return 1
+    fi
+}
+
+# Check if AUR helper supports AUR packages
+aur_helper_supports_aur() {
+    local helper=$(get_aur_helper)
+    
+    case "$helper" in
+        "paru"|"yay")
+            return 0  # Supports AUR
+            ;;
+        "pacman")
+            return 1  # Only official repos
+            ;;
+        *)
+            return 1  # Unknown, assume no AUR support
+            ;;
+    esac
+}
+
+# Check if debug packages are enabled
+aur_debug_enabled() {
+    local debug_setting=$(load_install_info "aur_helper_debug" 2>/dev/null || echo "n")
+    [[ "$debug_setting" == "y" ]]
+}
+
+# Show current AUR helper configuration
+show_aur_config() {
+    local helper=$(get_aur_helper)
+    local debug_enabled=$(aur_debug_enabled && echo "enabled" || echo "disabled")
+    
+    print_info "AUR Helper Configuration:"
+    echo "  • Helper: $helper"
+    echo "  • Debug packages: $debug_enabled"
+    
+    case "$helper" in
+        "yay")
+            if [ -f "$HOME/.config/yay/config.json" ]; then
+                echo "  • Config file: ~/.config/yay/config.json ✅"
+            else
+                echo "  • Config file: ~/.config/yay/config.json ❌"
+            fi
+            ;;
+        "paru")
+            if [ -f "$HOME/.config/paru/paru.conf" ]; then
+                echo "  • Config file: ~/.config/paru/paru.conf ✅"
+            else
+                echo "  • Config file: ~/.config/paru/paru.conf ❌"
+            fi
+            ;;
+    esac
+    
+    if aur_debug_enabled && [ -f "$HOME/.makepkg.conf" ]; then
+        echo "  • Makepkg config: ~/.makepkg.conf ✅"
+    elif aur_debug_enabled; then
+        echo "  • Makepkg config: ~/.makepkg.conf ❌"
+    fi
+}
+
+# =============================================================================
+# SYSTEM DETECTION FUNCTIONS
+# =============================================================================
+
+# Detect boot mode (UEFI vs BIOS)
+detect_boot_mode() {
+    if [ -d /sys/firmware/efi/efivars ]; then
+        echo "UEFI"
+    elif [ -d /sys/firmware/efi ]; then
+        echo "UEFI"  
+    else
+        echo "BIOS"
+    fi
+}
+
+# Detect CPU vendor and microcode package
+detect_cpu_vendor() {
+    if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
+        echo "intel"
+    elif grep -q "AuthenticAMD" /proc/cpuinfo 2>/dev/null; then
+        echo "amd"
+    else
+        echo "unknown"
+    fi
+}
+
+# Get microcode package for detected CPU
+get_microcode_package() {
+    local cpu_vendor=$(detect_cpu_vendor)
+    case "$cpu_vendor" in
+        intel) echo "intel-ucode" ;;
+        amd) echo "amd-ucode" ;;
+        *) echo "" ;;
+    esac
+}
+
+# Detect if system has separate home partition
+detect_separate_home() {
+    if mountpoint -q /mnt/home 2>/dev/null; then
+        echo "yes"
+    elif findmnt /home 2>/dev/null | grep -q /dev; then
+        echo "yes"  
+    else
+        echo "no"
+    fi
+}
+
+# Detect partition table type for a disk
+detect_partition_table() {
+    local disk="${1:-}"
+    if [ -z "$disk" ]; then
+        echo "unknown"
+        return 1
+    fi
+    
+    if ! [ -b "$disk" ]; then
+        echo "unknown"
+        return 1
+    fi
+    
+    # Use parted to detect partition table type
+    local pt_type=$(parted -s "$disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}')
+    case "$pt_type" in
+        gpt) echo "GPT" ;;
+        msdos) echo "MBR" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+# Detect root filesystem type
+detect_root_filesystem() {
+    local root_mount="${1:-/}"
+    local fs_type=$(findmnt -n -o FSTYPE "$root_mount" 2>/dev/null)
+    echo "${fs_type:-unknown}"
+}
+
+# Get partition that contains a mount point
+get_partition_from_mount() {
+    local mount_point="${1:-}"
+    if [ -z "$mount_point" ]; then
+        echo ""
+        return 1
+    fi
+    
+    local device=$(findmnt -n -o SOURCE "$mount_point" 2>/dev/null)
+    echo "$device"
+}
+
+# Comprehensive system detection - populates global variables
+detect_system_info() {
+    # Basic detection
+    BOOT_MODE=$(detect_boot_mode)
+    CPU_VENDOR=$(detect_cpu_vendor)
+    MICROCODE_PKG=$(get_microcode_package)
+    ROOT_FS=$(detect_root_filesystem "/mnt")
+    
+    # Partition detection
+    ROOT_PARTITION=$(get_partition_from_mount "/mnt")
+    EFI_PARTITION=""
+    BIOS_BOOT_PARTITION=""
+    HOME_PARTITION=""
+    SWAP_PARTITION=""
+    
+    # EFI partition detection
+    if [ "$BOOT_MODE" = "UEFI" ]; then
+        EFI_PARTITION=$(get_partition_from_mount "/mnt/boot")
+        if [ -z "$EFI_PARTITION" ]; then
+            EFI_PARTITION=$(get_partition_from_mount "/boot")
+        fi
+    fi
+    
+    # Home partition detection  
+    if [ "$(detect_separate_home)" = "yes" ]; then
+        HOME_PARTITION=$(get_partition_from_mount "/mnt/home")
+        if [ -z "$HOME_PARTITION" ]; then
+            HOME_PARTITION=$(get_partition_from_mount "/home")
+        fi
+    fi
+    
+    # Swap partition detection
+    local swap_dev=$(swapon --show --noheadings 2>/dev/null | head -n1 | awk '{print $1}')
+    if [ -n "$swap_dev" ]; then
+        SWAP_PARTITION="$swap_dev"
+    fi
+    
+    # Partition table detection
+    if [ -n "$ROOT_PARTITION" ]; then
+        local root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
+        PARTITION_TABLE=$(detect_partition_table "$root_disk")
+        
+        # BIOS boot partition detection for GPT
+        if [ "$BOOT_MODE" = "BIOS" ] && [ "$PARTITION_TABLE" = "GPT" ]; then
+            # Try to find BIOS boot partition
+            local bios_part=$(parted -s "$root_disk" print 2>/dev/null | grep "bios_grub" | awk '{print $1}')
+            if [ -n "$bios_part" ]; then
+                BIOS_BOOT_PARTITION="${root_disk}${bios_part}"
+            fi
+        fi
+    fi
+    
+    # Set defaults for missing values
+    MICROCODE_INSTALLED="${MICROCODE_PKG:+yes}"
+    MICROCODE_INSTALLED="${MICROCODE_INSTALLED:-no}"
+}
+
+# Save comprehensive system configuration
+save_system_config() {
+    local config_file="${1:-/tmp/.alie-install-config}"
+    
+    print_info "Saving system configuration to $config_file..."
+    
+    cat > "$config_file" << EOF
+# ALIE Installation Configuration
+# Generated on $(date)
+# Hostname: $(hostname 2>/dev/null || echo "unknown")
+
+# Boot Configuration
+BOOT_MODE="$BOOT_MODE"
+PARTITION_TABLE="$PARTITION_TABLE"
+
+# Partitions
+ROOT_PARTITION="$ROOT_PARTITION"
+SWAP_PARTITION="$SWAP_PARTITION"
+EFI_PARTITION="$EFI_PARTITION"
+BIOS_BOOT_PARTITION="$BIOS_BOOT_PARTITION"
+HOME_PARTITION="$HOME_PARTITION"
+
+# Filesystems
+ROOT_FS="$ROOT_FS"
+
+# Hardware
+CPU_VENDOR="$CPU_VENDOR"
+MICROCODE_PKG="$MICROCODE_PKG"
+MICROCODE_INSTALLED="$MICROCODE_INSTALLED"
+
+# Additional flags
+SEPARATE_HOME="$([ -n "$HOME_PARTITION" ] && echo "yes" || echo "no")"
+AUTO_PARTITIONED="${AUTO_PARTITIONED:-no}"
+EOF
+    
+    print_success "Configuration saved successfully"
+}
+
+# Load system configuration
+load_system_config() {
+    local config_file="${1:-/tmp/.alie-install-config}"
+    
+    if [ -f "$config_file" ]; then
+        print_info "Loading system configuration from $config_file..."
+        source "$config_file"
+        print_success "Configuration loaded successfully"
+        return 0
+    else
+        print_warning "Configuration file not found: $config_file"
+        return 1
+    fi
+}
+
+# =============================================================================
+# PRIVILEGE ESCALATION UNIVERSAL FUNCTIONS
+# =============================================================================
+
+# Get the configured privilege escalation tool
+get_privilege_tool() {
+    local priv_tool=$(get_install_info "privilege_tool" 2>/dev/null || echo "")
+    
+    if [ -n "$priv_tool" ]; then
+        echo "$priv_tool"
+        return 0
+    fi
+    
+    # Auto-detect if not configured (order by preference: run0 > doas > sudo-rs > sudo)
+    if command -v run0 &>/dev/null; then
+        echo "run0"
+    elif command -v doas &>/dev/null && [ -f /etc/doas.conf ]; then
+        echo "doas"
+    elif command -v sudo-rs &>/dev/null; then
+        echo "sudo-rs"
+    elif command -v sudo &>/dev/null; then
+        echo "sudo"
+    else
+        echo "sudo"  # fallback default
+    fi
+}
+
+# Execute command with appropriate privilege escalation
+# Usage: run_privileged "command with args"
+run_privileged() {
+    local cmd="$*"
+    local priv_tool=$(get_privilege_tool)
+    
+    case "$priv_tool" in
+        "run0")
+            if command -v run0 &>/dev/null; then
+                run0 $cmd
+            else
+                # Fallback to sudo if run0 not available
+                sudo $cmd
+            fi
+            ;;
+        "doas")
+            if command -v doas &>/dev/null; then
+                doas $cmd
+            else
+                # Fallback to sudo if doas not available
+                sudo $cmd
+            fi
+            ;;
+        "sudo-rs")
+            if command -v sudo-rs &>/dev/null; then
+                sudo-rs $cmd
+            else
+                # Fallback to regular sudo
+                sudo $cmd
+            fi
+            ;;
+        *)
+            sudo $cmd
+            ;;
+    esac
+}
+
+# Execute command with privilege escalation and retry logic
+# Usage: run_privileged_retry "command with args"
+run_privileged_retry() {
+    local cmd="$*"
+    run_with_retry "run_privileged $cmd"
+}
+
+# Check if user has privilege escalation configured
+has_privilege_access() {
+    local priv_tool=$(get_privilege_tool)
+    
+    case "$priv_tool" in
+        "run0")
+            if command -v run0 &>/dev/null; then
+                # run0 uses systemd, test with --dry-run if available
+                if run0 --help 2>/dev/null | grep -q "\-\-dry-run" ; then
+                    if run0 --dry-run true 2>/dev/null; then
+                        return 0
+                    fi
+                else
+                    # If no dry-run, assume it works if command exists
+                    # run0 typically doesn't require pre-configuration
+                    return 0
+                fi
+            fi
+            # Fallback to sudo test
+            ;&
+        "doas")
+            if command -v doas &>/dev/null && [ -f /etc/doas.conf ]; then
+                # Test doas access without actually running a command
+                if doas -n true 2>/dev/null; then
+                    return 0
+                fi
+            fi
+            # Fallback to sudo test
+            ;&
+        *)
+            if command -v sudo &>/dev/null; then
+                # Test sudo access
+                if sudo -n true 2>/dev/null; then
+                    return 0
+                fi
+            fi
+            ;;
+    esac
+    
+    return 1
+}
+
+# Print information about configured privilege escalation
+print_privilege_info() {
+    local priv_tool=$(get_privilege_tool)
+    
+    print_info "Privilege escalation tool: $priv_tool"
+    
+    case "$priv_tool" in
+        "run0")
+            print_info "run0: Modern systemd privilege escalation"
+            if systemctl is-system-running &>/dev/null; then
+                print_info "systemd: Active (run0 available)"
+            else
+                print_warning "systemd: Not active (run0 may not work)"
+            fi
+            ;;
+        "doas")
+            if [ -f /etc/doas.conf ]; then
+                print_info "doas configuration: /etc/doas.conf (present)"
+            else
+                print_warning "doas configuration: /etc/doas.conf (missing)"
+            fi
+            ;;
+        "sudo-rs")
+            print_info "sudo-rs: Modern Rust implementation"
+            ;;
+        *)
+            print_info "sudo: Traditional implementation"
+            ;;
+    esac
+    
+    # Check for sudo compatibility wrappers
+    if [ -f /usr/local/bin/sudo ] && [ "$priv_tool" = "doas" ]; then
+        print_info "sudo compatibility wrapper: present"
+    fi
+}

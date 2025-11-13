@@ -79,49 +79,64 @@ show_manual_menu() {
     echo ""
     echo "Available installation scripts:"
     echo ""
-    echo "  ${CYAN}1)${NC} Base System Installation (001-base-install.sh)"
-    echo "     ${YELLOW}???${NC} Partition, format, install base system"
-    echo "     ${YELLOW}???${NC} Requires: Live USB environment, root privileges"
+    echo "  ${CYAN}1)${NC} Disk Partitioning (001-base-install.sh)"
+    echo "     ${YELLOW}→${NC} Partition and format disks only"
+    echo "     ${YELLOW}→${NC} Requires: Live USB environment, root privileges"
     echo ""
-    echo "  ${CYAN}2)${NC} System Configuration (101-configure-system.sh)"
-    echo "     ${YELLOW}???${NC} Configure timezone, locale, hostname, GRUB"
-    echo "     ${YELLOW}???${NC} Requires: Chroot environment, root privileges"
+    echo "  ${CYAN}2)${NC} System Installation (002-system-install.sh)"
+    echo "     ${YELLOW}→${NC} Install base system with pacstrap"
+    echo "     ${YELLOW}→${NC} Requires: Partitioned disks, root privileges"
     echo ""
-    echo "  ${CYAN}3)${NC} Desktop Installation (201-desktop-install.sh)"
-    echo "     ${YELLOW}???${NC} Install Cinnamon desktop, LightDM, create user"
-    echo "     ${YELLOW}???${NC} Requires: Booted system, root privileges"
+    echo "  ${CYAN}3)${NC} System Configuration (101-configure-system.sh)"
+    echo "     ${YELLOW}→${NC} Configure timezone, locale, hostname, GRUB"
+    echo "     ${YELLOW}→${NC} Requires: Chroot environment, root privileges"
     echo ""
-    echo "  ${CYAN}4)${NC} YAY Installation (211-install-yay.sh)"
-    echo "     ${YELLOW}???${NC} Install YAY AUR helper"
-    echo "     ${YELLOW}???${NC} Requires: Regular user (NOT root)"
+    echo "  ${CYAN}4)${NC} User Setup (201-user-setup.sh)"
+    echo "     ${YELLOW}→${NC} Create desktop user, configure sudo/doas, install basic tools"
+    echo "     ${YELLOW}→${NC} Requires: Booted system, root privileges"
     echo ""
-    echo "  ${CYAN}5)${NC} Packages Installation (212-install-packages.sh)"
-    echo "     ${YELLOW}???${NC} Install Linux Mint packages and themes"
-    echo "     ${YELLOW}???${NC} Requires: YAY installed, regular user (NOT root)"
+    echo "  ${CYAN}5)${NC} AUR Helper Installation (211-install-aur-helper.sh)"
+    echo "     ${YELLOW}→${NC} Install universal AUR helper (yay/paru) + optimize makepkg"
+    echo "     ${YELLOW}→${NC} Requires: Booted system, regular user (NOT root)"
     echo ""
-    echo "  ${CYAN}6)${NC} Clear progress and exit"
-    echo "  ${CYAN}7)${NC} Exit without changes"
+    echo "  ${CYAN}6)${NC} CLI Tools Selection (212-cli-tools.sh)"
+    echo "     ${YELLOW}→${NC} Interactive selection of CLI tools and utilities"
+    echo "     ${YELLOW}→${NC} Requires: AUR helper installed, regular user (NOT root)"
+    echo ""
+    echo "  ${CYAN}7)${NC} Display Server Setup (213-display-server.sh)"
+    echo "     ${YELLOW}→${NC} Choose graphics system (Xorg/Wayland/Both)"
+    echo "     ${YELLOW}→${NC} Requires: Booted system, root privileges"
+    echo ""
+    echo "  ${CYAN}8)${NC} Desktop Environment (221-desktop-install.sh)"
+    echo "     ${YELLOW}→${NC} Install Cinnamon desktop, LightDM, complete DE"
+    echo "     ${YELLOW}→${NC} Requires: Display server installed, root privileges"
+    echo ""
+    echo "  ${CYAN}9)${NC} Clear progress and exit"
+    echo "  ${CYAN}0)${NC} Exit without changes"
     echo ""
     
-    read -p "Choose script to run [1-7]: " choice
+    read -p "Choose script to run [1-9, 0]: " choice
     
     case "$choice" in
         1) RUN_SCRIPT="$INSTALL_DIR/001-base-install.sh"; NEEDS_ROOT=true ;;
-        2) RUN_SCRIPT="$INSTALL_DIR/101-configure-system.sh"; NEEDS_ROOT=true ;;
-        3) RUN_SCRIPT="$INSTALL_DIR/201-desktop-install.sh"; NEEDS_ROOT=true ;;
-        4) RUN_SCRIPT="$INSTALL_DIR/211-install-yay.sh"; NEEDS_ROOT=false ;;
-        5) RUN_SCRIPT="$INSTALL_DIR/212-install-packages.sh"; NEEDS_ROOT=false ;;
-        6)
+        2) RUN_SCRIPT="$INSTALL_DIR/002-system-install.sh"; NEEDS_ROOT=true ;;
+        3) RUN_SCRIPT="$INSTALL_DIR/101-configure-system.sh"; NEEDS_ROOT=true ;;
+        4) RUN_SCRIPT="$INSTALL_DIR/201-user-setup.sh"; NEEDS_ROOT=true ;;
+        5) RUN_SCRIPT="$INSTALL_DIR/211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
+        6) RUN_SCRIPT="$INSTALL_DIR/212-cli-tools.sh"; NEEDS_ROOT=false ;;
+        7) RUN_SCRIPT="$INSTALL_DIR/213-display-server.sh"; NEEDS_ROOT=true ;;
+        8) RUN_SCRIPT="$INSTALL_DIR/221-desktop-install.sh"; NEEDS_ROOT=true ;;
+        9)
             print_warning "This will clear all progress markers"
             read -p "Are you sure? (yes/no): " confirm
             if [ "$confirm" = "yes" ]; then
                 clear_progress
                 print_info "Progress cleared"
             fi
-            exit 0
+            return 0
             ;;
-        7)
-            print_info "Exiting..."
+        0)
+            print_info "Exiting without changes"
             exit 0
             ;;
         *)
@@ -317,7 +332,7 @@ case "$ENV" in
             exit 0
         else
             echo "Available actions:"
-            echo "  1) Install desktop environment (201-desktop-install.sh)"
+            echo "  1) Setup user and privileges (201-user-setup.sh)"
             echo "  2) Exit"
             echo ""
             read -p "Choose an option [1-2]: " choice
@@ -328,21 +343,21 @@ case "$ENV" in
             fi
         fi
         
-        # Run desktop installation
+        # Run user setup
         if ! check_root; then
             print_error "This script must be run as root."
             print_info "Run: sudo bash $0"
             exit 1
         fi
         
-        print_info "Starting desktop installation..."
+        print_info "Starting user setup..."
         
-        if [ ! -f "$INSTALL_DIR/201-desktop-install.sh" ]; then
-            print_error "201-desktop-install.sh not found in $INSTALL_DIR"
+        if [ ! -f "$INSTALL_DIR/201-user-setup.sh" ]; then
+            print_error "201-user-setup.sh not found in $INSTALL_DIR"
             exit 1
         fi
         
-        bash "$INSTALL_DIR/201-desktop-install.sh"
+        bash "$INSTALL_DIR/201-user-setup.sh"
         ;;
         
     "installed-desktop")
@@ -354,37 +369,58 @@ case "$ENV" in
         fi
         
         # Check progress and show appropriate options
-        if [ "$STEP" -ge "5" ]; then
+        if [ "$STEP" -ge "8" ]; then
             print_success "Full installation completed!"
             echo ""
             print_info "All ALIE components are installed."
+            echo "  ✅ Display server (Xorg/Wayland)"
+            echo "  ✅ Desktop environment (Cinnamon)"
+            echo "  ✅ AUR helper and CLI tools"
             echo "You can re-run individual scripts if needed."
             exit 0
-        elif [ "$STEP" -ge "4" ]; then
-            print_success "YAY is installed. Ready for package installation."
+        elif [ "$STEP" -ge "6" ]; then
+            print_success "CLI tools installed. Ready for display server setup."
             echo ""
             echo "Available actions:"
-            echo "  1) Install all packages (212-install-packages.sh)"
-            echo "  2) Exit"
-            read -p "Choose an option [1-2]: " choice
-            
-            if [ "$choice" = "2" ]; then
-                print_info "Exiting..."
-                exit 0
-            fi
-            
-            NEXT_SCRIPT="212-install-packages.sh"
-        else
-            echo "Available actions:"
-            echo "  1) Install YAY (211-install-yay.sh)"
-            echo "  2) Install all packages (212-install-packages.sh) - requires YAY"
+            echo "  1) Setup display server (213-display-server.sh) - as root"
+            echo "  2) Install Cinnamon desktop (221-desktop-install.sh) - as root"
             echo "  3) Exit"
             read -p "Choose an option [1-3]: " choice
             
             case "$choice" in
-                1) NEXT_SCRIPT="211-install-yay.sh" ;;
-                2) NEXT_SCRIPT="212-install-packages.sh" ;;
-                3)
+                1) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                2) NEXT_SCRIPT="221-desktop-install.sh"; NEEDS_ROOT=true ;;
+                3) print_info "Exiting..."; exit 0 ;;
+                *) print_error "Invalid option"; exit 1 ;;
+            esac
+        elif [ "$STEP" -ge "5" ]; then
+            print_success "AUR helper installed. Ready for CLI tools."
+            echo ""
+            echo "Available actions:"
+            echo "  1) Install CLI tools (212-cli-tools.sh) - as user"
+            echo "  2) Setup display server (213-display-server.sh) - as root"
+            echo "  3) Exit"
+            read -p "Choose an option [1-3]: " choice
+            
+            case "$choice" in
+                1) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
+                2) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                3) print_info "Exiting..."; exit 0 ;;
+                *) print_error "Invalid option"; exit 1 ;;
+            esac
+        else
+            echo "Available actions:"
+            echo "  1) Install AUR helper (211-install-aur-helper.sh) - as user"
+            echo "  2) Install CLI tools (212-cli-tools.sh) - requires AUR helper"
+            echo "  3) Setup display server (213-display-server.sh) - as root"
+            echo "  4) Exit"
+            read -p "Choose an option [1-4]: " choice
+            
+            case "$choice" in
+                1) NEXT_SCRIPT="211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
+                2) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
+                3) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                4)
                     print_info "Exiting..."
                     exit 0
                     ;;
@@ -395,11 +431,19 @@ case "$ENV" in
             esac
         fi
         
-        # Verify not running as root
-        if check_root; then
-            print_error "User scripts must be run as a regular user, not root."
-            print_info "Exit root and run: bash $0"
-            exit 1
+        # Check if needs root privileges
+        if [[ "$NEEDS_ROOT" == "true" ]]; then
+            if ! check_root; then
+                print_error "This script requires root privileges. Please run with sudo."
+                exit 1
+            fi
+        else
+            # Verify not running as root for user scripts
+            if check_root; then
+                print_error "User scripts must be run as a regular user, not root."
+                print_info "Exit root and run: bash $0"
+                exit 1
+            fi
         fi
         
         print_info "Starting $NEXT_SCRIPT..."
@@ -416,11 +460,11 @@ case "$ENV" in
         print_error "Unable to detect environment."
         echo ""
         print_info "Please run the appropriate script manually:"
-        echo "  - From live CD: 001-base-install.sh"
+        echo "  - From live CD: 001-base-install.sh → 002-system-install.sh"
         echo "  - In chroot: 101-configure-system.sh"
-        echo "  - After first boot: 201-desktop-install.sh"
-        echo "  - With desktop installed (as user): 211-install-yay.sh"
-        echo "  - With YAY installed (as user): 212-install-packages.sh"
+        echo "  - After first boot: 201-user-setup.sh (as root)"
+        echo "  - As user: 211-install-aur-helper.sh → 212-cli-tools.sh"
+        echo "  - Display setup (as root): 213-display-server.sh → 221-desktop-install.sh"
         exit 1
         ;;
 esac
