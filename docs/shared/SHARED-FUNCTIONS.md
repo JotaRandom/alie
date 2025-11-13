@@ -1,8 +1,8 @@
-# LMAE Shared Functions Library
+# ALIE Shared Functions Library
 
 ## Descripción
 
-`shared-functions.sh` es una biblioteca de funciones compartidas que centraliza código común usado en todos los scripts de instalación de LMAE. Esto mejora la mantenibilidad y consistencia del proyecto.
+`shared-functions.sh` es una biblioteca de funciones compartidas que centraliza código común usado en todos los scripts de instalación de ALIE. Esto mejora la mantenibilidad y consistencia del proyecto.
 
 ## Uso Básico
 
@@ -16,7 +16,7 @@ SCRIPT_DIR="$(dirname "$0")"
 source "$SCRIPT_DIR/shared-functions.sh"
 
 # Ahora puedes usar todas las funciones
-show_lmae_banner
+show_ALIE_banner
 print_step "Mi Script"
 ```
 
@@ -181,13 +181,13 @@ fi
 
 ### 🎪 Funciones de Banner
 
-#### `show_lmae_banner()`
-Muestra el banner principal de LMAE
+#### `show_ALIE_banner()`
+Muestra el banner principal de ALIE
 
 **Ejemplo:**
 ```bash
-show_lmae_banner
-# Muestra el logo ASCII de LMAE
+show_ALIE_banner
+# Muestra el logo ASCII de ALIE
 ```
 
 #### `show_warning_banner()`
@@ -207,7 +207,7 @@ show_warning_banner
 Carga variables desde archivo de configuración
 
 **Parámetros:**
-- `archivo`: Ruta al archivo (default: `/root/.lmae-install-info`)
+- `archivo`: Ruta al archivo (default: `/root/.ALIE-install-info`)
 
 **Returns:** 0 si el archivo existe, 1 si no
 
@@ -234,7 +234,7 @@ BOOT_MODE="UEFI"
 ROOT_PARTITION="/dev/sda2"
 CPU_VENDOR="intel"
 
-save_install_info "/mnt/root/.lmae-install-info" \
+save_install_info "/mnt/root/.ALIE-install-info" \
     BOOT_MODE \
     ROOT_PARTITION \
     CPU_VENDOR
@@ -373,7 +373,7 @@ if ! require_root; then
 fi
 
 # Mostrar banner
-show_lmae_banner
+show_ALIE_banner
 show_warning_banner
 
 # Cargar configuración previa
@@ -439,3 +439,4 @@ print_success "Success"
 - Las funciones de red incluyen lógica de reintento
 - Los helpers de particiones son safe por defecto
 - El archivo puede ejecutarse directamente para ver ayuda: `bash shared-functions.sh`
+

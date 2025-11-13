@@ -1,4 +1,4 @@
-# LMAE Installation Scripts
+# ALIE Installation Scripts
 
 Automated installation scripts for Linux Mint Arch Edition.
 
@@ -24,7 +24,7 @@ Automated installation scripts for Linux Mint Arch Edition.
 The installer automatically detects your environment and continues from where you left off:
 
 ```bash
-bash lmae.sh
+bash alie.sh
 ```
 
 Detects if you are in:
@@ -41,7 +41,7 @@ Progress is saved automatically, so you can reboot between steps without losing 
 Manually choose which script to run:
 
 ```bash
-bash lmae.sh --manual
+bash alie.sh --manual
 ```
 
 Useful for:
@@ -53,7 +53,7 @@ Useful for:
 
 ```
 src/
-├── lmae.sh                   # Master installer (entry point)
+├── alie.sh                   # Master installer (entry point)
 ├── install/                  # Installation scripts
 │   ├── 001-base-install.sh    # Base system installation
 │   ├── 101-configure-system.sh # System configuration
@@ -75,7 +75,7 @@ src/
 
 | # | Script | Run as | When |
 |---|--------|--------|------|
-| 0 | `lmae.sh` | root/user | Anytime (auto-detects environment) |
+| 0 | `alie.sh` | root/user | Anytime (auto-detects environment) |
 | 1 | `install/001-base-install.sh` | root | From installation media |
 | 2 | `install/101-configure-system.sh` | root | Inside arch-chroot |
 | 3 | `install/201-desktop-install.sh` | root | After first reboot |
@@ -88,7 +88,7 @@ src/
 
 ```bash
 # At each stage, simply run:
-bash lmae.sh
+bash alie.sh
 ```
 
 The script automatically:
@@ -126,9 +126,9 @@ reboot
 ## Features
 
 ### Progress System
-- The installer automatically saves your progress in `.lmae-progress`
+- The installer automatically saves your progress in `.alie-progress`
 - You can reboot at any time and continue from where you left off
-- Use `bash lmae.sh --manual` to clear progress if you need to start over
+- Use `bash alie.sh --manual` to clear progress if you need to start over
 
 ### Shared Functions
 - All common functions are in `lib/shared-functions.sh`
@@ -169,3 +169,4 @@ If a script fails:
 ## Contributions
 
 If you find errors or improvements, open an issue or pull request on the repository.
+

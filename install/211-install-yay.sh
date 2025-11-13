@@ -1,8 +1,8 @@
 #!/bin/bash
-# LMAE YAY Installation Script
+# ALIE YAY Installation Script
 # This script should be run as the regular user (not root)
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# ?????? WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -39,12 +39,12 @@ cleanup() {
 trap cleanup EXIT
 
 # Main script start
-show_lmae_banner
+show_alie_banner
 show_warning_banner
 
 print_info "This script will install:"
-echo "  • YAY AUR Helper (from source)"
-echo "  • Update package database"
+echo "  ??? YAY AUR Helper (from source)"
+echo "  ??? Update package database"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -98,7 +98,7 @@ fi
 print_step "STEP 3: Building YAY from Source"
 
 # Use a dedicated build directory in user's home
-BUILD_BASE="$HOME/.cache/lmae-build"
+BUILD_BASE="$HOME/.cache/alie-build"
 YAY_BUILD_DIR="$BUILD_BASE/yay"
 
 print_info "Setting up build directory..."
@@ -161,5 +161,5 @@ print_success "YAY installation completed!"
 echo ""
 print_info "YAY is now ready to install AUR packages"
 print_info "Next step:"
-echo "  ${CYAN}→${NC} Run ${YELLOW}212-install-packages.sh${NC} to install all Linux Mint packages"
+echo "  ${CYAN}???${NC} Run ${YELLOW}212-install-packages.sh${NC} to install all Linux Mint packages"
 echo ""

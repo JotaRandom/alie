@@ -1,4 +1,4 @@
-# LMAE Changelog
+# ALIE Changelog
 
 ## [Unreleased] - Reorganización y Modernización
 
@@ -9,8 +9,8 @@
 - **Ahora**: Organización modular
   ```
   src/
-  ├── lmae                    # Lanzador wrapper
-  ├── 00-install-lmae.sh      # Instalador maestro
+  ├── ALIE                    # Lanzador wrapper
+  ├── 00-install-ALIE.sh      # Instalador maestro
   ├── install/                # Scripts de instalación (01-05)
   └── lib/                    # Bibliotecas compartidas
   ```
@@ -27,10 +27,10 @@
   - Progreso: `save_progress`, `is_step_completed`, `get_installation_step`, `clear_progress`
   - Particiones: `is_mounted`, `safe_unmount`
   - Paquetes: `install_packages`, `update_package_db`
-  - Banners: `show_lmae_banner`, `show_warning_banner`
+  - Banners: `show_ALIE_banner`, `show_warning_banner`
 
 #### Sistema de Seguimiento de Progreso
-- El instalador ahora guarda progreso automáticamente en `.lmae-progress`
+- El instalador ahora guarda progreso automáticamente en `.ALIE-progress`
 - Marcadores de progreso:
   - `01-base-installed`
   - `02-system-configured`
@@ -49,7 +49,7 @@
 
 ### ✨ Mejoras por Script
 
-#### 00-install-lmae.sh (Script Maestro)
+#### 00-install-ALIE.sh (Script Maestro)
 - ✅ Detección automática de entorno (livecd, chroot, installed-base, installed-desktop)
 - ✅ Sistema de seguimiento de progreso
 - ✅ Modo automático (continúa desde donde dejó)
@@ -113,8 +113,8 @@
 
 ### 🛠️ Herramientas Nuevas
 
-- **Script wrapper `lmae`**: Lanzador simple que llama a 00-install-lmae.sh
-- **Modo manual**: `bash lmae --manual` para elegir scripts manualmente
+- **Script wrapper `ALIE`**: Lanzador simple que llama a 00-install-ALIE.sh
+- **Modo manual**: `bash ALIE --manual` para elegir scripts manualmente
 
 ### 📊 Estadísticas
 
@@ -128,13 +128,13 @@
 
 #### Modo Automático (Recomendado)
 ```bash
-bash lmae
+bash ALIE
 # El instalador detecta automáticamente tu entorno y continúa
 ```
 
 #### Modo Manual
 ```bash
-bash lmae --manual
+bash ALIE --manual
 # Elige manualmente qué script ejecutar
 ```
 
@@ -160,7 +160,7 @@ bash install/05-install-packages.sh  # Mint packages
 
 Si tienes scripts antiguos:
 1. Los scripts ahora están en `install/` en lugar de `src/` directamente
-2. Usa `bash lmae` o `bash 00-install-lmae.sh` como punto de entrada
+2. Usa `bash ALIE` o `bash 00-install-ALIE.sh` como punto de entrada
 3. Las funciones compartidas están en `lib/shared-functions.sh`
 
 ### 🐛 Correcciones
@@ -190,8 +190,9 @@ Si tienes scripts antiguos:
 - Solución: 
   - `install/` = Scripts de instalación
   - `lib/` = Bibliotecas/utilidades
-  - Raíz `src/` = Solo entry points (00, lmae)
+  - Raíz `src/` = Solo entry points (00, ALIE)
 
 ---
 
 **Nota**: Esta es una reorganización mayor. Los scripts mantienen la misma funcionalidad pero con mejor estructura y mantenibilidad.
+

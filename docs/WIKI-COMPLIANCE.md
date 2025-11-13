@@ -367,3 +367,4 @@ El 2% restante son aspectos opcionales o casos edge que la wiki menciona pero qu
 El script `01-base-install.sh` ahora está **completamente alineado** con las mejores prácticas y recomendaciones oficiales de la wiki de Arch Linux. Todas las herramientas se usan con los flags correctos, se siguen las advertencias de seguridad (especialmente para dual-boot), y se validan los tamaños mínimos recomendados.
 
 **Estado: ✅ Listo para producción según estándares de Arch Wiki**
+

@@ -1,8 +1,8 @@
 #!/bin/bash
-# LMAE Master Installation Script
+# ALIE Master Installation Script
 # This script detects the environment and runs the appropriate installation script
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# ?????? WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 # Make sure you have backups of any important data.
@@ -80,24 +80,24 @@ show_manual_menu() {
     echo "Available installation scripts:"
     echo ""
     echo "  ${CYAN}1)${NC} Base System Installation (001-base-install.sh)"
-    echo "     ${YELLOW}→${NC} Partition, format, install base system"
-    echo "     ${YELLOW}→${NC} Requires: Live USB environment, root privileges"
+    echo "     ${YELLOW}???${NC} Partition, format, install base system"
+    echo "     ${YELLOW}???${NC} Requires: Live USB environment, root privileges"
     echo ""
     echo "  ${CYAN}2)${NC} System Configuration (101-configure-system.sh)"
-    echo "     ${YELLOW}→${NC} Configure timezone, locale, hostname, GRUB"
-    echo "     ${YELLOW}→${NC} Requires: Chroot environment, root privileges"
+    echo "     ${YELLOW}???${NC} Configure timezone, locale, hostname, GRUB"
+    echo "     ${YELLOW}???${NC} Requires: Chroot environment, root privileges"
     echo ""
     echo "  ${CYAN}3)${NC} Desktop Installation (201-desktop-install.sh)"
-    echo "     ${YELLOW}→${NC} Install Cinnamon desktop, LightDM, create user"
-    echo "     ${YELLOW}→${NC} Requires: Booted system, root privileges"
+    echo "     ${YELLOW}???${NC} Install Cinnamon desktop, LightDM, create user"
+    echo "     ${YELLOW}???${NC} Requires: Booted system, root privileges"
     echo ""
     echo "  ${CYAN}4)${NC} YAY Installation (211-install-yay.sh)"
-    echo "     ${YELLOW}→${NC} Install YAY AUR helper"
-    echo "     ${YELLOW}→${NC} Requires: Regular user (NOT root)"
+    echo "     ${YELLOW}???${NC} Install YAY AUR helper"
+    echo "     ${YELLOW}???${NC} Requires: Regular user (NOT root)"
     echo ""
     echo "  ${CYAN}5)${NC} Packages Installation (212-install-packages.sh)"
-    echo "     ${YELLOW}→${NC} Install Linux Mint packages and themes"
-    echo "     ${YELLOW}→${NC} Requires: YAY installed, regular user (NOT root)"
+    echo "     ${YELLOW}???${NC} Install Linux Mint packages and themes"
+    echo "     ${YELLOW}???${NC} Requires: YAY installed, regular user (NOT root)"
     echo ""
     echo "  ${CYAN}6)${NC} Clear progress and exit"
     echo "  ${CYAN}7)${NC} Exit without changes"
@@ -159,7 +159,7 @@ show_manual_menu() {
 }
 
 # Main script
-show_lmae_banner
+show_alie_banner
 show_warning_banner
 
 # Detect environment
@@ -357,7 +357,7 @@ case "$ENV" in
         if [ "$STEP" -ge "5" ]; then
             print_success "Full installation completed!"
             echo ""
-            print_info "All LMAE components are installed."
+            print_info "All ALIE components are installed."
             echo "You can re-run individual scripts if needed."
             exit 0
         elif [ "$STEP" -ge "4" ]; then

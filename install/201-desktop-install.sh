@@ -1,8 +1,8 @@
 #!/bin/bash
-# LMAE Desktop Environment Installation Script
+# ALIE Desktop Environment Installation Script
 # This script should be run after the first reboot, as root
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# ?????? WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -30,7 +30,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Main script start
-show_lmae_banner
+show_alie_banner
 print_step "Desktop Environment Installation"
 require_root
 
@@ -70,9 +70,9 @@ fi
 if ! [[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
     print_error "Invalid username: $USERNAME"
     print_info "Username requirements:"
-    echo "  • Must start with a lowercase letter or underscore"
-    echo "  • Can contain only lowercase letters, numbers, underscores, and hyphens"
-    echo "  • Maximum 32 characters"
+    echo "  ??? Must start with a lowercase letter or underscore"
+    echo "  ??? Can contain only lowercase letters, numbers, underscores, and hyphens"
+    echo "  ??? Maximum 32 characters"
     exit 1
 fi
 

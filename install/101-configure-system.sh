@@ -1,8 +1,8 @@
 #!/bin/bash
-# LMAE System Configuration Script
+# ALIE System Configuration Script
 # This script should be run inside arch-chroot
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# ?????? WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -22,16 +22,16 @@ fi
 source "$LIB_DIR/shared-functions.sh"
 
 # Welcome banner
-show_lmae_banner
+show_alie_banner
 show_warning_banner
 
 print_info "This script will configure:"
-echo "  • Timezone and system clock"
-echo "  • Locale and keyboard layout"
-echo "  • Hostname and network"
-echo "  • Root password"
-echo "  • Package manager (pacman)"
-echo "  • Bootloader (GRUB)"
+echo "  ??? Timezone and system clock"
+echo "  ??? Locale and keyboard layout"
+echo "  ??? Hostname and network"
+echo "  ??? Root password"
+echo "  ??? Package manager (pacman)"
+echo "  ??? Bootloader (GRUB)"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -79,14 +79,14 @@ print_success "Hostname: $HOSTNAME"
 echo ""
 print_info "Timezone Configuration"
 echo "Common timezones:"
-echo "  • America/New_York     (US Eastern)"
-echo "  • America/Chicago      (US Central)"
-echo "  • America/Denver       (US Mountain)"
-echo "  • America/Los_Angeles  (US Pacific)"
-echo "  • America/Mexico_City  (Mexico)"
-echo "  • Europe/London        (UK)"
-echo "  • Europe/Paris         (Central Europe)"
-echo "  • Asia/Tokyo           (Japan)"
+echo "  ??? America/New_York     (US Eastern)"
+echo "  ??? America/Chicago      (US Central)"
+echo "  ??? America/Denver       (US Mountain)"
+echo "  ??? America/Los_Angeles  (US Pacific)"
+echo "  ??? America/Mexico_City  (Mexico)"
+echo "  ??? Europe/London        (UK)"
+echo "  ??? Europe/Paris         (Central Europe)"
+echo "  ??? Asia/Tokyo           (Japan)"
 echo ""
 print_info "For a complete list, check: /usr/share/zoneinfo/"
 read -p "Enter timezone (e.g., America/New_York): " TIMEZONE
@@ -121,12 +121,12 @@ print_success "Timezone: $TIMEZONE"
 echo ""
 print_info "Locale Configuration"
 echo "Common locales:"
-echo "  • en_US.UTF-8  (English - United States)"
-echo "  • en_GB.UTF-8  (English - United Kingdom)"
-echo "  • es_ES.UTF-8  (Spanish - Spain)"
-echo "  • es_MX.UTF-8  (Spanish - Mexico)"
-echo "  • de_DE.UTF-8  (German - Germany)"
-echo "  • fr_FR.UTF-8  (French - France)"
+echo "  ??? en_US.UTF-8  (English - United States)"
+echo "  ??? en_GB.UTF-8  (English - United Kingdom)"
+echo "  ??? es_ES.UTF-8  (Spanish - Spain)"
+echo "  ??? es_MX.UTF-8  (Spanish - Mexico)"
+echo "  ??? de_DE.UTF-8  (German - Germany)"
+echo "  ??? fr_FR.UTF-8  (French - France)"
 echo ""
 read -p "Enter locale (default: en_US.UTF-8): " LOCALE
 LOCALE=${LOCALE:-en_US.UTF-8}
@@ -156,12 +156,12 @@ print_success "Locale: $LOCALE"
 echo ""
 print_info "Keyboard Layout Configuration"
 echo "Common layouts:"
-echo "  • us           (US English)"
-echo "  • uk           (UK English)"
-echo "  • de-latin1    (German)"
-echo "  • es           (Spanish)"
-echo "  • fr-latin1    (French)"
-echo "  • la-latin1    (Latin American)"
+echo "  ??? us           (US English)"
+echo "  ??? uk           (UK English)"
+echo "  ??? de-latin1    (German)"
+echo "  ??? es           (Spanish)"
+echo "  ??? fr-latin1    (French)"
+echo "  ??? la-latin1    (Latin American)"
 echo ""
 print_info "For all layouts: localectl list-keymaps"
 read -p "Enter keyboard layout (default: us): " KEYMAP
@@ -397,7 +397,7 @@ fi
 # ===================================
 # CONFIGURATION COMPLETE
 # ===================================
-print_step "✓ System Configuration Completed Successfully!"
+print_step "??? System Configuration Completed Successfully!"
 
 # Mark progress
 save_progress "02-system-configured"
@@ -419,7 +419,7 @@ echo "  ${CYAN}4.${NC} Reboot the system:"
 echo "     ${YELLOW}reboot${NC}"
 echo ""
 echo "  ${CYAN}5.${NC} After reboot, login as root and run:"
-echo "     ${YELLOW}bash /root/lmae-scripts/lmae.sh${NC}"
+echo "     ${YELLOW}bash /root/alie-scripts/alie.sh${NC}"
 echo ""
 print_warning "Remember to remove the installation media before rebooting!"
 echo ""

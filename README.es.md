@@ -1,4 +1,4 @@
-# Scripts de Instalación LMAE
+# Scripts de Instalación ALIE
 
 Scripts de instalación automatizada para Linux Mint Arch Edition.
 
@@ -24,7 +24,7 @@ Scripts de instalación automatizada para Linux Mint Arch Edition.
 El instalador detecta automáticamente tu entorno y continúa desde donde lo dejaste:
 
 ```bash
-bash lmae.sh
+bash alie.sh
 ```
 
 Detecta si estás en:
@@ -41,7 +41,7 @@ El progreso se guarda automáticamente, así que puedes reiniciar entre pasos si
 Elige manualmente qué script ejecutar:
 
 ```bash
-bash lmae.sh --manual
+bash alie.sh --manual
 ```
 
 Útil para:
@@ -53,7 +53,7 @@ bash lmae.sh --manual
 
 ```
 src/
-├── lmae.sh                   # Instalador maestro (punto de entrada)
+├── alie.sh                   # Instalador maestro (punto de entrada)
 ├── install/                  # Scripts de instalación
 │   ├── 001-base-install.sh    # Instalación del sistema base
 │   ├── 101-configure-system.sh # Configuración del sistema
@@ -75,7 +75,7 @@ src/
 
 | # | Script | Ejecutar como | Cuándo |
 |---|--------|---------------|--------|
-| 0 | `lmae.sh` | root/usuario | En cualquier momento (detecta automáticamente) |
+| 0 | `alie.sh` | root/usuario | En cualquier momento (detecta automáticamente) |
 | 1 | `install/001-base-install.sh` | root | Desde medio de instalación |
 | 2 | `install/101-configure-system.sh` | root | Dentro de arch-chroot |
 | 3 | `install/201-desktop-install.sh` | root | Después del primer reinicio |
@@ -88,7 +88,7 @@ src/
 
 ```bash
 # En cada etapa, simplemente ejecuta:
-bash lmae.sh
+bash alie.sh
 ```
 
 El script automáticamente:
@@ -126,9 +126,9 @@ reboot
 ## Características
 
 ### Sistema de Progreso
-- El instalador guarda automáticamente tu progreso en `.lmae-progress`
+- El instalador guarda automáticamente tu progreso en `.alie-progress`
 - Puedes reiniciar en cualquier momento y continuar desde donde lo dejaste
-- Usa `bash lmae --manual` para borrar el progreso si necesitas empezar de nuevo
+- Usa `bash alie.sh --manual` para borrar el progreso si necesitas empezar de nuevo
 
 ### Funciones Compartidas
 - Todas las funciones comunes están en `lib/shared-functions.sh`

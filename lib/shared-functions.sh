@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# LMAE Shared Functions Library
+# ALIE Shared Functions Library
 # =============================================================================
-# This file contains common functions used across all LMAE installation scripts
+# This file contains common functions used across all ALIE installation scripts
 # Source this file at the beginning of each script:
 #   source "$LIB_DIR/shared-functions.sh"
 #
@@ -21,7 +21,7 @@
 #   - verify_chroot()  - Verify script is running in chroot environment
 #   - require_root()   - Ensure script is running as root
 #   - require_non_root() - Ensure script is NOT running as root
-#   - show_lmae_banner() - Display LMAE banner
+#   - show_alie_banner() - Display ALIE banner
 #   - show_warning_banner() - Display warning about experimental nature
 #   - And many more...
 # =============================================================================
@@ -38,30 +38,90 @@ MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # =============================================================================
+# TTY COMPATIBILITY FUNCTIONS
+# =============================================================================
+
+# Get terminal dimensions safely
+get_terminal_width() {
+    tput cols 2>/dev/null || echo 80
+}
+
+get_terminal_height() {
+    tput lines 2>/dev/null || echo 24
+}
+
+# Check if terminal is too small for banners
+is_terminal_small() {
+    local width=$(get_terminal_width)
+    local height=$(get_terminal_height)
+    
+    # Consider small if less than 70 columns or 20 lines
+    if [ "$width" -lt 70 ] || [ "$height" -lt 20 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Pause for user interaction in TTY
+press_any_key() {
+    echo ""
+    read -p "Press any key to continue..." -n1 -s
+    echo ""
+}
+
+# Clear screen intelligently based on terminal capabilities
+smart_clear() {
+    if command -v clear >/dev/null 2>&1; then
+        clear
+    else
+        # Fallback for limited environments
+        printf "\033[2J\033[H"
+    fi
+}
+
+# Show progress indicator for slow operations
+show_progress() {
+    local message="$1"
+    echo -n "${CYAN}${message}${NC}"
+    for i in {1..3}; do
+        sleep 0.5
+        echo -n "."
+    done
+    echo " ${GREEN}✓${NC}"
+}
+
+# =============================================================================
 # PRINTING FUNCTIONS
 # =============================================================================
 
 print_info() {
-    echo -e "${CYAN}ℹ ${NC}$1"
+    echo -e "${CYAN}??? ${NC}$1"
 }
 
 print_success() {
-    echo -e "${GREEN}✓ ${NC}$1"
+    echo -e "${GREEN}??? ${NC}$1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ ${NC}$1"
+    echo -e "${YELLOW}??? ${NC}$1"
 }
 
 print_error() {
-    echo -e "${RED}✗ ${NC}$1" >&2
+    echo -e "${RED}??? ${NC}$1" >&2
 }
 
 print_step() {
     echo ""
-    echo -e "${MAGENTA}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${MAGENTA}  $1${NC}"
-    echo -e "${MAGENTA}═══════════════════════════════════════════════════════════${NC}"
+    local width=$(get_terminal_width)
+    local line_char="#"
+    
+    # Create separator line based on terminal width
+    printf "${MAGENTA}"
+    printf "%${width}s\n" | tr ' ' "$line_char"
+    printf "  $1\n"
+    printf "%${width}s\n" | tr ' ' "$line_char"
+    printf "${NC}"
     echo ""
 }
 
@@ -237,24 +297,37 @@ require_desktop_user() {
 # BANNER FUNCTIONS
 # =============================================================================
 
-# Display LMAE main banner
-show_lmae_banner() {
-    clear
+# Display ALIE main banner
+show_alie_banner() {
+    smart_clear
     echo -e "${MAGENTA}"
-    cat << "EOF"
-╔═══════════════════════════════════════════════════════════╗
-║                                                           ║
-║   ██╗     ███╗   ███╗ █████╗ ███████╗                    ║
-║   ██║     ████╗ ████║██╔══██╗██╔════╝                    ║
-║   ██║     ██╔████╔██║███████║█████╗                      ║
-║   ██║     ██║╚██╔╝██║██╔══██║██╔══╝                      ║
-║   ███████╗██║ ╚═╝ ██║██║  ██║███████╗                    ║
-║   ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝                    ║
-║                                                           ║
-║        Linux Mint Arch Edition Installer                 ║
-║                                                           ║
-╚═══════════════════════════════════════════════════════════╝
+    
+    # Use compact banner for small terminals
+    if is_terminal_small; then
+        cat << "EOF"
+#############################
+#        A L I E            #  
+#  Arch Linux Installation  #
+#      Environment          #
+#############################
 EOF
+    else
+        cat << "EOF"
+#############################################
+#                                           #
+#       AAA    L       I   EEEEEEE          #
+#      A   A   L       I   E                #
+#     A     A  L       I   E                #
+#     AAAAAAA  L       I   EEEEE            #
+#     A     A  L       I   E                #
+#     A     A  LLLLLLL I   EEEEEEE          #
+#                                           #
+#  Arch Linux Installation Environment      #
+#                                           #
+#############################################
+EOF
+    fi
+    
     echo -e "${NC}"
 }
 
@@ -262,15 +335,15 @@ EOF
 show_warning_banner() {
     echo -e "${YELLOW}"
     cat << "EOF"
-┌───────────────────────────────────────────────────────────┐
-│                    ⚠️  WARNING  ⚠️                        │
-├───────────────────────────────────────────────────────────┤
-│  This is an EXPERIMENTAL script provided AS-IS            │
-│  without warranties. Review the code before running       │
-│  and use at your own risk.                                │
-│                                                            │
-│  This script will make PERMANENT changes to your system!  │
-└───────────────────────────────────────────────────────────┘
+################################################################
+#                    **  WARNING  **                        #
+################################################################
+#  This is an EXPERIMENTAL script provided AS-IS            #
+#  without warranties. Review the code before running       #
+#  and use at your own risk.                                #
+#                                                            #
+#  This script will make PERMANENT changes to your system!  #
+################################################################
 EOF
     echo -e "${NC}"
 }
@@ -283,14 +356,14 @@ EOF
 # Usage: save_progress <step_name>
 save_progress() {
     local step="$1"
-    local progress_file="${LMAE_PROGRESS_FILE:-/tmp/.lmae-progress}"
+    local progress_file="${ALIE_PROGRESS_FILE:-/tmp/.alie-progress}"
     
     # In live environment
     if [ -d /mnt/root ]; then
-        progress_file="/mnt/root/.lmae-progress"
-    elif [ -f /root/.lmae-install-info ]; then
+        progress_file="/mnt/root/.alie-progress"
+    elif [ -f /root/.alie-install-info ]; then
         # In installed system
-        progress_file="/root/.lmae-progress"
+        progress_file="/root/.alie-progress"
     fi
     
     echo "$step" >> "$progress_file"
@@ -301,14 +374,14 @@ save_progress() {
 # Usage: is_step_completed <step_name>
 is_step_completed() {
     local step="$1"
-    local progress_file="${LMAE_PROGRESS_FILE:-/tmp/.lmae-progress}"
+    local progress_file="${ALIE_PROGRESS_FILE:-/tmp/.alie-progress}"
     
     # In live environment
     if [ -d /mnt/root ]; then
-        progress_file="/mnt/root/.lmae-progress"
-    elif [ -f /root/.lmae-install-info ]; then
+        progress_file="/mnt/root/.alie-progress"
+    elif [ -f /root/.alie-install-info ]; then
         # In installed system
-        progress_file="/root/.lmae-progress"
+        progress_file="/root/.alie-progress"
     fi
     
     if [ -f "$progress_file" ] && grep -q "^${step}$" "$progress_file" 2>/dev/null; then
@@ -332,7 +405,7 @@ get_installation_step() {
         echo "2"
     elif is_step_completed "01-base-installed"; then
         echo "1"
-    elif [ -f /mnt/root/.lmae-install-info ] || [ -f /root/.lmae-install-info ]; then
+    elif [ -f /mnt/root/.alie-install-info ] || [ -f /root/.alie-install-info ]; then
         # Base installation started but not completed
         echo "1"
     else
@@ -342,14 +415,14 @@ get_installation_step() {
 
 # Clear progress (for fresh start)
 clear_progress() {
-    local progress_file="${LMAE_PROGRESS_FILE:-/tmp/.lmae-progress}"
+    local progress_file="${ALIE_PROGRESS_FILE:-/tmp/.alie-progress}"
     
     rm -f "$progress_file" 2>/dev/null || true
     rm -f "${progress_file}.log" 2>/dev/null || true
-    rm -f "/mnt/root/.lmae-progress" 2>/dev/null || true
-    rm -f "/mnt/root/.lmae-progress.log" 2>/dev/null || true
-    rm -f "/root/.lmae-progress" 2>/dev/null || true
-    rm -f "/root/.lmae-progress.log" 2>/dev/null || true
+    rm -f "/mnt/root/.alie-progress" 2>/dev/null || true
+    rm -f "/mnt/root/.alie-progress.log" 2>/dev/null || true
+    rm -f "/root/.alie-progress" 2>/dev/null || true
+    rm -f "/root/.alie-progress.log" 2>/dev/null || true
     
     print_success "Progress cleared"
 }
@@ -359,9 +432,9 @@ clear_progress() {
 # =============================================================================
 
 # Load installation info from previous script
-# Expects file at /root/.lmae-install-info
+# Expects file at /root/.alie-install-info
 load_install_info() {
-    local info_file="${1:-/root/.lmae-install-info}"
+    local info_file="${1:-/root/.alie-install-info}"
     
     if [ -f "$info_file" ]; then
         print_info "Loading installation configuration from $info_file..."
@@ -386,7 +459,7 @@ load_install_info() {
 
 # Save installation info for next script
 # Usage: save_install_info <output_file> <var1> <var2> ...
-# Example: save_install_info "/mnt/root/.lmae-install-info" BOOT_MODE ROOT_PARTITION
+# Example: save_install_info "/mnt/root/.alie-install-info" BOOT_MODE ROOT_PARTITION
 save_install_info() {
     local output_file="$1"
     shift
@@ -541,21 +614,21 @@ update_package_db() {
 # If sourced, don't execute anything
 # If run directly, show info
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    show_lmae_banner
+    show_alie_banner
     echo -e "${CYAN}This is a library file meant to be sourced by other scripts.${NC}"
     echo ""
     echo -e "${YELLOW}Usage in your script:${NC}"
     echo -e "  ${GREEN}source \"\$(dirname \"\$0\")/shared-functions.sh\"${NC}"
     echo ""
     echo -e "${YELLOW}Available functions:${NC}"
-    echo "  • Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
-    echo "  • print_info, print_success, print_warning, print_error, print_step"
-    echo "  • retry_command, wait_for_operation"
-    echo "  • verify_chroot, require_root, require_non_root"
-    echo "  • show_lmae_banner, show_warning_banner"
-    echo "  • load_install_info, save_install_info"
-    echo "  • check_internet, wait_for_internet"
-    echo "  • is_mounted, safe_unmount"
-    echo "  • install_packages, update_package_db"
+    echo "  ??? Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
+    echo "  ??? print_info, print_success, print_warning, print_error, print_step"
+    echo "  ??? retry_command, wait_for_operation"
+    echo "  ??? verify_chroot, require_root, require_non_root"
+    echo "  ??? show_alie_banner, show_warning_banner"
+    echo "  ??? load_install_info, save_install_info"
+    echo "  ??? check_internet, wait_for_internet"
+    echo "  ??? is_mounted, safe_unmount"
+    echo "  ??? install_packages, update_package_db"
     echo ""
 fi

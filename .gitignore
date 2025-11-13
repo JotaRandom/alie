@@ -1,8 +1,8 @@
-# LMAE Installation Scripts - Git Ignore
+# ALIE Installation Scripts - Git Ignore
 
 # Progress tracking files
-.lmae-progress
-*.lmae-progress
+.alie-progress
+*.alie-progress
 
 # Build directories
 .cache/

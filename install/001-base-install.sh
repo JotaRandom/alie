@@ -1,8 +1,8 @@
 #!/bin/bash
-# LMAE Base System Installation Script
+# ALIE Base System Installation Script
 # This script should be run from the Arch Linux installation media
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# ?????? WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 # Make sure you have backups of any important data.
@@ -61,14 +61,14 @@ trap cleanup EXIT INT TERM
 require_root
 
 # Welcome banner
-show_lmae_banner
+show_alie_banner
 show_warning_banner
 
 print_info "This installer will guide you through:"
-echo "  • Network connectivity verification"
-echo "  • Disk partitioning and formatting"
-echo "  • Base system installation"
-echo "  • Bootloader configuration"
+echo "  ??? Network connectivity verification"
+echo "  ??? Disk partitioning and formatting"
+echo "  ??? Base system installation"
+echo "  ??? Bootloader configuration"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -208,19 +208,19 @@ if [ -d /sys/firmware/efi/efivars ]; then
         print_success "Boot mode: UEFI"
     fi
     
-    echo "  └─ Requires: EFI partition (512MB-1GB, FAT32)"
+    echo "  ?????? Requires: EFI partition (512MB-1GB, FAT32)"
 else
     BOOT_MODE="BIOS"
     print_success "Boot mode: BIOS (Legacy)"
-    echo "  └─ Can use: MBR or GPT partition table"
+    echo "  ?????? Can use: MBR or GPT partition table"
 fi
 
 # Show system info
 echo ""
 print_info "System Information:"
-echo "  • CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
-echo "  • RAM: $(free -h | awk '/^Mem:/ {print $2}')"
-echo "  • Architecture: $(uname -m)"
+echo "  ??? CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
+echo "  ??? RAM: $(free -h | awk '/^Mem:/ {print $2}')"
+echo "  ??? Architecture: $(uname -m)"
 
 # ===================================
 # STEP 3: DISK PARTITIONING
@@ -277,7 +277,7 @@ case "$PART_CHOICE" in
         lsblk "$DISK_PATH"
         echo ""
         
-        print_warning "⚠️  ALL DATA ON $DISK_PATH WILL BE DESTROYED! ⚠️"
+        print_warning "??????  ALL DATA ON $DISK_PATH WILL BE DESTROYED! ??????"
         read -p "Type 'YES' in uppercase to confirm: " CONFIRM_WIPE
         
         if [ "$CONFIRM_WIPE" != "YES" ]; then
@@ -325,17 +325,10 @@ case "$PART_CHOICE" in
                 exit 1
             fi
             
-            if [ "$ROOT_SIZE" -lt 23 ]; then
-                print_error "Root partition too small: ${ROOT_SIZE}GB"
-                print_info "Minimum recommended size is 23GB for LMAE"
-                exit 1
-            fi
-                exit 1
-            fi
-            
             # Validate minimum size (following wiki recommendation)
             if [ "$ROOT_SIZE" -lt 23 ]; then
-                print_error "Root partition too small! Wiki recommends minimum 23-32 GB"
+                print_error "Root partition too small: ${ROOT_SIZE}GB"
+                print_info "Minimum recommended size is 23GB for ALIE"
                 exit 1
             fi
             
@@ -599,13 +592,13 @@ case "$PART_CHOICE" in
         echo ""
         echo "Partitioning guidelines:"
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            echo "  • EFI partition: 512MB-1GB, type EFI System"
+            echo "  ??? EFI partition: 512MB-1GB, type EFI System"
         else
-            echo "  • For GPT: Create 1MB BIOS boot partition (type: BIOS boot)"
+            echo "  ??? For GPT: Create 1MB BIOS boot partition (type: BIOS boot)"
         fi
-        echo "  • Swap partition: RAM size + 2GB recommended"
-        echo "  • Root partition: 30-50GB minimum (type: Linux filesystem)"
-        echo "  • Home partition: Remaining space (optional)"
+        echo "  ??? Swap partition: RAM size + 2GB recommended"
+        echo "  ??? Root partition: 30-50GB minimum (type: Linux filesystem)"
+        echo "  ??? Home partition: Remaining space (optional)"
         echo ""
         
         echo "Available tools:"
@@ -816,19 +809,19 @@ print_step "STEP 5: Installation Summary"
 
 echo ""
 print_info "Installation Configuration:"
-echo "  • Boot mode: $BOOT_MODE"
+echo "  ??? Boot mode: $BOOT_MODE"
 if [ "$BOOT_MODE" == "BIOS" ]; then
-    echo "  • Partition table: ${PARTITION_TABLE:-Not specified}"
+    echo "  ??? Partition table: ${PARTITION_TABLE:-Not specified}"
 fi
-echo "  • Root partition: $ROOT_PARTITION"
-echo "  • Swap partition: $SWAP_PARTITION"
+echo "  ??? Root partition: $ROOT_PARTITION"
+echo "  ??? Swap partition: $SWAP_PARTITION"
 if [ "$BOOT_MODE" == "UEFI" ]; then
-    echo "  • EFI partition: $EFI_PARTITION"
+    echo "  ??? EFI partition: $EFI_PARTITION"
 elif [ "$PARTITION_TABLE" == "GPT" ]; then
-    echo "  • BIOS boot partition: $BIOS_BOOT_PARTITION"
+    echo "  ??? BIOS boot partition: $BIOS_BOOT_PARTITION"
 fi
 if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
-    echo "  • Home partition: $HOME_PARTITION"
+    echo "  ??? Home partition: $HOME_PARTITION"
 fi
 echo ""
 
@@ -1031,10 +1024,10 @@ set -e
 if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
     print_error "pacstrap failed with exit code $PACSTRAP_EXIT_CODE"
     print_info "This could be due to:"
-    echo "  • Network connectivity issues"
-    echo "  • Mirror problems"
-    echo "  • Insufficient disk space"
-    echo "  • Package signing errors"
+    echo "  ??? Network connectivity issues"
+    echo "  ??? Mirror problems"
+    echo "  ??? Insufficient disk space"
+    echo "  ??? Package signing errors"
     echo ""
     read -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
     
@@ -1075,7 +1068,7 @@ cat /mnt/etc/fstab
 print_step "STEP 11: Saving Installation Info"
 
 # Save configuration using shared function
-save_install_info "/mnt/root/.lmae-install-info" \
+save_install_info "/mnt/root/.alie-install-info" \
     BOOT_MODE \
     PARTITION_TABLE \
     ROOT_PARTITION \
@@ -1091,7 +1084,7 @@ save_install_info "/mnt/root/.lmae-install-info" \
 # INSTALLATION COMPLETE
 # ===================================
 echo ""
-print_step "✓ Base Installation Completed Successfully!"
+print_step "??? Base Installation Completed Successfully!"
 
 # Mark progress
 save_progress "01-base-installed"
@@ -1100,14 +1093,14 @@ echo ""
 print_success "Installation finished!"
 echo ""
 print_info "Next steps:"
-echo "  ${CYAN}1.${NC} Copy the LMAE scripts to the new system:"
-echo "     ${YELLOW}cp -r $(dirname "$0") /mnt/root/lmae-scripts${NC}"
+echo "  ${CYAN}1.${NC} Copy the ALIE scripts to the new system:"
+echo "     ${YELLOW}cp -r $(dirname "$0") /mnt/root/alie-scripts${NC}"
 echo ""
 echo "  ${CYAN}2.${NC} Enter the new system:"
 echo "     ${YELLOW}arch-chroot /mnt${NC}"
 echo ""
 echo "  ${CYAN}3.${NC} Run the installer again (auto-detects chroot):"
-echo "     ${YELLOW}bash /root/lmae-scripts/lmae.sh${NC}"
+echo "     ${YELLOW}bash /root/alie-scripts/alie.sh${NC}"
 echo ""
 print_warning "Don't reboot yet! Continue with system configuration."
 echo ""

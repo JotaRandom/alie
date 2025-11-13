@@ -164,13 +164,13 @@ This will take several minutes depending on your connection...
 | 🟡 Amarillo | Advertencia | `[!] Network may not be configured` |
 | 🔴 Rojo | Error | `[ERROR] Invalid disk device` |
 | 🔷 Cyan | Títulos de sección | `STEP 3: Disk Partitioning` |
-| 🟣 Magenta | Banner principal | Logo LMAE |
+| 🟣 Magenta | Banner principal | Logo ALIE |
 
 ## 📋 Flujo de Instalación
 
 ```mermaid
 graph TD
-    A[Inicio] --> B[Banner LMAE]
+    A[Inicio] --> B[Banner ALIE]
     B --> C[STEP 1: Verificar Red]
     C --> D{¿Conectado?}
     D -->|Sí| E[STEP 2: Info Sistema]
@@ -328,3 +328,4 @@ El script ahora está preparado para:
 5. ✅ Adaptarse a diferentes escenarios
 
 **Estado:** Listo para pruebas en Live USB de Arch Linux
+

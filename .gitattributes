@@ -1,0 +1,24 @@
+# Git attributes for ALIE project
+# Ensures proper line endings for cross-platform compatibility
+
+# Shell scripts must always use LF line endings (Unix-style)
+# This is critical for Linux/Unix execution environments
+*.sh text eol=lf
+
+# Markdown files can use system defaults but prefer LF for consistency
+*.md text eol=lf
+
+# License files should use LF for cross-platform compatibility
+LICENSE text eol=lf
+
+# Configuration files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Ensure text files are detected and handled properly
+* text=auto
+
+# Binary files (none currently, but good to have)
+# *.png binary
+# *.jpg binary
+# *.gif binary

@@ -1,4 +1,4 @@
-# LMAE Installer
+# ALIE Installer
 
 **Automated installation scripts for Arch Linux with Linux Mint's Cinnamon desktop environment.**
 
@@ -48,14 +48,14 @@
 
 ```bash
 # From Arch Live USB
-git clone https://github.com/JotaRandom/LMAE.git
-cd LMAE/src
+git clone https://github.com/JotaRandom/ALIE.git
+cd ALIE/src
 ```
 
 **2. Run automatic installation**
 
 ```bash
-bash lmae.sh
+bash alie.sh
 ```
 
 The installer automatically detects your environment and continues from the last completed step.
@@ -63,7 +63,7 @@ The installer automatically detects your environment and continues from the last
 **3. Manual mode (advanced)**
 
 ```bash
-bash lmae.sh --manual
+bash alie.sh --manual
 ```
 
 Manually select which installation step to execute.
@@ -73,8 +73,7 @@ Manually select which installation step to execute.
 ## 📂 Project Structure
 
 ```
-src/
-├── lmae.sh                     # Master installer (entry point)
+├── alie.sh                     # Master installer (entry point)
 ├── install/                    # Installation scripts (semantic numbering)
 │   ├── 001-base-install.sh     # Base system (Live USB, root only)
 │   ├── 101-configure-system.sh # System config (chroot, root only)
@@ -84,20 +83,30 @@ src/
 ├── lib/                        # Shared libraries
 │   └── shared-functions.sh     # Common functions and utilities
 ├── docs/                       # Documentation
-│   ├── CHANGELOG.md
-│   ├── GUIA-RAPIDA.md
-│   ├── NAMING-SCHEME.md
+│   ├── CHANGELOG.md            # Project history
+│   ├── GUIA-RAPIDA.md          # Quick start guide (Spanish)
+│   ├── SCRIPT-IMPROVEMENTS.md  # Technical improvements log
+│   ├── WIKI-COMPLIANCE.md      # Arch Wiki compliance fixes
 │   └── shared/
-│       └── SHARED-FUNCTIONS.md
+│       └── SHARED-FUNCTIONS.md # Function library documentation
+├── README.en.md                # English documentation
+├── README.es.md                # Spanish documentation
 ├── LICENSE                     # AGPLv3 License
 └── .gitignore
 ```
 
 ### Semantic Numbering System
 
-Scripts use a 3-digit naming scheme `XYZ`:
+Scripts use a 3-digit naming scheme `XYZ-script-name.sh`:
 
 - **X** = Environment (0=Live CD, 1=Chroot, 2=Installed)
+- **Y** = Permissions (0=root only, 1=user only, 2=both)
+- **Z** = Step number
+
+#### Examples:
+- `001-base-install.sh` = Live CD (0), root only (0), step 1
+- `101-configure-system.sh` = Chroot (1), root only (0), step 1  
+- `211-install-yay.sh` = Installed (2), user only (1), step 1
 - **Y** = Permissions (0=root only, 1=user only, 2=both)
 - **Z** = Step number
 
@@ -185,9 +194,9 @@ See [LICENSE](LICENSE) file for details.
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/JotaRandom/LMAE/issues)
-- **Wiki**: [Project Wiki](https://github.com/JotaRandom/LMAE/wiki)
-- **Discussions**: [GitHub Discussions](https://github.com/JotaRandom/LMAE/discussions)
+- **Issues**: [GitHub Issues](https://github.com/JotaRandom/ALIE/issues)
+- **Wiki**: [Project Wiki](https://github.com/JotaRandom/ALIE/wiki)
+- **Discussions**: [GitHub Discussions](https://github.com/JotaRandom/ALIE/discussions)
 
 ---
 

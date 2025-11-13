@@ -1,16 +1,16 @@
-# 🚀 LMAE - Guía de Referencia Rápida
+# 🚀 ALIE - Guía de Referencia Rápida
 
 ## Inicio Rápido - 3 Comandos
 
 ```bash
 # En Live USB
-bash lmae.sh
+bash alie.sh
 
 # Después de arch-chroot
-bash lmae.sh
+bash alie.sh
 
 # Después de cada reinicio
-bash lmae.sh
+bash alie.sh
 ```
 
 ¡Eso es todo! El instalador hace el resto automáticamente.
@@ -21,9 +21,9 @@ bash lmae.sh
 
 | Situación | Comando | Descripción |
 |-----------|---------|-------------|
-| **Instalación normal** | `bash lmae.sh` | Modo automático (recomendado) |
-| **Elegir script manual** | `bash lmae.sh --manual` | Muestra menú de selección |
-| **Borrar progreso** | `bash lmae.sh --manual` → opción 6 | Reinicia desde cero |
+| **Instalación normal** | `bash alie.sh` | Modo automático (recomendado) |
+| **Elegir script manual** | `bash alie.sh --manual` | Muestra menú de selección |
+| **Borrar progreso** | `bash alie.sh --manual` → opción 6 | Reinicia desde cero |
 
 ---
 
@@ -36,7 +36,7 @@ bash lmae.sh
 
 ### 2️⃣ Primera Ejecución (Live USB)
 ```bash
-bash lmae.sh
+bash alie.sh
 ```
 **Lo que hace**:
 - ✅ Detecta que estás en Live USB
@@ -51,7 +51,7 @@ bash lmae.sh
 ### 3️⃣ Segunda Ejecución (Chroot)
 ```bash
 arch-chroot /mnt
-bash lmae.sh
+bash alie.sh
 ```
 **Lo que hace**:
 - ✅ Detecta que estás en chroot
@@ -65,7 +65,7 @@ bash lmae.sh
 ### 4️⃣ Tercera Ejecución (Primer boot, como root)
 ```bash
 # Login como root
-bash lmae.sh
+bash alie.sh
 ```
 **Lo que hace**:
 - ✅ Detecta sistema sin escritorio
@@ -80,7 +80,7 @@ bash lmae.sh
 ### 5️⃣ Cuarta Ejecución (Con desktop, como usuario)
 ```bash
 # Login como tu usuario (NO root)
-bash lmae.sh
+bash alie.sh
 ```
 **Lo que hace**:
 - ✅ Detecta sistema con escritorio
@@ -89,7 +89,7 @@ bash lmae.sh
 
 ### 6️⃣ Quinta Ejecución (Instalar paquetes)
 ```bash
-bash lmae.sh
+bash alie.sh
 ```
 **Lo que hace**:
 - ✅ Detecta YAY instalado
@@ -113,20 +113,20 @@ reboot
 
 ### Re-ejecutar un script específico
 ```bash
-bash lmae.sh --manual
+bash alie.sh --manual
 # Elige el número del script que quieres ejecutar
 ```
 
 ### Borrar progreso y empezar de nuevo
 ```bash
-bash lmae.sh --manual
+bash alie.sh --manual
 # → Opción 6: Clear progress and exit
 ```
 
 ### Saltar un paso (avanzado)
 ```bash
 # Ejemplo: Ya instalaste el desktop manualmente
-bash lmae.sh --manual
+bash alie.sh --manual
 # → Elige script 4 (YAY) para continuar desde ahí
 ```
 
@@ -136,13 +136,13 @@ bash lmae.sh --manual
 
 ```
 src/
-├── lmae.sh                 # Instalador maestro (ejecuta esto)
+├── alie.sh                 # Instalador maestro (ejecuta esto)
 ├── install/                # Scripts de instalación (auto-ejecutados)
 ├── lib/                    # Funciones compartidas (auto-cargadas)
 └── docs/                   # Documentación
 ```
 
-**Solo necesitas ejecutar**: `bash lmae.sh`
+**Solo necesitas ejecutar**: `bash alie.sh`
 
 ---
 
@@ -175,7 +175,7 @@ El script detecta automáticamente dónde estás:
 
 ## Progreso Guardado
 
-El sistema guarda tu progreso en: `.lmae-progress`
+El sistema guarda tu progreso en: `.ALIE-progress`
 
 **Marcadores**:
 - `01-base-installed` - Sistema base OK
@@ -184,7 +184,7 @@ El sistema guarda tu progreso en: `.lmae-progress`
 - `04-yay-installed` - YAY OK
 - `05-packages-installed` - Todo instalado ✅
 
-**Para ver tu progreso actual**: Ejecuta `bash lmae.sh` y verás un mensaje.
+**Para ver tu progreso actual**: Ejecuta `bash alie.sh` y verás un mensaje.
 
 ---
 
@@ -193,28 +193,28 @@ El sistema guarda tu progreso en: `.lmae-progress`
 ### El script dice "wrong environment"
 ```bash
 # Ejecuta en modo manual para ver opciones
-bash lmae.sh --manual
+bash alie.sh --manual
 ```
 
 ### El script falla y quiero reintentar
 ```bash
 # Simplemente vuelve a ejecutar
-bash lmae.sh
+bash alie.sh
 # El progreso se mantiene, solo re-ejecuta el paso fallido
 ```
 
 ### Quiero empezar desde cero
 ```bash
-bash lmae.sh --manual
+bash alie.sh --manual
 # → Opción 6: Clear progress
 # Luego vuelve a empezar
-bash lmae.sh
+bash alie.sh
 ```
 
 ### No tengo internet en Live USB
 ```bash
 # El script 01 incluye asistente de red WiFi
-bash lmae.sh
+bash alie.sh
 # → Sigue las instrucciones para conectar WiFi
 ```
 
@@ -287,8 +287,8 @@ sudo timeshift-gtk
 
 | Archivo | Propósito |
 |---------|-----------|
-| `~/.lmae-progress` | Progreso de instalación |
-| `~/.lmae-install-info` | Info guardada (CPU, timezone, etc.) |
+| `~/.ALIE-progress` | Progreso de instalación |
+| `~/.ALIE-install-info` | Info guardada (CPU, timezone, etc.) |
 | `/etc/fstab` | Montajes automáticos |
 | `/etc/locale.gen` | Configuración de idiomas |
 | `/etc/hostname` | Nombre del equipo |
@@ -300,21 +300,23 @@ sudo timeshift-gtk
 1. **Lee la documentación completa**: `src/README.es.md`
 2. **Revisa el changelog**: `CHANGELOG.md`
 3. **Consulta las funciones**: `src/lib/SHARED-FUNCTIONS.md`
-4. **Modo manual para debugging**: `bash lmae.sh --manual`
+4. **Modo manual para debugging**: `bash alie.sh --manual`
 
 ---
 
 ## Resumen Ultra-Rápido
 
 ```
-1. Boot USB → bash lmae.sh
-2. arch-chroot /mnt → bash lmae.sh → exit → reboot
-3. Login root → bash lmae.sh → reboot
-4. Login usuario → bash lmae.sh
-5. bash lmae.sh (instala paquetes)
+1. Boot USB → bash alie.sh
+2. arch-chroot /mnt → bash alie.sh → exit → reboot
+3. Login root → bash alie.sh → reboot
+4. Login usuario → bash alie.sh
+5. bash alie.sh (instala paquetes)
 6. ✅ Listo!
 ```
 
 ---
 
 **Pro tip**: Guarda este archivo en tu USB de instalación para tener la guía siempre a mano 😉
+
+
