@@ -111,15 +111,19 @@ show_manual_menu() {
     echo "     ${YELLOW}→${NC} Choose graphics system (Xorg/Wayland/Both)"
     echo "     ${YELLOW}→${NC} Requires: Booted system, root privileges"
     echo ""
-    echo "  ${CYAN}9)${NC} Desktop Environment (221-desktop-install.sh)"
-    echo "     ${YELLOW}→${NC} Install Cinnamon desktop, LightDM, complete DE"
+    echo "  ${CYAN}9)${NC} Desktop Selection (220-desktop-select.sh)"
+    echo "     ${YELLOW}→${NC} Choose: Desktop Environment / Window Manager / Skip"
     echo "     ${YELLOW}→${NC} Requires: Display server installed, root privileges"
+    echo ""
+    echo "  ${CYAN}A)${NC} Desktop Tools (231-desktop-tools.sh)"
+    echo "     ${YELLOW}→${NC} Install apps: LibreOffice, GIMP, Firefox, etc."
+    echo "     ${YELLOW}→${NC} Requires: DE/WM installed, root privileges"
     echo ""
     echo "  ${CYAN}C)${NC} Clear progress and exit"
     echo "  ${CYAN}0)${NC} Exit without changes"
     echo ""
     
-    read -p "Choose script to run [1-9, C, 0]: " choice
+    read -p "Choose script to run [1-9, A, C, 0]: " choice
     
     case "$choice" in
         1) RUN_SCRIPT="$INSTALL_DIR/001-base-install.sh"; NEEDS_ROOT=true ;;
@@ -130,7 +134,8 @@ show_manual_menu() {
         6) RUN_SCRIPT="$INSTALL_DIR/211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
         7) RUN_SCRIPT="$INSTALL_DIR/212-cli-tools.sh"; NEEDS_ROOT=false ;;
         8) RUN_SCRIPT="$INSTALL_DIR/213-display-server.sh"; NEEDS_ROOT=true ;;
-        9) RUN_SCRIPT="$INSTALL_DIR/221-desktop-install.sh"; NEEDS_ROOT=true ;;
+        9) RUN_SCRIPT="$INSTALL_DIR/220-desktop-select.sh"; NEEDS_ROOT=true ;;
+        [Aa]) RUN_SCRIPT="$INSTALL_DIR/231-desktop-tools.sh"; NEEDS_ROOT=true ;;
         [Cc])
             print_warning "This will clear all progress markers"
             read -p "Are you sure? (yes/no): " confirm
@@ -378,9 +383,9 @@ case "$ENV" in
             print_success "Full installation completed!"
             echo ""
             print_info "All ALIE components are installed."
-            echo "  ✅ Display server (Xorg/Wayland)"
-            echo "  ✅ Desktop environment (Cinnamon)"
-            echo "  ✅ AUR helper and CLI tools"
+            echo "  Display server (Xorg/Wayland)"
+            echo "  Desktop environment or Window Manager"
+            echo "  AUR helper and CLI tools"
             echo "You can re-run individual scripts if needed."
             exit 0
         elif [ "$STEP" -ge "6" ]; then
@@ -388,14 +393,16 @@ case "$ENV" in
             echo ""
             echo "Available actions:"
             echo "  1) Setup display server (213-display-server.sh) - as root"
-            echo "  2) Install Cinnamon desktop (221-desktop-install.sh) - as root"
-            echo "  3) Exit"
-            read -p "Choose an option [1-3]: " choice
+            echo "  2) Desktop selection - DE/WM (220-desktop-select.sh) - as root"
+            echo "  3) Install desktop tools (231-desktop-tools.sh) - as root"
+            echo "  4) Exit"
+            read -p "Choose an option [1-4]: " choice
             
             case "$choice" in
                 1) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
-                2) NEXT_SCRIPT="221-desktop-install.sh"; NEEDS_ROOT=true ;;
-                3) print_info "Exiting..."; exit 0 ;;
+                2) NEXT_SCRIPT="220-desktop-select.sh"; NEEDS_ROOT=true ;;
+                3) NEXT_SCRIPT="231-desktop-tools.sh"; NEEDS_ROOT=true ;;
+                4) print_info "Exiting..."; exit 0 ;;
                 *) print_error "Invalid option"; exit 1 ;;
             esac
         elif [ "$STEP" -ge "5" ]; then
@@ -469,7 +476,7 @@ case "$ENV" in
         echo "  - In chroot: 101-configure-system.sh"
         echo "  - After first boot: 201-user-setup.sh (as root)"
         echo "  - As user: 211-install-aur-helper.sh → 212-cli-tools.sh"
-        echo "  - Display setup (as root): 213-display-server.sh → 221-desktop-install.sh"
+        echo "  - Display setup (as root): 213-display-server.sh → 220-desktop-select.sh → 221/222 → 231-desktop-tools.sh"
         exit 1
         ;;
 esac

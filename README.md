@@ -1,8 +1,8 @@
 # ALIE Installer
 
-**Automated installation scripts for Arch Linux with Linux Mint's Cinnamon desktop environment.**
+**Automated installation scripts for Arch Linux with customizable desktop environments and window managers.**
 
-> 🚀 Modular, robust, and production-ready installer for creating a Linux Mint-like experience on Arch Linux.
+> 🚀 Modular, robust, and production-ready installer for creating a fully-featured Arch Linux system with your choice of desktop environment or window manager.
 
 ---
 
@@ -83,7 +83,10 @@ Manually select which installation step to execute.
 │   ├── 211-install-aur-helper.sh # AUR helper (yay/paru) (user only)
 │   ├── 212-cli-tools.sh        # Interactive CLI tools selection (user only)
 │   ├── 213-display-server.sh   # Graphics server choice (Xorg/Wayland) (root only)
-│   └── 221-desktop-install.sh  # Desktop environment (Cinnamon) (root only)
+│   ├── 220-desktop-select.sh   # Choose DE/WM or skip (root only)
+│   ├── 221-desktop-environment.sh # Desktop environments (Cinnamon/GNOME/KDE/XFCE4) (root only)
+│   ├── 222-window-manager.sh   # Window managers (i3/bspwm/Openbox/etc.) (root only)
+│   └── 231-desktop-tools.sh    # Additional applications and tools (root only)
 ├── lib/                        # Shared functions and utilities
 │   └── shared-functions.sh     # Common functions for all scripts
 ├── docs/                       # Documentation
@@ -134,28 +137,47 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 
 ## 🛠️ What Gets Installed
 
-### Base System (001 + 101)
+### Base System (001-003 + 101)
 - Arch Linux base system
 - GRUB bootloader (UEFI)
 - Network configuration
 - Timezone, locale, hostname setup
 
-### Desktop Environment (201)
-- Cinnamon desktop
-- LightDM display manager
-- Xorg and Mesa drivers
+### User & Privileges (201)
 - Desktop user with sudo privileges
+- Optional shell customization (zsh/bash/fish)
 
-### AUR Helper (211)
-- YAY for AUR package management
+### AUR Helper & CLI Tools (211-212)
+- YAY or Paru for AUR package management
+- Interactive CLI tools selection (development, system monitoring, etc.)
 
-### Linux Mint Packages (212)
-- Mint themes, icons, and fonts
-- Nemo file manager with extensions
-- LibreOffice, Firefox, Thunderbird
-- Multimedia apps (Rhythmbox, Celluloid)
-- System tools (Timeshift, CUPS printing)
-- Optional: Laptop optimizations (TLP)
+### Display Server (213)
+- **Choice of**: X11 (Xorg), Wayland, or Both
+- Mesa drivers and graphics support
+
+### Desktop Selection (220)
+**Desktop Environments** (221):
+- Cinnamon (Normal/Mint Mode with LMAE compliance)
+- GNOME (Normal/Full/Complete)
+- KDE Plasma (Normal/Full/Complete)
+- XFCE4
+
+**Window Managers** (222):
+- i3 / i3-gaps (tiling)
+- bspwm (tiling)
+- Openbox (floating)
+- Awesome (dynamic tiling)
+- dwm (suckless minimal)
+
+**Or Skip** - Continue without GUI
+
+### Optional Desktop Tools (231)
+- Productivity: LibreOffice suite
+- Multimedia: GIMP, Kdenlive, OBS
+- Internet: Firefox, Thunderbird
+- Development: VS Code, Git tools
+- Gaming: Steam, Lutris, Wine
+- Themes: Linux Mint themes (AUR)
 
 ---
 
@@ -170,8 +192,11 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 | 5 | `201-user-setup.sh` | Installed | root | User creation & privilege config |
 | 6 | `211-install-aur-helper.sh` | Installed | user | AUR helper (yay/paru) installation |
 | 7 | `212-cli-tools.sh` | Installed | user | **Interactive** CLI tools selection |
-| 8 | `213-display-server.sh` | Installed | User | **Interactive** graphics server choice |
-| 9 | `221-desktop-install.sh` | Installed | root & User | Desktop environment (Cinnamon) |
+| 8 | `213-display-server.sh` | Installed | root | **Interactive** graphics server choice |
+| 9 | `220-desktop-select.sh` | Installed | root | **Interactive** Choose DE/WM or skip |
+| 10 | `221-desktop-environment.sh` | Installed | root | **Interactive** Desktop Environments (Cinnamon/GNOME/KDE/XFCE4) |
+| 11 | `222-window-manager.sh` | Installed | root | **Interactive** Window Managers (i3/bspwm/Openbox/Awesome/dwm) |
+| 12 | `231-desktop-tools.sh` | Installed | root | Desktop applications (LibreOffice, GIMP, etc.) |
 
 ---
 

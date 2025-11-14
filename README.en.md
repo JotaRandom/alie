@@ -1,6 +1,6 @@
 # ALIE Installation Scripts
 
-Automated installation scripts for Linux Mint Arch Edition.
+Automated installation scripts for Arch Linux with customizable desktop environments and window managers.
 
 ## ⚠️ WARNING - EXPERIMENTAL STATUS
 
@@ -31,8 +31,8 @@ Detects if you are in:
 
 - **Live CD**: Starts base installation
 - **Chroot**: Configures the system
-- **Installed system without desktop**: Installs desktop environment
-- **System with desktop**: Installs YAY and Mint packages
+- **Installed system without GUI**: Offers desktop/WM selection
+- **System with desktop**: Installs additional tools
 
 Progress is saved automatically, so you can reboot between steps without losing track.
 
@@ -53,21 +53,29 @@ Useful for:
 
 ```
 src/
-├── alie.sh                   # Master installer (entry point)
-├── install/                  # Installation scripts
-│   ├── 001-base-install.sh    # Base system installation
-│   ├── 101-configure-system.sh # System configuration
-│   ├── 201-desktop-install.sh # Desktop environment
-│   ├── 211-install-yay.sh     # YAY AUR helper
-│   └── 212-install-packages.sh # Linux Mint packages
-├── lib/                      # Shared libraries
-│   └── shared-functions.sh   # Common functions
-└── docs/                     # Documentation
-    ├── CHANGELOG.md          # Change history
-    ├── GUIA-RAPIDA.md        # Quick reference
-    ├── METRICAS.md           # Project metrics
-    ├── RESUMEN-MODERNIZACION.md # Modernization summary
-    └── shared/               # Shared library docs
+├── alie.sh                    # Master installer (entry point)
+├── install/                   # Installation scripts
+│   ├── 001-base-install.sh    # Disk partitioning & formatting
+│   ├── 002-shell-editor-select.sh # Shell/editor selection (optional)
+│   ├── 003-system-install.sh  # Base system install (pacstrap)
+│   ├── 101-configure-system.sh # System configuration (grub, locale)
+│   ├── 201-user-setup.sh      # User creation & privileges
+│   ├── 211-install-aur-helper.sh # AUR helper (yay/paru)
+│   ├── 212-cli-tools.sh       # Interactive CLI tools selection
+│   ├── 213-display-server.sh  # Display server (X11/Wayland)
+│   ├── 220-desktop-select.sh  # Choose DE/WM or skip
+│   ├── 221-desktop-environment.sh # Desktop Environments
+│   ├── 222-window-manager.sh  # Window Managers
+│   └── 231-desktop-tools.sh   # Additional applications
+├── lib/                       # Shared libraries
+│   ├── shared-functions.sh    # Common functions
+│   └── config-functions.sh    # Config deployment
+├── configs/                   # Configuration files
+│   └── display-managers/      # DM configurations
+└── docs/                      # Documentation
+    ├── CHANGELOG.md           # Change history
+    ├── GUIA-RAPIDA.md         # Quick reference
+    └── shared/
         └── SHARED-FUNCTIONS.md # Function documentation
 ```
 
@@ -76,11 +84,18 @@ src/
 | # | Script | Run as | When |
 |---|--------|--------|------|
 | 0 | `alie.sh` | root/user | Anytime (auto-detects environment) |
-| 1 | `install/001-base-install.sh` | root | From installation media |
-| 2 | `install/101-configure-system.sh` | root | Inside arch-chroot |
-| 3 | `install/201-desktop-install.sh` | root | After first reboot |
-| 4 | `install/211-install-yay.sh` | user | After reboot with desktop |
-| 5 | `install/212-install-packages.sh` | user | After installing yay |
+| 1 | `001-base-install.sh` | root | From installation media |
+| 2 | `002-shell-editor-select.sh` | root | Optional shell/editor selection |
+| 3 | `003-system-install.sh` | root | From installation media |
+| 4 | `101-configure-system.sh` | root | Inside arch-chroot |
+| 5 | `201-user-setup.sh` | root | After first reboot |
+| 6 | `211-install-aur-helper.sh` | user | After reboot |
+| 7 | `212-cli-tools.sh` | user | Interactive CLI tools |
+| 8 | `213-display-server.sh` | root | X11/Wayland selection |
+| 9 | `220-desktop-select.sh` | root | Choose DE/WM or skip |
+| 10 | `221-desktop-environment.sh` | root | Desktop Environments |
+| 11 | `222-window-manager.sh` | root | Window Managers |
+| 12 | `231-desktop-tools.sh` | root | Additional applications |
 
 ## Complete Process
 

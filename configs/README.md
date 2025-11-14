@@ -7,8 +7,11 @@ Sistema modular de configuraciones para ALIE. Los archivos de configuración est
 ```
 configs/
 ├── audio/              # Configuraciones de audio (ALSA, PipeWire)
+├── display-managers/   # Configuraciones de gestores de pantalla (LightDM, SDDM, GDM)
+├── editor/             # Configuraciones de editores (vim, nano)
 ├── firewall/           # Configuraciones de firewall (ufw, firewalld)
 ├── network/            # Configuraciones de red (NetworkManager, DNS)
+├── shell/              # Configuraciones de shell (bash, zsh)
 └── sudo/               # Configuraciones de privilegios (sudo, doas)
 ```
 
@@ -131,7 +134,45 @@ deploy_config_direct "audio/wireplumber.conf" \
     "/etc/wireplumber/main.conf.d/50-alie.conf" "644"
 ```
 
-### 4. Network (`configs/network/`)
+### 4. Display Managers (`configs/display-managers/`)
+
+Configuraciones para gestores de inicio de sesión gráfico.
+
+#### Archivos Disponibles
+
+| Archivo | Destino | Descripción |
+|---------|---------|-------------|
+| `lightdm-slick-greeter.conf` | `/etc/lightdm/slick-greeter.conf` | Configuración de Slick Greeter (Cinnamon) |
+| `sddm.conf` | `/etc/sddm.conf` | Configuración de SDDM (KDE Plasma) |
+| `configure-lightdm-slick.sh` | Script ejecutable | Modifica lightdm.conf para usar Slick Greeter |
+
+#### Uso en Scripts
+
+```bash
+# LightDM con Slick Greeter (Cinnamon/Mint)
+# Requiere modificación del lightdm.conf principal
+backup_config "/etc/lightdm/lightdm.conf"
+execute_config_script "display-managers/configure-lightdm-slick.sh"
+deploy_config_direct "display-managers/lightdm-slick-greeter.conf" \
+    "/etc/lightdm/slick-greeter.conf" "644"
+
+# SDDM (KDE Plasma)
+# Configuración opcional - SDDM funciona sin config
+deploy_config_direct "display-managers/sddm.conf" \
+    "/etc/sddm.conf" "644"
+
+# GDM (GNOME)
+# No requiere configuración - usa Wayland por defecto
+```
+
+#### Notas Importantes
+
+- **LightDM GTK Greeter** (XFCE4): No requiere configuración, es el greeter por defecto
+- **LightDM Slick Greeter** (Cinnamon): REQUIERE modificar lightdm.conf manualmente
+- **GDM** (GNOME): No requiere configuración
+- **SDDM** (KDE): Configuración opcional para personalizar tema/comportamiento
+
+### 5. Network (`configs/network/`)
 
 Configuraciones de red (NetworkManager, DNS, hosts).
 

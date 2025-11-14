@@ -1,6 +1,6 @@
 # Scripts de Instalación ALIE
 
-Scripts de instalación automatizada para Linux Mint Arch Edition.
+Scripts de instalación automatizada para Arch Linux con entornos de escritorio y gestores de ventanas personalizables.
 
 ## ⚠️ ADVERTENCIA - ESTADO EXPERIMENTAL
 
@@ -31,8 +31,8 @@ Detecta si estás en:
 
 - **Live CD**: Inicia instalación base
 - **Chroot**: Configura el sistema
-- **Sistema instalado sin escritorio**: Instala entorno de escritorio
-- **Sistema con escritorio**: Instala YAY y paquetes de Mint
+- **Sistema instalado sin GUI**: Ofrece selección de DE/WM
+- **Sistema con escritorio**: Instala herramientas adicionales
 
 El progreso se guarda automáticamente, así que puedes reiniciar entre pasos sin perder el rastro.
 
@@ -53,21 +53,29 @@ bash alie.sh --manual
 
 ```
 src/
-├── alie.sh                   # Instalador maestro (punto de entrada)
-├── install/                  # Scripts de instalación
-│   ├── 001-base-install.sh    # Instalación del sistema base
-│   ├── 101-configure-system.sh # Configuración del sistema
-│   ├── 201-desktop-install.sh # Entorno de escritorio
-│   ├── 211-install-yay.sh     # Helper YAY AUR
-│   └── 212-install-packages.sh # Paquetes de Linux Mint
-├── lib/                      # Bibliotecas compartidas
-│   └── shared-functions.sh   # Funciones comunes
-└── docs/                     # Documentación
-    ├── CHANGELOG.md          # Historial de cambios
-    ├── GUIA-RAPIDA.md        # Referencia rápida
-    ├── METRICAS.md           # Métricas del proyecto
-    ├── RESUMEN-MODERNIZACION.md # Resumen de modernización
-    └── shared/               # Docs de biblioteca
+├── alie.sh                    # Instalador maestro (punto de entrada)
+├── install/                   # Scripts de instalación
+│   ├── 001-base-install.sh    # Particionado y formateo de disco
+│   ├── 002-shell-editor-select.sh # Selección shell/editor (opcional)
+│   ├── 003-system-install.sh  # Instalación base (pacstrap)
+│   ├── 101-configure-system.sh # Configuración del sistema (grub, locale)
+│   ├── 201-user-setup.sh      # Creación de usuario y privilegios
+│   ├── 211-install-aur-helper.sh # Helper AUR (yay/paru)
+│   ├── 212-cli-tools.sh       # Selección interactiva de herramientas CLI
+│   ├── 213-display-server.sh  # Servidor gráfico (X11/Wayland)
+│   ├── 220-desktop-select.sh  # Elegir DE/WM o saltar
+│   ├── 221-desktop-environment.sh # Entornos de Escritorio
+│   ├── 222-window-manager.sh  # Gestores de Ventanas
+│   └── 231-desktop-tools.sh   # Aplicaciones adicionales
+├── lib/                       # Bibliotecas compartidas
+│   ├── shared-functions.sh    # Funciones comunes
+│   └── config-functions.sh    # Despliegue de configuraciones
+├── configs/                   # Archivos de configuración
+│   └── display-managers/      # Configuraciones de DM
+└── docs/                      # Documentación
+    ├── CHANGELOG.md           # Historial de cambios
+    ├── GUIA-RAPIDA.md         # Referencia rápida
+    └── shared/
         └── SHARED-FUNCTIONS.md # Documentación de funciones
 ```
 
@@ -76,11 +84,18 @@ src/
 | # | Script | Ejecutar como | Cuándo |
 |---|--------|---------------|--------|
 | 0 | `alie.sh` | root/usuario | En cualquier momento (detecta automáticamente) |
-| 1 | `install/001-base-install.sh` | root | Desde medio de instalación |
-| 2 | `install/101-configure-system.sh` | root | Dentro de arch-chroot |
-| 3 | `install/201-desktop-install.sh` | root | Después del primer reinicio |
-| 4 | `install/211-install-yay.sh` | usuario | Después de reiniciar con escritorio |
-| 5 | `install/212-install-packages.sh` | usuario | Después de instalar yay |
+| 1 | `001-base-install.sh` | root | Desde medio de instalación |
+| 2 | `002-shell-editor-select.sh` | root | Selección shell/editor (opcional) |
+| 3 | `003-system-install.sh` | root | Desde medio de instalación |
+| 4 | `101-configure-system.sh` | root | Dentro de arch-chroot |
+| 5 | `201-user-setup.sh` | root | Después del primer reinicio |
+| 6 | `211-install-aur-helper.sh` | usuario | Después de reiniciar |
+| 7 | `212-cli-tools.sh` | usuario | Herramientas CLI interactivas |
+| 8 | `213-display-server.sh` | root | Selección X11/Wayland |
+| 9 | `220-desktop-select.sh` | root | Elegir DE/WM o saltar |
+| 10 | `221-desktop-environment.sh` | root | Entornos de Escritorio |
+| 11 | `222-window-manager.sh` | root | Gestores de Ventanas |
+| 12 | `231-desktop-tools.sh` | root | Aplicaciones adicionales |
 
 ## Proceso Completo
 
