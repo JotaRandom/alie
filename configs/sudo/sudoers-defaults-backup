@@ -1,0 +1,11 @@
+# ALIE - Minimal sudo defaults (backup configuration for doas compatibility)
+# This provides basic sudo functionality when doas is the primary tool
+
+# Keep essential environment variables
+Defaults env_keep += "HOME LANG LC_* TZ DISPLAY XAUTHORITY"
+
+# Don't lecture users
+Defaults !lecture
+
+# Log sudo usage for security auditing  
+Defaults logfile=/var/log/sudo.log

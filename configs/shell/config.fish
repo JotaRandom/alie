@@ -1,0 +1,51 @@
+# ALIE Basic Fish Configuration
+
+# Greeting
+set fish_greeting ""
+
+# Path
+set -gx PATH $HOME/.local/bin $PATH
+
+# Aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias h='history'
+alias df='df -h'
+alias du='du -h'
+alias free='free -h'
+
+# Colors for ls
+set -gx LS_COLORS 'di=34:ln=35:so=32:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43'
+
+# Editor
+set -gx EDITOR nano
+set -gx VISUAL nano
+
+# History
+set -g fish_history_max 10000
+
+# Prompt configuration
+function fish_prompt
+    set_color green
+    echo -n (whoami)
+    set_color normal
+    echo -n '@'
+    set_color green
+    echo -n (hostname)
+    set_color normal
+    echo -n ':'
+    set_color blue
+    echo -n (prompt_pwd)
+    set_color normal
+    echo -n '$ '
+end
+
+# Right prompt (optional - shows time)
+function fish_right_prompt
+    set_color 666
+    echo -n (date '+%H:%M:%S')
+    set_color normal
+end

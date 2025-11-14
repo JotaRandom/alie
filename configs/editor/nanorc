@@ -1,0 +1,42 @@
+# ALIE - Nano Configuration
+# Modern nano configuration with syntax highlighting
+
+# Include all syntax highlighting definitions
+include "/usr/share/nano/*.nanorc"
+include "/usr/share/nano-syntax-highlighting/*.nanorc"
+
+# UI Settings
+set linenumbers        # Show line numbers
+set softwrap           # Soft wrap long lines
+set tabsize 4          # Set tab size to 4 spaces
+set tabstospaces       # Convert tabs to spaces
+set autoindent         # Auto-indent new lines
+set mouse              # Enable mouse support
+
+# Search & Replace
+set casesensitive      # Case-sensitive search by default
+set regexp             # Enable regular expressions in search
+
+# Appearance
+set titlecolor bold,white,blue   # Title bar colors
+set statuscolor bold,white,green # Status bar colors
+set errorcolor bold,white,red    # Error message colors
+set selectedcolor black,yellow   # Selected text
+set stripecolor ,yellow         # Line number stripe
+set numbercolor cyan            # Line numbers
+set keycolor cyan               # Key bindings in help
+set functioncolor green         # Function descriptions in help
+
+# Behavior
+set nohelp             # Don't show help at bottom (more space)
+set smooth             # Smooth scrolling
+set smarthome          # Smart home key behavior
+set cutfromcursor      # Cut from cursor to end of line
+
+# Backup
+# set backup           # Uncomment to enable backups
+# set backupdir "~/.nano/backups"  # Backup directory
+
+# Misc
+set quickblank         # Quick status bar blanking
+set historylog         # Save search/replace history

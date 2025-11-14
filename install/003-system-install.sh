@@ -2,10 +2,11 @@
 # ALIE System Installation Script
 # This script installs the base system using pacstrap after partitioning is complete
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT  
+# *** WARNING: EXPERIMENTAL SCRIPT  
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 # Requires 001-base-install.sh to be completed first.
+# Optionally run 002-shell-editor-select.sh before this.
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
@@ -24,16 +25,16 @@ source "$LIB_DIR/shared-functions.sh"
 
 # Script header
 echo ""
-print_step "🚀 ALIE System Installation"
+print_step "*** ALIE System Installation"
 echo ""
 echo "This script installs the base Arch Linux system using pacstrap."
 echo "It should be run AFTER disk partitioning and mounting is complete."
 echo ""
 echo "What this script does:"
-echo "  🔄 Optimize package mirrors"  
-echo "  📦 Install base system packages with pacstrap"
-echo "  📋 Generate filesystem table (fstab)"
-echo "  💾 Save installation configuration"
+echo "  - Optimize package mirrors"  
+echo "  - Install base system packages with pacstrap"
+echo "  - Generate filesystem table (fstab)"
+echo "  - Save installation configuration"
 echo ""
 
 # ===================================
@@ -51,6 +52,7 @@ fi
 if ! mountpoint -q /mnt 2>/dev/null; then
     print_error "Root partition not mounted at /mnt"
     print_info "Please run 001-base-install.sh first to partition and mount the system"
+    print_info "Or manually mount your partitions and run this script again"
     exit 1
 fi
 
@@ -66,27 +68,46 @@ fi
 
 # Load saved configuration from 001 script
 if load_system_config "/tmp/.alie-install-config"; then
-    print_info "Using configuration from disk partitioning step"
+    print_info "Using configuration from disk partitioning step (001)"
 else
     print_warning "Configuration from 001 script not found"
-    print_info "Performing automatic system detection..."
+    print_info "Detecting system configuration from mounted partitions..."
     
     # Fallback: detect basic configuration
     detect_system_info
     
-    print_info "Auto-detected configuration - please verify:"
+    # Detect mounted partitions
+    if mountpoint -q /mnt 2>/dev/null; then
+        ROOT_PARTITION=$(findmnt -n -o SOURCE /mnt 2>/dev/null || echo "unknown")
+        ROOT_FS=$(findmnt -n -o FSTYPE /mnt 2>/dev/null || echo "unknown")
+    fi
+    
+    if mountpoint -q /mnt/boot 2>/dev/null; then
+        EFI_PARTITION=$(findmnt -n -o SOURCE /mnt/boot 2>/dev/null || echo "")
+    fi
+    
+    if mountpoint -q /mnt/home 2>/dev/null; then
+        HOME_PARTITION=$(findmnt -n -o SOURCE /mnt/home 2>/dev/null || echo "")
+    fi
+    
+    SWAP_PARTITION=$(swapon --show=NAME --noheadings 2>/dev/null | head -n1 || echo "")
+    
+    print_success "Auto-detected configuration from mounted filesystems"
 fi
 
 print_info "Current system configuration:"
-echo "  • Boot mode: ${BOOT_MODE:-unknown}"
-echo "  • Partition table: ${PARTITION_TABLE:-unknown}" 
-echo "  • Root filesystem: ${ROOT_FS:-unknown}"
-echo "  • Root partition: ${ROOT_PARTITION:-unknown}"
-echo "  • CPU vendor: ${CPU_VENDOR:-unknown}"
+echo "  - Boot mode: ${BOOT_MODE:-unknown}"
+echo "  - Partition table: ${PARTITION_TABLE:-unknown}" 
+echo "  - Root filesystem: ${ROOT_FS:-unknown}"
+echo "  - Root partition: ${ROOT_PARTITION:-unknown}"
+[ -n "${EFI_PARTITION:-}" ] && echo "  - EFI partition: $EFI_PARTITION"
+[ -n "${HOME_PARTITION:-}" ] && echo "  - Home partition: $HOME_PARTITION"
+[ -n "${SWAP_PARTITION:-}" ] && echo "  - Swap partition: $SWAP_PARTITION"
+echo "  - CPU vendor: ${CPU_VENDOR:-unknown}"
 if [ -n "${MICROCODE_PKG:-}" ]; then
-    echo "  • Microcode: $MICROCODE_PKG"
+    echo "  - Microcode: $MICROCODE_PKG"
 fi
-echo "  • Mount point: /mnt"
+echo "  - Mount point: /mnt"
 
 # ===================================
 # STEP 8: MIRROR OPTIMIZATION
@@ -138,6 +159,22 @@ if [ "$BOOT_MODE" = "UEFI" ]; then
     print_info "Adding UEFI boot tools"
 fi
 
+# Add selected shells and editors from 002-shell-editor-select.sh
+if [ -f /tmp/.alie-shell-editor-config ]; then
+    print_info "Loading shell and editor selection..."
+    source "/tmp/.alie-shell-editor-config"
+    
+    if [ -n "${EXTRA_SHELLS:-}" ]; then
+        PACKAGES="$PACKAGES $EXTRA_SHELLS"
+        print_info "Adding shells: $EXTRA_SHELLS"
+    fi
+    
+    if [ -n "${EXTRA_EDITORS:-}" ]; then
+        PACKAGES="$PACKAGES $EXTRA_EDITORS"
+        print_info "Adding editors: $EXTRA_EDITORS"
+    fi
+fi
+
 # Check available space on /mnt (minimum 2GB recommended for base install)
 AVAILABLE_SPACE_MB=$(df -BM /mnt | awk 'NR==2 {print $4}' | sed 's/M//')
 print_info "Available space on /mnt: ${AVAILABLE_SPACE_MB} MB"
@@ -167,10 +204,10 @@ set -e
 if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
     print_error "pacstrap failed with exit code $PACSTRAP_EXIT_CODE"
     print_info "This could be due to:"
-    echo "  • Network connectivity issues"
-    echo "  • Mirror problems"
-    echo "  • Insufficient disk space"
-    echo "  • Package signing errors"
+    echo "  - Network connectivity issues"
+    echo "  - Mirror problems"
+    echo "  - Insufficient disk space"
+    echo "  - Package signing errors"
     echo ""
     read -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
     
@@ -192,6 +229,103 @@ if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
 fi
 
 print_success "Base system installed!"
+
+# ===================================
+# STEP 9b: CONFIGURE EDITORS (if selected)
+# ===================================
+if [ "${CONFIGURE_NANO:-false}" = "true" ] || [ "${CONFIGURE_VIM:-false}" = "true" ]; then
+    print_step "STEP 9b: Configuring Text Editors"
+    
+    # Get configs directory
+    CONFIGS_DIR="$(dirname "$SCRIPT_DIR")/configs"
+    
+    # Configure Nano
+    if [ "${CONFIGURE_NANO:-false}" = "true" ]; then
+        print_info "Setting up nano with syntax highlighting..."
+        
+        mkdir -p /mnt/etc
+        if [ -f "$CONFIGS_DIR/editor/nanorc" ]; then
+            cp "$CONFIGS_DIR/editor/nanorc" /mnt/etc/nanorc
+            print_success "Deployed nano configuration from: configs/editor/nanorc"
+        else
+            print_warning "Nano config not found, using inline configuration"
+            cat > /mnt/etc/nanorc << 'EOF'
+# ALIE - Nano Configuration
+include "/usr/share/nano/*.nanorc"
+include "/usr/share/nano-syntax-highlighting/*.nanorc"
+set linenumbers
+set softwrap
+set tabsize 4
+set tabstospaces
+set autoindent
+set mouse
+EOF
+        fi
+        
+        # Copy to user skeleton
+        mkdir -p /mnt/etc/skel
+        cp /mnt/etc/nanorc /mnt/etc/skel/.nanorc
+        
+        print_success "Nano configured with syntax highlighting"
+    fi
+    
+    # Configure Vim
+    if [ "${CONFIGURE_VIM:-false}" = "true" ]; then
+        print_info "Setting up vim with enhanced configuration..."
+        
+        mkdir -p /mnt/etc
+        if [ -f "$CONFIGS_DIR/editor/vimrc" ]; then
+            cp "$CONFIGS_DIR/editor/vimrc" /mnt/etc/vimrc
+            print_success "Deployed vim configuration from: configs/editor/vimrc"
+        else
+            print_warning "Vim config not found, using inline configuration"
+            cat > /mnt/etc/vimrc << 'EOF'
+" ALIE - Vim Configuration
+set nocompatible              " Disable vi compatibility
+syntax on                     " Enable syntax highlighting
+filetype plugin indent on     " Enable filetype detection
+
+set number                    " Show line numbers
+set relativenumber            " Relative line numbers
+set ruler                     " Show cursor position
+set showcmd                   " Show command in bottom bar
+set wildmenu                  " Visual autocomplete for command menu
+set showmatch                 " Highlight matching brackets
+set incsearch                 " Search as characters are entered
+set hlsearch                  " Highlight search matches
+set ignorecase                " Case insensitive search
+set smartcase                 " Case sensitive when uppercase present
+
+set tabstop=4                 " Visual spaces per TAB
+set softtabstop=4             " Spaces per TAB when editing
+set shiftwidth=4              " Spaces for autoindent
+set expandtab                 " Tabs are spaces
+set autoindent                " Auto indent
+set smartindent               " Smart indent
+
+set mouse=a                   " Enable mouse support
+set encoding=utf-8            " UTF-8 encoding
+set backspace=indent,eol,start " Backspace behavior
+
+" Color scheme
+set background=dark
+colorscheme desert
+
+" Better split navigation
+nnoremap <C-J> <C-W><C-J>
+nnoremap <C-K> <C-W><C-K>
+nnoremap <C-L> <C-W><C-L>
+nnoremap <C-H> <C-W><C-H>
+EOF
+        fi
+        
+        # Copy to user skeleton
+        mkdir -p /mnt/etc/skel
+        cp /mnt/etc/vimrc /mnt/etc/skel/.vimrc
+        
+        print_success "Vim configured with enhanced settings"
+    fi
+fi
 
 # ===================================
 # STEP 10: GENERATE FSTAB
@@ -224,7 +358,7 @@ save_system_config "/tmp/.alie-install-config"
 # INSTALLATION COMPLETE
 # ===================================
 echo ""
-print_step "✅ Base Installation Completed Successfully!"
+print_step "*** Base Installation Completed Successfully!"
 
 # Mark progress
 save_progress "02-base-installed"

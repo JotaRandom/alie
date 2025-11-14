@@ -83,50 +83,55 @@ show_manual_menu() {
     echo "     ${YELLOW}→${NC} Partition and format disks only"
     echo "     ${YELLOW}→${NC} Requires: Live USB environment, root privileges"
     echo ""
-    echo "  ${CYAN}2)${NC} System Installation (002-system-install.sh)"
+    echo "  ${CYAN}2)${NC} Shell/Editor Selection (002-shell-editor-select.sh)"
+    echo "     ${YELLOW}→${NC} Select shells and text editors (OPTIONAL)"
+    echo "     ${YELLOW}→${NC} Requires: Live USB environment, root privileges"
+    echo ""
+    echo "  ${CYAN}3)${NC} System Installation (003-system-install.sh)"
     echo "     ${YELLOW}→${NC} Install base system with pacstrap"
     echo "     ${YELLOW}→${NC} Requires: Partitioned disks, root privileges"
     echo ""
-    echo "  ${CYAN}3)${NC} System Configuration (101-configure-system.sh)"
+    echo "  ${CYAN}4)${NC} System Configuration (101-configure-system.sh)"
     echo "     ${YELLOW}→${NC} Configure timezone, locale, hostname, GRUB"
     echo "     ${YELLOW}→${NC} Requires: Chroot environment, root privileges"
     echo ""
-    echo "  ${CYAN}4)${NC} User Setup (201-user-setup.sh)"
+    echo "  ${CYAN}5)${NC} User Setup (201-user-setup.sh)"
     echo "     ${YELLOW}→${NC} Create desktop user, configure sudo/doas, install basic tools"
     echo "     ${YELLOW}→${NC} Requires: Booted system, root privileges"
     echo ""
-    echo "  ${CYAN}5)${NC} AUR Helper Installation (211-install-aur-helper.sh)"
+    echo "  ${CYAN}6)${NC} AUR Helper Installation (211-install-aur-helper.sh)"
     echo "     ${YELLOW}→${NC} Install universal AUR helper (yay/paru) + optimize makepkg"
     echo "     ${YELLOW}→${NC} Requires: Booted system, regular user (NOT root)"
     echo ""
-    echo "  ${CYAN}6)${NC} CLI Tools Selection (212-cli-tools.sh)"
+    echo "  ${CYAN}7)${NC} CLI Tools Selection (212-cli-tools.sh)"
     echo "     ${YELLOW}→${NC} Interactive selection of CLI tools and utilities"
     echo "     ${YELLOW}→${NC} Requires: AUR helper installed, regular user (NOT root)"
     echo ""
-    echo "  ${CYAN}7)${NC} Display Server Setup (213-display-server.sh)"
+    echo "  ${CYAN}8)${NC} Display Server Setup (213-display-server.sh)"
     echo "     ${YELLOW}→${NC} Choose graphics system (Xorg/Wayland/Both)"
     echo "     ${YELLOW}→${NC} Requires: Booted system, root privileges"
     echo ""
-    echo "  ${CYAN}8)${NC} Desktop Environment (221-desktop-install.sh)"
+    echo "  ${CYAN}9)${NC} Desktop Environment (221-desktop-install.sh)"
     echo "     ${YELLOW}→${NC} Install Cinnamon desktop, LightDM, complete DE"
     echo "     ${YELLOW}→${NC} Requires: Display server installed, root privileges"
     echo ""
-    echo "  ${CYAN}9)${NC} Clear progress and exit"
+    echo "  ${CYAN}C)${NC} Clear progress and exit"
     echo "  ${CYAN}0)${NC} Exit without changes"
     echo ""
     
-    read -p "Choose script to run [1-9, 0]: " choice
+    read -p "Choose script to run [1-9, C, 0]: " choice
     
     case "$choice" in
         1) RUN_SCRIPT="$INSTALL_DIR/001-base-install.sh"; NEEDS_ROOT=true ;;
-        2) RUN_SCRIPT="$INSTALL_DIR/002-system-install.sh"; NEEDS_ROOT=true ;;
-        3) RUN_SCRIPT="$INSTALL_DIR/101-configure-system.sh"; NEEDS_ROOT=true ;;
-        4) RUN_SCRIPT="$INSTALL_DIR/201-user-setup.sh"; NEEDS_ROOT=true ;;
-        5) RUN_SCRIPT="$INSTALL_DIR/211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
-        6) RUN_SCRIPT="$INSTALL_DIR/212-cli-tools.sh"; NEEDS_ROOT=false ;;
-        7) RUN_SCRIPT="$INSTALL_DIR/213-display-server.sh"; NEEDS_ROOT=true ;;
-        8) RUN_SCRIPT="$INSTALL_DIR/221-desktop-install.sh"; NEEDS_ROOT=true ;;
-        9)
+        2) RUN_SCRIPT="$INSTALL_DIR/002-shell-editor-select.sh"; NEEDS_ROOT=true ;;
+        3) RUN_SCRIPT="$INSTALL_DIR/003-system-install.sh"; NEEDS_ROOT=true ;;
+        4) RUN_SCRIPT="$INSTALL_DIR/101-configure-system.sh"; NEEDS_ROOT=true ;;
+        5) RUN_SCRIPT="$INSTALL_DIR/201-user-setup.sh"; NEEDS_ROOT=true ;;
+        6) RUN_SCRIPT="$INSTALL_DIR/211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
+        7) RUN_SCRIPT="$INSTALL_DIR/212-cli-tools.sh"; NEEDS_ROOT=false ;;
+        8) RUN_SCRIPT="$INSTALL_DIR/213-display-server.sh"; NEEDS_ROOT=true ;;
+        9) RUN_SCRIPT="$INSTALL_DIR/221-desktop-install.sh"; NEEDS_ROOT=true ;;
+        [Cc])
             print_warning "This will clear all progress markers"
             read -p "Are you sure? (yes/no): " confirm
             if [ "$confirm" = "yes" ]; then
@@ -460,7 +465,7 @@ case "$ENV" in
         print_error "Unable to detect environment."
         echo ""
         print_info "Please run the appropriate script manually:"
-        echo "  - From live CD: 001-base-install.sh → 002-system-install.sh"
+        echo "  - From live CD: 001-base-install.sh → (002-shell-editor-select.sh) → 003-system-install.sh"
         echo "  - In chroot: 101-configure-system.sh"
         echo "  - After first boot: 201-user-setup.sh (as root)"
         echo "  - As user: 211-install-aur-helper.sh → 212-cli-tools.sh"

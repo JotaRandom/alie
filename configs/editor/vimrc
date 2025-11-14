@@ -1,0 +1,90 @@
+" ALIE - Vim Configuration
+" Modern vim configuration with sensible defaults
+
+set nocompatible              " Disable vi compatibility
+syntax on                     " Enable syntax highlighting
+filetype plugin indent on     " Enable filetype detection
+
+" UI Configuration
+set number                    " Show line numbers
+set relativenumber            " Relative line numbers
+set ruler                     " Show cursor position
+set showcmd                   " Show command in bottom bar
+set wildmenu                  " Visual autocomplete for command menu
+set showmatch                 " Highlight matching brackets
+set cursorline                " Highlight current line
+set laststatus=2              " Always show status line
+
+" Search Configuration
+set incsearch                 " Search as characters are entered
+set hlsearch                  " Highlight search matches
+set ignorecase                " Case insensitive search
+set smartcase                 " Case sensitive when uppercase present
+
+" Indentation
+set tabstop=4                 " Visual spaces per TAB
+set softtabstop=4             " Spaces per TAB when editing
+set shiftwidth=4              " Spaces for autoindent
+set expandtab                 " Tabs are spaces
+set autoindent                " Auto indent
+set smartindent               " Smart indent
+
+" Behavior
+set mouse=a                   " Enable mouse support
+set encoding=utf-8            " UTF-8 encoding
+set backspace=indent,eol,start " Backspace behavior
+set hidden                    " Allow hidden buffers
+set history=1000              " Command history
+set undolevels=1000           " Undo levels
+
+" Performance
+set lazyredraw                " Don't redraw during macros
+set ttyfast                   " Fast terminal connection
+
+" Color scheme
+set background=dark
+colorscheme desert
+
+" Status line
+set statusline=%F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v]\ [%p%%]\ [LEN=%L]
+
+" Better split navigation
+nnoremap <C-J> <C-W><C-J>
+nnoremap <C-K> <C-W><C-K>
+nnoremap <C-L> <C-W><C-L>
+nnoremap <C-H> <C-W><C-H>
+
+" Clear search highlight
+nnoremap <leader><space> :nohlsearch<CR>
+
+" Save with sudo
+command! W w !sudo tee % > /dev/null
+
+" Auto-create parent directories when saving
+function! s:MkNonExDir(file, buf)
+    if empty(getbufvar(a:buf, '&buftype')) && a:file!~#'\v^\w+\:\/'
+        let dir=fnamemodify(a:file, ':h')
+        if !isdirectory(dir)
+            call mkdir(dir, 'p')
+        endif
+    endif
+endfunction
+augroup BWCCreateDir
+    autocmd!
+    autocmd BufWritePre * :call s:MkNonExDir(expand('<afile>'), +expand('<abuf>'))
+augroup END
+
+" File type specific settings
+autocmd FileType python setlocal tabstop=4 shiftwidth=4 expandtab
+autocmd FileType javascript,html,css setlocal tabstop=2 shiftwidth=2 expandtab
+autocmd FileType go setlocal tabstop=4 shiftwidth=4 noexpandtab
+autocmd FileType make setlocal noexpandtab
+
+" Remove trailing whitespace on save
+autocmd BufWritePre * :%s/\s\+$//e
+
+" Return to last edit position when opening files
+autocmd BufReadPost *
+     \ if line("'\"") > 0 && line("'\"") <= line("$") |
+     \   exe "normal! g`\"" |
+     \ endif

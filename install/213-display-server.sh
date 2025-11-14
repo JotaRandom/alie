@@ -53,17 +53,18 @@ show_main_menu() {
     echo "  GPU: $gpu_info"
     echo ""
     
-    print_info "📺 Available options:"
+    print_info "[?] Available options:"
     echo ""
-    echo "  ${CYAN}1.${NC} 🖥️  Xorg Only              - Traditional X11 server (stable, mature)"
-    echo "  ${CYAN}2.${NC} 🌊 Wayland Only          - Modern display protocol (core only)"
-    echo "  ${CYAN}3.${NC} 🔄 Both Xorg + Wayland   - Maximum compatibility (recommended)"
+    echo "  ${CYAN}1.${NC} [X] Xorg Only              - Traditional X11 server (stable, mature)"
+    echo "  ${CYAN}2.${NC} [W] Wayland Only          - Modern display protocol (core only)"
+    echo "  ${CYAN}3.${NC} [B] Both Xorg + Wayland   - Maximum compatibility (recommended)"
     echo ""
-    echo "  ${CYAN}4.${NC} ⚙️  Custom Xorg           - Select X11 components manually"
-    echo "  ${CYAN}5.${NC} ⚙️  Custom Wayland        - Select Wayland components manually"
+    echo "  ${CYAN}4.${NC} [+] Custom Xorg           - Select X11 components manually"
+    echo "  ${CYAN}5.${NC} [+] Custom Wayland        - Select Wayland components manually"
+    echo "  ${CYAN}6.${NC} [P] Individual Packages   - Choose specific packages"
     echo ""
-    echo "  ${CYAN}I.${NC} ℹ️  Information            - About each option"
-    echo "  ${CYAN}Q.${NC} ❌ Quit                   - Exit without installing"
+    echo "  ${CYAN}I.${NC} [?] Information            - About each option"
+    echo "  ${CYAN}Q.${NC} [X] Quit                   - Exit without installing"
     echo ""
 }
 
@@ -74,7 +75,7 @@ show_information() {
     print_section_header "Display Server Information" "Learn about each option"
     echo ""
     
-    echo "🖥️  ${CYAN}XORG (X11)${NC}"
+    echo "[X] ${CYAN}XORG (X11)${NC}"
     echo "   • Mature, stable technology (40+ years)"
     echo "   • Excellent compatibility with older software"
     echo "   • Better support for NVIDIA proprietary drivers"
@@ -82,7 +83,7 @@ show_information() {
     echo "   • Standard for most desktop environments"
     echo ""
     
-    echo "🌊 ${CYAN}WAYLAND${NC}"  
+    echo "[W] ${CYAN}WAYLAND${NC}"  
     echo "   • Modern display protocol (better security)"
     echo "   • Better performance and lower latency"
     echo "   • Built-in compositing (smoother graphics)"
@@ -91,14 +92,14 @@ show_information() {
     echo "   • Note: Compositors (Sway, etc.) installed separately"
     echo ""
     
-    echo "🔄 ${CYAN}BOTH${NC}"
+    echo "[B] ${CYAN}BOTH${NC}"
     echo "   • Maximum compatibility - switch as needed"
     echo "   • Use Wayland with modern apps, X11 for legacy"
     echo "   • Future-proof your system"
     echo "   • Recommended for most users"
     echo ""
     
-    echo "ℹ️  ${CYAN}SCOPE NOTE${NC}"
+    echo "[!] ${CYAN}SCOPE NOTE${NC}"
     echo "   • This script installs display SERVER protocols only"
     echo "   • Desktop environments (GNOME, KDE) installed separately"
     echo "   • Window managers (Sway, i3) installed separately"
@@ -107,6 +108,250 @@ show_information() {
     
     printf "${YELLOW}Press Enter to return to menu...${NC}"
     read
+}
+
+# Select individual display packages
+select_individual_display_packages() {
+    local all_packages=()
+    local package_descriptions=()
+    local selected_packages=()
+    
+    # Define all available display-related packages with descriptions
+    # Xorg Core
+    all_packages+=("xorg-server" "xorg-xauth" "xorg-xinit")
+    package_descriptions+=("xorg-server:Main X11 server" "xorg-xauth:X authentication" "xorg-xinit:X initialization (startx)")
+    
+    # Xorg Display Tools
+    all_packages+=("xorg-xrandr" "xorg-xset" "xorg-xdpyinfo" "xorg-xsetroot")
+    package_descriptions+=("xorg-xrandr:Display configuration" "xorg-xset:X settings" "xorg-xdpyinfo:Display info" "xorg-xsetroot:Root window settings")
+    
+    # Xorg Window Tools
+    all_packages+=("xorg-xprop" "xorg-xwininfo" "xorg-xkill" "xorg-xev")
+    package_descriptions+=("xorg-xprop:Window properties" "xorg-xwininfo:Window information" "xorg-xkill:Force close windows" "xorg-xev:Event tester")
+    
+    # Xorg Input Tools
+    all_packages+=("xorg-xmodmap" "xorg-xinput")
+    package_descriptions+=("xorg-xmodmap:Keyboard mapping" "xorg-xinput:Input device configuration")
+    
+    # Xorg Clipboard
+    all_packages+=("xclip" "xsel")
+    package_descriptions+=("xclip:Clipboard tool" "xsel:X selection tool")
+    
+    # Xorg Fonts
+    all_packages+=("xorg-fonts-misc" "ttf-dejavu" "ttf-liberation" "noto-fonts")
+    package_descriptions+=("xorg-fonts-misc:Misc X fonts" "ttf-dejavu:DejaVu fonts" "ttf-liberation:Liberation fonts" "noto-fonts:Google Noto fonts")
+    
+    # Xorg Development
+    all_packages+=("xorg-xrdb" "xorg-xhost" "xorg-xlsclients" "xorg-xvinfo")
+    package_descriptions+=("xorg-xrdb:X resource database" "xorg-xhost:Access control" "xorg-xlsclients:List X clients" "xorg-xvinfo:Video extension info")
+    
+    # Wayland Core
+    all_packages+=("wayland" "wayland-protocols" "xorg-xwayland")
+    package_descriptions+=("wayland:Wayland core library" "wayland-protocols:Wayland protocols" "xorg-xwayland:X11 compatibility layer")
+    
+    # Wayland Session & Tools
+    all_packages+=("wl-clipboard" "wlroots" "xdg-desktop-portal-wlr")
+    package_descriptions+=("wl-clipboard:Wayland clipboard" "wlroots:Wayland compositor library" "xdg-desktop-portal-wlr:Desktop portal for wlroots")
+    
+    # Graphics Drivers - Mesa
+    all_packages+=("mesa" "mesa-utils" "vulkan-icd-loader")
+    package_descriptions+=("mesa:Open-source graphics" "mesa-utils:GL utilities" "vulkan-icd-loader:Vulkan loader")
+    
+    # Graphics Drivers - Intel
+    all_packages+=("xf86-video-intel" "vulkan-intel" "intel-media-driver")
+    package_descriptions+=("xf86-video-intel:Intel Xorg driver" "vulkan-intel:Intel Vulkan" "intel-media-driver:Intel media acceleration")
+    
+    # Graphics Drivers - AMD
+    all_packages+=("xf86-video-amdgpu" "vulkan-radeon" "libva-mesa-driver")
+    package_descriptions+=("xf86-video-amdgpu:AMD Xorg driver" "vulkan-radeon:AMD Vulkan" "libva-mesa-driver:VA-API for Mesa")
+    
+    # Graphics Drivers - NVIDIA
+    all_packages+=("nvidia" "nvidia-utils" "nvidia-settings")
+    package_descriptions+=("nvidia:NVIDIA proprietary driver" "nvidia-utils:NVIDIA utilities" "nvidia-settings:NVIDIA configuration")
+    
+    # Interactive selection
+    clear
+    echo ""
+    print_section_header "Individual Display Package Selection" "Choose specific packages"
+    echo ""
+    print_info "Instructions:"
+    echo "  • Type package number to toggle selection"
+    echo "  • Type 'all' to select all packages"
+    echo "  • Type 'none' to deselect all"
+    echo "  • Type 'search <term>' to filter packages"
+    echo "  • Type 'I' to install selected packages"
+    echo "  • Type 'Q' to cancel"
+    echo ""
+    
+    local filter=""
+    local input
+    
+    while true; do
+        clear
+        echo ""
+        print_section_header "Individual Display Package Selection" "Choose specific packages"
+        echo ""
+        
+        if [ -n "$filter" ]; then
+            print_info "Filter: '$filter' (type 'clear' to remove filter)"
+            echo ""
+        fi
+        
+        # Display packages in categories
+        local idx=1
+        local displayed_indices=()
+        local displayed_packages=()
+        
+        # Show categories
+        echo "${YELLOW}━━━ Xorg Core ━━━${NC}"
+        for i in 0 1 2; do
+            local pkg="${all_packages[$i]}"
+            local desc="${package_descriptions[$i]#*:}"
+            
+            if [ -n "$filter" ] && ! [[ "$pkg" =~ $filter ]] && ! [[ "$desc" =~ $filter ]]; then
+                continue
+            fi
+            
+            displayed_indices+=("$i")
+            displayed_packages+=("$pkg")
+            
+            local status=" "
+            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                status="${GREEN}[X]${NC}"
+            fi
+            
+            printf "  [%2d] %s %-30s - %s\n" "$idx" "$status" "$pkg" "$desc"
+            ((idx++))
+        done
+        
+        echo ""
+        echo "${YELLOW}━━━ Xorg Tools ━━━${NC}"
+        for i in {3..16}; do
+            [ $i -ge ${#all_packages[@]} ] && break
+            local pkg="${all_packages[$i]}"
+            local desc="${package_descriptions[$i]#*:}"
+            
+            if [ -n "$filter" ] && ! [[ "$pkg" =~ $filter ]] && ! [[ "$desc" =~ $filter ]]; then
+                continue
+            fi
+            
+            displayed_indices+=("$i")
+            displayed_packages+=("$pkg")
+            
+            local status=" "
+            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                status="${GREEN}[X]${NC}"
+            fi
+            
+            printf "  [%2d] %s %-30s - %s\n" "$idx" "$status" "$pkg" "$desc"
+            ((idx++))
+        done
+        
+        echo ""
+        echo "${YELLOW}━━━ Wayland ━━━${NC}"
+        for i in {17..22}; do
+            [ $i -ge ${#all_packages[@]} ] && break
+            local pkg="${all_packages[$i]}"
+            local desc="${package_descriptions[$i]#*:}"
+            
+            if [ -n "$filter" ] && ! [[ "$pkg" =~ $filter ]] && ! [[ "$desc" =~ $filter ]]; then
+                continue
+            fi
+            
+            displayed_indices+=("$i")
+            displayed_packages+=("$pkg")
+            
+            local status=" "
+            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                status="${GREEN}[X]${NC}"
+            fi
+            
+            printf "  [%2d] %s %-30s - %s\n" "$idx" "$status" "$pkg" "$desc"
+            ((idx++))
+        done
+        
+        echo ""
+        echo "${YELLOW}━━━ Graphics Drivers ━━━${NC}"
+        for i in {23..40}; do
+            [ $i -ge ${#all_packages[@]} ] && break
+            local pkg="${all_packages[$i]}"
+            local desc="${package_descriptions[$i]#*:}"
+            
+            if [ -n "$filter" ] && ! [[ "$pkg" =~ $filter ]] && ! [[ "$desc" =~ $filter ]]; then
+                continue
+            fi
+            
+            displayed_indices+=("$i")
+            displayed_packages+=("$pkg")
+            
+            local status=" "
+            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                status="${GREEN}[X]${NC}"
+            fi
+            
+            printf "  [%2d] %s %-30s - %s\n" "$idx" "$status" "$pkg" "$desc"
+            ((idx++))
+        done
+        
+        echo ""
+        if [ ${#selected_packages[@]} -gt 0 ]; then
+            print_info "Selected: ${#selected_packages[@]} package(s)"
+        else
+            print_warning "No packages selected yet"
+        fi
+        echo ""
+        
+        printf "${CYAN}Enter number, 'all', 'none', 'search <term>', 'I' to install, 'Q' to cancel: ${NC}"
+        read -r input
+        
+        case "$input" in
+            [0-9]|[0-9][0-9]|[0-9][0-9][0-9])
+                if [ "$input" -ge 1 ] && [ "$input" -lt "$idx" ]; then
+                    local pkg_idx=$((input - 1))
+                    local actual_idx="${displayed_indices[$pkg_idx]}"
+                    local pkg="${all_packages[$actual_idx]}"
+                    
+                    if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                        selected_packages=($(printf '%s\n' "${selected_packages[@]}" | grep -v "^$pkg$"))
+                    else
+                        selected_packages+=("$pkg")
+                    fi
+                else
+                    print_warning "Invalid number"
+                    sleep 1
+                fi
+                ;;
+            all)
+                selected_packages=("${all_packages[@]}")
+                ;;
+            none)
+                selected_packages=()
+                ;;
+            search*)
+                filter="${input#search }"
+                filter="${filter## }"
+                ;;
+            clear)
+                filter=""
+                ;;
+            [iI])
+                if [ ${#selected_packages[@]} -eq 0 ]; then
+                    print_warning "No packages selected"
+                    sleep 1
+                else
+                    echo "${selected_packages[*]}"
+                    return 0
+                fi
+                ;;
+            [qQ])
+                return 1
+                ;;
+            *)
+                print_warning "Invalid option"
+                sleep 1
+                ;;
+        esac
+    done
 }
 
 # Get user selection
@@ -139,6 +384,13 @@ get_display_selection() {
             5)
                 echo "custom-wayland"
                 return 0
+                ;;
+            6)
+                local custom_packages=$(select_individual_display_packages)
+                if [ -n "$custom_packages" ]; then
+                    echo "individual:$custom_packages"
+                    return 0
+                fi
                 ;;
             [iI])
                 show_information
@@ -324,7 +576,7 @@ install_xorg_custom() {
     
     clear
     echo ""
-    print_info "🛠️  Custom Xorg Components:"
+    print_info "[+] Custom Xorg Components:"
     echo ""
     echo "  ${CYAN}1.${NC} Core X Server         (xorg-server, xauth, xinit)"
     echo "  ${CYAN}2.${NC} Display Tools        (xrandr, xset, xdpyinfo)"  
@@ -371,7 +623,7 @@ install_xorg_custom() {
         
         clear
         echo ""
-        print_info "🛠️  Custom Xorg Components:"
+        print_info "[+] Custom Xorg Components:"
         echo ""
         echo "  ${CYAN}1.${NC} Core X Server         (xorg-server, xauth, xinit)"
         echo "  ${CYAN}2.${NC} Display Tools        (xrandr, xset, xdpyinfo)"  
@@ -475,7 +727,7 @@ install_wayland_custom() {
     
     clear
     echo ""
-    print_info "🌊 Custom Wayland Components:"
+    print_info "[+] Custom Wayland Components:"
     echo ""
     echo "  ${CYAN}1.${NC} Core Wayland         (wayland, protocols, seatd)"
     echo "  ${CYAN}2.${NC} Compositor Library   (wlroots - needed for most compositors)"
@@ -520,7 +772,7 @@ install_wayland_custom() {
         
         clear
         echo ""
-        print_info "🌊 Custom Wayland Components:"
+        print_info "[+] Custom Wayland Components:"
         echo ""
         echo "  ${CYAN}1.${NC} Core Wayland         (wayland, protocols, seatd)"
         echo "  ${CYAN}2.${NC} Compositor Library   (wlroots - needed for most compositors)"
@@ -573,6 +825,34 @@ main() {
     # Get user selection
     selection=$(get_display_selection)
     
+    # Check if individual selection
+    if [[ "$selection" == individual:* ]]; then
+        # Individual package installation
+        local individual_packages="${selection#individual:}"
+        
+        print_step "Installing Individual Package Selection"
+        print_info "Installing ${#individual_packages[@]} selected packages..."
+        
+        # Install selected packages
+        run_privileged "pacman -S --needed --noconfirm $individual_packages"
+        
+        # Mark progress
+        save_progress "06-display-server-individual-installed"
+        
+        print_section_footer "Individual Package Installation Completed"
+        
+        echo ""
+        print_success "Individual package installation completed!"
+        print_info "Installed packages: $individual_packages"
+        echo ""
+        print_info "Next steps:"
+        echo "  ${CYAN}1.${NC} Install desktop environment if needed"
+        echo "  ${CYAN}2.${NC} Configure display manager"
+        echo "  ${CYAN}3.${NC} Reboot to test graphics system"
+        
+        return 0
+    fi
+    
     # Confirm installation  
     confirm_installation "$selection"
     
@@ -617,26 +897,26 @@ main() {
     
     case "$selection" in
         "xorg-only")
-            echo "✅ ${CYAN}Xorg (X11)${NC} display server installed"
+            echo "[OK] ${CYAN}Xorg (X11)${NC} display server installed"
             echo "   • Traditional, stable graphics environment"
             echo "   • Compatible with all desktop environments"
             ;;
         "wayland-only") 
-            echo "✅ ${CYAN}Wayland${NC} display server installed"
+            echo "[OK] ${CYAN}Wayland${NC} display server installed"
             echo "   • Modern, secure graphics protocol"
             echo "   • Better performance and security"
             ;;
         "both")
-            echo "✅ ${CYAN}Both Xorg and Wayland${NC} installed"
+            echo "[OK] ${CYAN}Both Xorg and Wayland${NC} installed"
             echo "   • Maximum compatibility and flexibility"
             echo "   • Switch between protocols as needed"
             ;;
         "custom-xorg")
-            echo "✅ ${CYAN}Custom Xorg${NC} components installed"
+            echo "[OK] ${CYAN}Custom Xorg${NC} components installed"
             echo "   • Selected components based on your needs"
             ;;
         "custom-wayland")
-            echo "✅ ${CYAN}Custom Wayland${NC} components installed"
+            echo "[OK] ${CYAN}Custom Wayland${NC} components installed"
             echo "   • Selected components based on your needs"
             ;;
     esac

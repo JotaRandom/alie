@@ -88,7 +88,7 @@ show_progress() {
         sleep 0.5
         echo -n "."
     done
-    echo " ${GREEN}✓${NC}"
+    echo " ${GREEN}[OK]${NC}"
 }
 
 # =============================================================================
@@ -621,19 +621,19 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo -e "  ${GREEN}source \"\$(dirname \"\$0\")/shared-functions.sh\"${NC}"
     echo ""
     echo -e "${YELLOW}Available functions:${NC}"
-    echo "  ✅ Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
-    echo "  ✅ print_info, print_success, print_warning, print_error, print_step"
-    echo "  ✅ retry_command, wait_for_operation"
-    echo "  ✅ verify_chroot, require_root, require_non_root"
-    echo "  ✅ show_alie_banner, show_warning_banner"
-    echo "  ✅ load_install_info, save_install_info"
-    echo "  ✅ check_internet, wait_for_internet"
-    echo "  ✅ is_mounted, safe_unmount"
-    echo "  ✅ install_packages, update_package_db"
-    echo "  ✅ get_aur_helper, aur_install, aur_update, aur_search"
-    echo "  ✅ aur_debug_enabled, show_aur_config"
-    echo "  ✅ detect_boot_mode, detect_cpu_vendor, get_microcode_package"
-    echo "  ✅ detect_system_info, save_system_config, load_system_config"
+    echo "  [+] Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
+    echo "  [+] print_info, print_success, print_warning, print_error, print_step"
+    echo "  [+] retry_command, wait_for_operation"
+    echo "  [+] verify_chroot, require_root, require_non_root"
+    echo "  [+] show_alie_banner, show_warning_banner"
+    echo "  [+] load_install_info, save_install_info"
+    echo "  [+] check_internet, wait_for_internet"
+    echo "  [+] is_mounted, safe_unmount"
+    echo "  [+] install_packages, update_package_db"
+    echo "  [+] get_aur_helper, aur_install, aur_update, aur_search"
+    echo "  [+] aur_debug_enabled, show_aur_config"
+    echo "  [+] detect_boot_mode, detect_cpu_vendor, get_microcode_package"
+    echo "  [+] detect_system_info, save_system_config, load_system_config"
     echo ""
 fi
 
@@ -835,24 +835,24 @@ show_aur_config() {
     case "$helper" in
         "yay")
             if [ -f "$HOME/.config/yay/config.json" ]; then
-                echo "  • Config file: ~/.config/yay/config.json ✅"
+                echo "  • Config file: ~/.config/yay/config.json [OK]"
             else
-                echo "  • Config file: ~/.config/yay/config.json ❌"
+                echo "  • Config file: ~/.config/yay/config.json [--]"
             fi
             ;;
         "paru")
             if [ -f "$HOME/.config/paru/paru.conf" ]; then
-                echo "  • Config file: ~/.config/paru/paru.conf ✅"
+                echo "  • Config file: ~/.config/paru/paru.conf [OK]"
             else
-                echo "  • Config file: ~/.config/paru/paru.conf ❌"
+                echo "  • Config file: ~/.config/paru/paru.conf [--]"
             fi
             ;;
     esac
     
     if aur_debug_enabled && [ -f "$HOME/.makepkg.conf" ]; then
-        echo "  • Makepkg config: ~/.makepkg.conf ✅"
+        echo "  • Makepkg config: ~/.makepkg.conf [OK]"
     elif aur_debug_enabled; then
-        echo "  • Makepkg config: ~/.makepkg.conf ❌"
+        echo "  • Makepkg config: ~/.makepkg.conf [--]"
     fi
 }
 

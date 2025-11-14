@@ -11,7 +11,18 @@
 # License files should use LF for cross-platform compatibility
 LICENSE text eol=lf
 
-# Configuration files
+# Configuration files in configs/ directory
+# All config files must use LF for Linux compatibility
+configs/**/*.conf text eol=lf
+configs/**/*.template text eol=lf
+configs/**/nanorc text eol=lf
+configs/**/vimrc text eol=lf
+configs/**/bashrc text eol=lf
+configs/**/zshrc text eol=lf
+configs/**/config.fish text eol=lf
+configs/**/*.sh text eol=lf
+
+# Git configuration files
 .gitignore text eol=lf
 .gitattributes text eol=lf
 

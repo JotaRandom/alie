@@ -32,6 +32,221 @@ print_section_header "$SCRIPT_NAME" "$SCRIPT_DESC"
 # INTERACTIVE MENU FUNCTIONS
 # ============================================================================
 
+# Select individual packages from all categories
+select_individual_packages() {
+    local all_packages=()
+    local package_descriptions=()
+    local selected_packages=()
+    
+    # Define all available packages with descriptions
+    # Archive Tools
+    all_packages+=("7zip" "unrar" "unace" "lrzip" "zstd" "lz4" "p7zip" "cpio" "pax" "atool")
+    package_descriptions+=("7zip:7-Zip archiver" "unrar:RAR extraction" "unace:ACE extraction" 
+                          "lrzip:Long range ZIP" "zstd:Modern compression" "lz4:Fast compression"
+                          "p7zip:7-Zip for POSIX" "cpio:CPIO archiver" "pax:POSIX archiver" "atool:Archive tool wrapper")
+    
+    # System Utilities
+    all_packages+=("htop" "btop" "iotop" "iftop" "ncdu" "tmux" "screen" "exa" "bat" "fd" "ripgrep" "fzf" "tldr" "trash-cli")
+    package_descriptions+=("htop:Process monitor" "btop:Modern system monitor" "iotop:I/O monitor" 
+                          "iftop:Network monitor" "ncdu:Disk usage analyzer" "tmux:Terminal multiplexer"
+                          "screen:Terminal multiplexer" "exa:Modern ls" "bat:Better cat" "fd:Better find"
+                          "ripgrep:Fast grep" "fzf:Fuzzy finder" "tldr:Simplified man pages" "trash-cli:Safe rm")
+    
+    # Development Tools - Core
+    all_packages+=("base-devel" "git" "cmake" "ninja" "meson" "linux-headers" "linux-lts-headers" "dkms")
+    package_descriptions+=("base-devel:Essential build tools (gcc, make, etc)" "git:Version control" "cmake:Build system"
+                          "ninja:Fast build system" "meson:Modern build system" "linux-headers:Current kernel headers"
+                          "linux-lts-headers:LTS kernel headers" "dkms:Dynamic kernel modules")
+    
+    # Development Tools - Build Optimization
+    all_packages+=("ccache" "distcc" "sccache")
+    package_descriptions+=("ccache:Compiler cache (C/C++)" "distcc:Distributed compilation" "sccache:Shared compilation cache (Rust)")
+    
+    # Development Tools - GCC Variants
+    all_packages+=("gcc-ada" "gcc-fortran" "gcc-go" "gcc-objc" "gcc-m2" "gcc-d")
+    package_descriptions+=("gcc-ada:GCC Ada compiler (GNAT)" "gcc-fortran:GCC Fortran compiler" 
+                          "gcc-go:GCC Go frontend (gccgo)" "gcc-objc:GCC Objective-C compiler"
+                          "gcc-m2:GCC Modula-2 compiler" "gcc-d:GCC D language compiler")
+    
+    # Development Tools - Multilib
+    all_packages+=("multilib-devel")
+    package_descriptions+=("multilib-devel:32-bit development libraries")
+    
+    # Development Tools - LLVM/Clang
+    all_packages+=("clang" "llvm" "lld" "lldb" "compiler-rt")
+    package_descriptions+=("clang:LLVM C/C++ compiler" "llvm:LLVM compiler toolkit" 
+                          "lld:LLVM linker" "lldb:LLVM debugger" "compiler-rt:LLVM runtime libraries")
+    
+    # Development Tools - Rust
+    all_packages+=("rust" "rust-analyzer" "cargo-bloat" "cargo-edit" "cargo-outdated")
+    package_descriptions+=("rust:Rust language toolchain" "rust-analyzer:Rust LSP server" 
+                          "cargo-bloat:Find what takes space in binary" "cargo-edit:Cargo subcommands (add/rm/upgrade)"
+                          "cargo-outdated:Check outdated dependencies")
+    
+    # Development Tools - Go
+    all_packages+=("go" "gopls" "delve")
+    package_descriptions+=("go:Go programming language" "gopls:Go language server" "delve:Go debugger")
+    
+    # Development Tools - Python
+    all_packages+=("python" "python-pip" "python-virtualenv" "python-pipenv" "python-poetry" "ipython" "pyenv")
+    package_descriptions+=("python:Python 3 interpreter" "python-pip:Python package installer" 
+                          "python-virtualenv:Python virtual environments" "python-pipenv:Python workflow tool"
+                          "python-poetry:Python dependency management" "ipython:Enhanced Python shell" 
+                          "pyenv:Python version manager")
+    
+    # Development Tools - Lua
+    all_packages+=("lua" "luajit" "luarocks")
+    package_descriptions+=("lua:Lua scripting language" "luajit:LuaJIT compiler" "luarocks:Lua package manager")
+    
+    # Development Tools - Other Languages
+    all_packages+=("nodejs" "npm" "yarn" "ruby" "perl" "julia" "zig")
+    package_descriptions+=("nodejs:JavaScript runtime" "npm:Node package manager" "yarn:Fast package manager"
+                          "ruby:Ruby language" "perl:Perl language" "julia:Julia language" "zig:Zig language")
+    
+    # Security Tools
+    all_packages+=("ufw" "firewalld" "firejail" "apparmor" "openvpn" "wireguard-tools" "nmap" "wireshark-cli" 
+                   "tcpdump" "gnupg" "pass" "keepassxc")
+    package_descriptions+=("ufw:Simple firewall" "firewalld:Dynamic firewall" "firejail:Sandboxing" "apparmor:Security module"
+                          "openvpn:VPN client" "wireguard-tools:Modern VPN" "nmap:Network scanner"
+                          "wireshark-cli:Packet analyzer" "tcpdump:Packet capture" "gnupg:Encryption"
+                          "pass:Password manager" "keepassxc:Password manager GUI")
+    
+    # Media Tools
+    all_packages+=("alsa-utils" "alsa-tools" "alsa-firmware" "sof-firmware" "ffmpeg" "imagemagick" "gifsicle" "sox" "flac" "opus-tools" "mediainfo" "exiftool" "youtube-dl")
+    package_descriptions+=("alsa-utils:ALSA utilities" "alsa-tools:ALSA tools" "alsa-firmware:ALSA firmware" "sof-firmware:Sound Open Firmware"
+                          "ffmpeg:Video/audio converter" "imagemagick:Image manipulation" "gifsicle:GIF tools"
+                          "sox:Audio processing" "flac:FLAC codec" "opus-tools:Opus codec"
+                          "mediainfo:Media information" "exiftool:Metadata editor" "youtube-dl:Video downloader")
+    
+    # Admin & Laptop Tools
+    all_packages+=("android-udev" "tlp" "powertop" "acpi" "lm_sensors" "smartmontools" "hdparm" "rsync" "rclone" 
+                   "ddrescue" "testdisk" "stress" "cpupower")
+    package_descriptions+=("android-udev:Android device rules" "tlp:Power management" "powertop:Power analyzer" "acpi:Battery info"
+                          "lm_sensors:Hardware monitoring" "smartmontools:Disk health" "hdparm:Disk tuning"
+                          "rsync:File sync" "rclone:Cloud sync" "ddrescue:Data recovery"
+                          "testdisk:Partition recovery" "stress:System stress test" "cpupower:CPU frequency")
+    
+    # Shell Enhancements
+    all_packages+=("zsh" "fish" "oh-my-zsh-git" "starship" "zoxide" "autojump" "thefuck")
+    package_descriptions+=("zsh:Z shell" "fish:Friendly shell" "oh-my-zsh-git:Zsh framework"
+                          "starship:Cross-shell prompt" "zoxide:Smart cd" "autojump:Directory jumper"
+                          "thefuck:Command corrector")
+    
+    # Interactive selection
+    clear
+    echo ""
+    print_section_header "Individual Package Selection" "Choose specific packages to install"
+    echo ""
+    print_info "Instructions:"
+    echo "  • Type package number to toggle selection"
+    echo "  • Type 'all' to select all packages"
+    echo "  • Type 'none' to deselect all"
+    echo "  • Type 'search <term>' to filter packages"
+    echo "  • Type 'I' to install selected packages"
+    echo "  • Type 'Q' to cancel"
+    echo ""
+    
+    local filter=""
+    local input
+    
+    while true; do
+        clear
+        echo ""
+        print_section_header "Individual Package Selection" "Choose specific packages to install"
+        echo ""
+        
+        if [ -n "$filter" ]; then
+            print_info "Filter: '$filter' (type 'clear' to remove filter)"
+            echo ""
+        fi
+        
+        # Display packages
+        local idx=1
+        local displayed_indices=()
+        local displayed_packages=()
+        
+        for i in "${!all_packages[@]}"; do
+            local pkg="${all_packages[$i]}"
+            local desc="${package_descriptions[$i]#*:}"
+            
+            # Apply filter if set
+            if [ -n "$filter" ] && ! [[ "$pkg" =~ $filter ]] && ! [[ "$desc" =~ $filter ]]; then
+                continue
+            fi
+            
+            displayed_indices+=("$i")
+            displayed_packages+=("$pkg")
+            
+            local status=" "
+            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                status="${GREEN}[X]${NC}"
+            fi
+            
+            printf "  [%2d] %s %-25s - %s\n" "$idx" "$status" "$pkg" "$desc"
+            ((idx++))
+        done
+        
+        echo ""
+        if [ ${#selected_packages[@]} -gt 0 ]; then
+            print_info "Selected: ${#selected_packages[@]} package(s)"
+        else
+            print_warning "No packages selected yet"
+        fi
+        echo ""
+        
+        printf "${CYAN}Enter number, 'all', 'none', 'search <term>', 'I' to install, 'Q' to cancel: ${NC}"
+        read -r input
+        
+        case "$input" in
+            [0-9]|[0-9][0-9]|[0-9][0-9][0-9])
+                if [ "$input" -ge 1 ] && [ "$input" -lt "$idx" ]; then
+                    local pkg_idx=$((input - 1))
+                    local actual_idx="${displayed_indices[$pkg_idx]}"
+                    local pkg="${all_packages[$actual_idx]}"
+                    
+                    if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+                        selected_packages=($(printf '%s\n' "${selected_packages[@]}" | grep -v "^$pkg$"))
+                    else
+                        selected_packages+=("$pkg")
+                    fi
+                else
+                    print_warning "Invalid number"
+                    sleep 1
+                fi
+                ;;
+            all)
+                selected_packages=("${all_packages[@]}")
+                ;;
+            none)
+                selected_packages=()
+                ;;
+            search*)
+                filter="${input#search }"
+                filter="${filter## }"
+                ;;
+            clear)
+                filter=""
+                ;;
+            [iI])
+                if [ ${#selected_packages[@]} -eq 0 ]; then
+                    print_warning "No packages selected"
+                    sleep 1
+                else
+                    echo "${selected_packages[*]}"
+                    return 0
+                fi
+                ;;
+            [qQ])
+                return 1
+                ;;
+            *)
+                print_warning "Invalid option"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
 # Show main menu and get user selection
 show_main_menu() {
     clear
@@ -40,16 +255,17 @@ show_main_menu() {
     echo ""
     print_info "Available categories:"
     echo ""
-    echo "  ${CYAN}1.${NC} 📁 Archive Tools        - Extractors, compressors (7zip, rar, zstd)"
-    echo "  ${CYAN}2.${NC} ⚡ System Utilities     - Modern CLI replacements (exa, bat, fd, ripgrep)"
-    echo "  ${CYAN}3.${NC} 🔧 Development Tools    - Compilers, build systems, linux-headers"
-    echo "  ${CYAN}4.${NC} 🛡️  Security Tools       - VPN, encryption, security auditing"
-    echo "  ${CYAN}5.${NC} 🎵 Media Tools          - Audio, video, image processing"
-    echo "  ${CYAN}6.${NC} 💻 Admin & Laptop Tools - System monitoring, power management"
-    echo "  ${CYAN}7.${NC} 🎨 Shell Enhancements   - Prompt, aliases, configurations"
+    echo "  ${CYAN}1.${NC} [+] Archive Tools        - Extractors, compressors (7zip, rar, zstd)"
+    echo "  ${CYAN}2.${NC} [*] System Utilities     - Modern CLI replacements (exa, bat, fd, ripgrep)"
+    echo "  ${CYAN}3.${NC} [+] Development Tools    - Compilers, build systems, linux-headers"
+    echo "  ${CYAN}4.${NC} [#] Security Tools       - VPN, encryption, security auditing"
+    echo "  ${CYAN}5.${NC} [~] Media Tools          - Audio, video, image processing"
+    echo "  ${CYAN}6.${NC} [>] Admin & Laptop Tools - System monitoring, power management"
+    echo "  ${CYAN}7.${NC} [~] Shell Enhancements   - Prompt, aliases, configurations"
     echo ""
-    echo "  ${CYAN}A.${NC} 🚀 Install All Categories"
-    echo "  ${CYAN}Q.${NC} ❌ Quit without installing"
+    echo "  ${CYAN}A.${NC} [A] Install All Categories"
+    echo "  ${CYAN}C.${NC} [C] Custom Selection (choose individual packages)"
+    echo "  ${CYAN}Q.${NC} [X] Quit without installing"
     echo ""
 }
 
@@ -66,7 +282,7 @@ get_user_selection() {
             echo ""
         fi
         
-        printf "${CYAN}Select categories (1-7), 'A' for all, 'I' to install, 'Q' to quit: ${NC}"
+        printf "${CYAN}Select categories (1-7), 'A' for all, 'C' for custom, 'I' to install, 'Q' to quit: ${NC}"
         read -r input
         
         case "$input" in
@@ -82,6 +298,14 @@ get_user_selection() {
                 ;;
             [aA])
                 selected_categories=("1" "2" "3" "4" "5" "6" "7")
+                ;;
+            [cC])
+                # Custom individual package selection
+                local custom_packages=$(select_individual_packages)
+                if [ -n "$custom_packages" ]; then
+                    echo "custom:$custom_packages"
+                    return 0
+                fi
                 ;;
             [iI])
                 if [ ${#selected_categories[@]} -eq 0 ]; then
@@ -163,6 +387,8 @@ install_archive_tools() {
         "zstd"              # Modern compression
         "lz4"               # Fast compression
         "p7zip"             # 7-Zip for POSIX
+        "cpio"              # CPIO archiver
+        "pax"               # POSIX archiver
         "atool"             # Archive tool wrapper
     )
     
@@ -214,6 +440,7 @@ install_development_tools() {
     
     local DEV_TOOLS=(
         # Build systems
+        "base-devel"        # Essential build tools (gcc, make, etc)
         "cmake"             # Cross-platform build system
         "ninja"             # Fast build system
         "meson"             # Modern build system
@@ -223,24 +450,63 @@ install_development_tools() {
         "pkgconf"           # Package config
         
         # Kernel development
-        "linux-headers"     # Linux kernel headers
-        "base-devel"        # Base development group
+        "linux-headers"     # Current kernel headers
+        "linux-lts-headers" # LTS kernel headers
+        "dkms"              # Dynamic kernel modules
+        
+        # Build optimization
+        "ccache"            # Compiler cache
+        "distcc"            # Distributed compilation
+        "sccache"           # Shared compilation cache
         
         # Version control
         "git"               # Git version control
         "git-lfs"           # Git Large File Storage
-        "mercurial"         # Mercurial VCS
-        "subversion"        # SVN version control
         
-        # Programming languages
-        "python"            # Python interpreter
-        "python-pip"        # Python package installer
-        "nodejs"            # Node.js runtime
+        # GCC compiler variants
+        "gcc-ada"           # GCC Ada (GNAT)
+        "gcc-fortran"       # GCC Fortran
+        "gcc-go"            # GCC Go frontend
+        "gcc-objc"          # GCC Objective-C
+        "gcc-m2"            # GCC Modula-2
+        "gcc-d"             # GCC D language
+        
+        # Multilib support
+        "multilib-devel"    # 32-bit development libraries
+        
+        # LLVM/Clang toolchain
+        "clang"             # LLVM C/C++ compiler
+        "llvm"              # LLVM toolkit
+        "lld"               # LLVM linker
+        "lldb"              # LLVM debugger
+        
+        # Rust toolchain
+        "rust"              # Rust language
+        "rust-analyzer"     # Rust LSP server
+        
+        # Go toolchain
+        "go"                # Go language
+        "gopls"             # Go LSP server
+        "delve"             # Go debugger
+        
+        # Python toolchain
+        "python"            # Python 3
+        "python-pip"        # Package installer
+        "python-virtualenv" # Virtual environments
+        "ipython"           # Enhanced shell
+        
+        # Lua
+        "lua"               # Lua language
+        "luajit"            # LuaJIT compiler
+        "luarocks"          # Lua packages
+        
+        # Other languages
+        "nodejs"            # JavaScript runtime
         "npm"               # Node package manager
-        "rust"              # Rust compiler
-        "go"                # Go programming language
+        "ruby"              # Ruby language
+        "perl"              # Perl language
         
-        # Development utilities
+        # Debugging tools
         "gdb"               # GNU Debugger
         "valgrind"          # Memory debugging
         "strace"            # System call tracer
@@ -250,7 +516,7 @@ install_development_tools() {
         # Documentation
         "man-db"            # Manual pages
         "man-pages"         # Linux manual pages
-        "tldr"              # Simplified manual pages
+        "tldr"              # Simplified manuals
     )
     
     install_cli_group "Development Tools" "${DEV_TOOLS[@]}"
@@ -289,6 +555,7 @@ install_security_tools() {
         
         # Firewall
         "ufw"               # Uncomplicated firewall
+        "firewalld"         # Dynamic firewall daemon
         "iptables"          # IP tables
     )
     
@@ -306,6 +573,12 @@ install_media_tools() {
         "exiftool"          # Metadata editor
         "jpegoptim"         # JPEG optimizer
         "optipng"           # PNG optimizer
+        
+        # Audio system
+        "alsa-utils"        # ALSA utilities
+        "alsa-tools"        # ALSA advanced tools
+        "alsa-firmware"     # ALSA firmware files
+        "sof-firmware"      # Sound Open Firmware
         
         # Audio processing
         "ffmpeg"            # Video/audio converter
@@ -340,6 +613,9 @@ install_admin_laptop_tools() {
         "rclone"            # Cloud storage sync
         "borgbackup"        # Backup solution
         "restic"            # Modern backup
+        
+        # Device support
+        "android-udev"      # Android device udev rules
         
         # Disk management
         "gparted"           # Partition editor
@@ -413,10 +689,10 @@ install_cli_group() {
     
     for package in "${packages[@]}"; do
         if install_aur_package "$package"; then
-            print_success "✓ $package"
+            print_success "[OK] $package"
             ((installed_count++))
         else
-            print_warning "✗ $package (failed)"
+            print_warning "[!!] $package (failed)"
             failed_packages+=("$package")
         fi
     done
@@ -490,7 +766,54 @@ main() {
     print_success "Environment validation completed"
     
     # Get user selection
-    selected_categories=($(get_user_selection))
+    local selection=$(get_user_selection)
+    
+    # Check if custom selection
+    if [[ "$selection" == custom:* ]]; then
+        # Custom package installation
+        local custom_packages="${selection#custom:}"
+        
+        print_step "Installing Custom Package Selection"
+        print_info "Installing ${#custom_packages[@]} selected packages..."
+        
+        local failed_packages=()
+        local installed_count=0
+        
+        for package in $custom_packages; do
+            if install_aur_package "$package"; then
+                print_success "[OK] $package"
+                ((installed_count++))
+            else
+                print_warning "[!!] $package (failed)"
+                failed_packages+=("$package")
+            fi
+        done
+        
+        if [ ${#failed_packages[@]} -eq 0 ]; then
+            print_success "Custom selection: All packages installed ($installed_count packages)"
+        else
+            print_warning "Custom selection: $installed_count packages installed"
+            print_info "Failed packages: ${failed_packages[*]}"
+        fi
+        
+        # Mark progress
+        save_progress "05-cli-tools-custom-installed"
+        
+        print_section_footer "Custom Package Installation Completed"
+        
+        echo ""
+        print_success "Custom package installation completed!"
+        print_info "Installed $installed_count packages"
+        echo ""
+        print_info "Next steps:"
+        echo "  ${CYAN}1.${NC} Restart terminal or run: ${YELLOW}source ~/.bashrc${NC}"
+        echo "  ${CYAN}2.${NC} Enjoy your selected packages!"
+        
+        return 0
+    fi
+    
+    # Category-based installation
+    selected_categories=($selection)
     
     # Confirm installation
     confirm_installation "${selected_categories[@]}"

@@ -76,7 +76,8 @@ Manually select which installation step to execute.
 ├── alie.sh                     # Master installer (entry point)
 ├── install/                    # Installation scripts (sequential numbering)
 │   ├── 001-base-install.sh     # Disk partitioning (Live USB, root only)
-│   ├── 002-system-install.sh   # Base system install (pacstrap)
+│   ├── 002-shell-editor-select.sh # Shell/editor selection (OPTIONAL)
+│   ├── 003-system-install.sh   # Base system install (pacstrap)
 │   ├── 101-configure-system.sh # System configuration (chroot, root only)
 │   ├── 201-user-setup.sh       # User creation + privilege config (root only)
 │   ├── 211-install-aur-helper.sh # AUR helper (yay/paru) (user only)
@@ -108,6 +109,8 @@ Scripts use a 3-digit naming scheme `XYZ-script-name.sh`:
 
 #### Examples:
 - `001-base-install.sh` = Live CD (0), root only (0), step 1
+- `002-shell-editor-select.sh` = Live CD (0), root only (0), step 2
+- `003-system-install.sh` = Live CD (0), root only (0), step 3
 - `101-configure-system.sh` = Chroot (1), root only (0), step 1  
 - `211-install-yay.sh` = Installed (2), user only (1), step 1
 - **Y** = Permissions (0=root only, 1=user only, 2=both)
@@ -161,13 +164,14 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 | Step | Script | Environment | User | Description |
 |------|--------|-------------|------|-------------|
 | 1 | `001-base-install.sh` | Live USB | root | Disk partitioning and formatting |
-| 2 | `002-system-install.sh` | Live USB | root | Base system installation (pacstrap) |
-| 3 | `101-configure-system.sh` | Chroot | root | System configuration (grub, locale) |
-| 4 | `201-user-setup.sh` | Installed | root | User creation & privilege config |
-| 5 | `211-install-aur-helper.sh` | Installed | user | AUR helper (yay/paru) installation |
-| 6 | `212-cli-tools.sh` | Installed | user | **Interactive** CLI tools selection |
-| 7 | `213-display-server.sh` | Installed | root | **Interactive** graphics server choice |
-| 8 | `221-desktop-install.sh` | Installed | root | Desktop environment (Cinnamon) |
+| 2 | `002-shell-editor-select.sh` | Live USB | root | Shell & editor selection (OPTIONAL) |
+| 3 | `003-system-install.sh` | Live USB | root | Base system installation (pacstrap) |
+| 4 | `101-configure-system.sh` | Chroot | root | System configuration (grub, locale) |
+| 5 | `201-user-setup.sh` | Installed | root | User creation & privilege config |
+| 6 | `211-install-aur-helper.sh` | Installed | user | AUR helper (yay/paru) installation |
+| 7 | `212-cli-tools.sh` | Installed | user | **Interactive** CLI tools selection |
+| 8 | `213-display-server.sh` | Installed | User | **Interactive** graphics server choice |
+| 9 | `221-desktop-install.sh` | Installed | root & User | Desktop environment (Cinnamon) |
 
 ---
 

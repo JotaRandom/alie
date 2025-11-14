@@ -143,10 +143,13 @@ install_cinnamon_desktop() {
         "gnome-keyring"               # Password management
         "network-manager-applet"      # Network management GUI
         
-        # Audio
-        "pulseaudio"                  # Audio system
-        "pulseaudio-alsa"             # ALSA integration
-        "pavucontrol"                 # Audio control
+        # Audio - PipeWire (modern audio server)
+        "pipewire"                    # Audio/video server
+        "pipewire-alsa"               # ALSA integration
+        "pipewire-pulse"              # PulseAudio compatibility
+        "pipewire-jack"               # JACK compatibility
+        "wireplumber"                 # Session manager
+        "pavucontrol"                 # Audio control (PulseAudio compatible)
         
         # Fonts
         "ttf-dejavu"                  # Standard fonts
@@ -395,7 +398,7 @@ check_display_server() {
         print_warning "No display server (Xorg or Wayland) detected!"
         echo ""
         print_info "📺 You need to install a display server first:"
-        echo "   ${CYAN}→ Run:${NC} ${YELLOW}bash install/213-display-server.sh${NC}"
+        echo "   ${CYAN}-> Run:${NC} ${YELLOW}bash install/213-display-server.sh${NC}"
         echo ""
         print_info "213-display-server.sh offers:"
         echo "   • 🖥️  Xorg only (traditional, stable)"
