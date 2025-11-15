@@ -298,12 +298,18 @@ print_step "STEP 6: Configuring Network"
 print_info "Setting hostname to $HOSTNAME..."
 echo "$HOSTNAME" > /etc/hostname
 
-# Create hosts file
-cat > /etc/hosts << EOF
-127.0.0.1      localhost
-::1            localhost
-127.0.1.1      $HOSTNAME
-EOF
+# Deploy hosts file from template
+print_info "Deploying hosts configuration..."
+deploy_config "network/hosts.template" "/etc/hosts" "HOSTNAME=$HOSTNAME"
+
+# Deploy NetworkManager configuration
+print_info "Deploying NetworkManager configuration..."
+deploy_config_direct "network/NetworkManager.conf" "/etc/NetworkManager/NetworkManager.conf" "644"
+
+# Deploy systemd-resolved configuration
+print_info "Deploying systemd-resolved configuration..."
+deploy_config_direct "network/resolved.conf" "/etc/systemd/resolved.conf" "644"
+
 print_success "Network configuration complete"
 
 # ===================================
@@ -406,6 +412,15 @@ case "$AUDIO_SERVER" in
         print_info "Installing PipeWire..."
         if retry_command 3 "pacman -S --needed --noconfirm pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber"; then
             print_success "PipeWire installed"
+            
+            # Deploy PipeWire configurations
+            print_info "Deploying PipeWire configurations..."
+            mkdir -p /etc/pipewire
+            deploy_config_direct "audio/pipewire.conf" "/etc/pipewire/pipewire.conf" "644"
+            mkdir -p /etc/wireplumber/main.conf.d
+            deploy_config_direct "audio/wireplumber.conf" "/etc/wireplumber/main.conf.d/50-alie.conf" "644"
+            deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
+            print_success "PipeWire configurations deployed"
         else
             print_error "Failed to install PipeWire"
             exit 1
@@ -415,6 +430,11 @@ case "$AUDIO_SERVER" in
         print_info "Installing PulseAudio..."
         if retry_command 3 "pacman -S --needed --noconfirm pulseaudio pulseaudio-alsa"; then
             print_success "PulseAudio installed"
+            
+            # Deploy ALSA configuration for PulseAudio
+            print_info "Deploying ALSA configuration for PulseAudio..."
+            deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
+            print_success "ALSA configuration deployed"
         else
             print_error "Failed to install PulseAudio"
             exit 1

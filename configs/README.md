@@ -82,6 +82,26 @@ sudo chmod 644 /etc/asound.conf
 | | `20-amdgpu.plain` | `/etc/X11/xorg.conf.d/20-amdgpu.conf` | `644` |
 | | `20-nvidia.plain` | `/etc/X11/xorg.conf.d/20-nvidia.conf` | `644` |
 
+**Notes on Permissions:**
+- **sudoers files** (`/etc/sudoers.d/*`): Must be `440` (root:root) for security
+- **doas.conf**: Must be `400` (root:root) for security  
+- **System configs** (`/etc/*`): Typically `644` (root:root)
+- **User configs** (`~/.*`): `644` (user:user)
+
+## 🔧 Automatic Configuration Deployment
+
+### Scripts That Deploy Configurations
+
+The following installation scripts automatically deploy configurations from `configs/`:
+
+| Script | Configurations Deployed | When Runs |
+|--------|------------------------|-----------|
+| `101-configure-system.sh` | Audio (ALSA/PipeWire), Network (hosts, NM, resolved) | In chroot |
+| `201-user-setup.sh` | Sudo/Doas, User shells | After first boot (as root) |
+| `202-config-deploy.sh` | Firewall, Editor, Shells (all users), Xorg | After user setup (as root) |
+| `213-display-server.sh` | Xorg GPU configs | During display setup |
+| `221-desktop-environment.sh` | Display manager configs | During DE installation |
+
 ### Using .example Files
 
 `.example` files show what the configuration scripts do and what the final result looks like. Use these to understand the configuration process.
