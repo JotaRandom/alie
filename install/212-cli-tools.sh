@@ -563,6 +563,9 @@ install_security_tools() {
     )
     
     install_cli_group "Security Tools" "${SECURITY_TOOLS[@]}"
+    
+    # Configure firewall after installation
+    configure_firewall_after_install
 }
 
 # Category 5: Media Tools
@@ -759,6 +762,57 @@ EOF
             echo "[ -f ~/.bash_aliases ] && source ~/.bash_aliases"
         } >> "$HOME/.bashrc"
         print_success "Aliases added to .bashrc"
+    fi
+}
+
+# Configure firewall after installation
+configure_firewall_after_install() {
+    print_info "Configuring firewall..."
+    
+    # Check if running as root (needed for firewall configuration)
+    if [ "$EUID" -eq 0 ]; then
+        # Running as root - configure firewall directly
+        if command -v ufw &>/dev/null; then
+            print_info "UFW detected - applying basic configuration..."
+            # Load config functions
+            local LIB_DIR
+            LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+            if [ -f "$LIB_DIR/config-functions.sh" ]; then
+                # shellcheck source=../lib/config-functions.sh
+                # shellcheck disable=SC1091
+                source "$LIB_DIR/config-functions.sh"
+                
+                # Execute UFW basic configuration
+                execute_config_script "firewall/ufw-basic.sh"
+                print_success "UFW configured with basic settings"
+            else
+                print_warning "config-functions.sh not found, skipping firewall configuration"
+            fi
+        elif command -v firewall-cmd &>/dev/null; then
+            print_info "Firewalld detected - applying basic configuration..."
+            # Load config functions
+            local LIB_DIR
+            LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+            if [ -f "$LIB_DIR/config-functions.sh" ]; then
+                # shellcheck source=../lib/config-functions.sh
+                # shellcheck disable=SC1091
+                source "$LIB_DIR/config-functions.sh"
+                
+                # Execute Firewalld basic configuration
+                execute_config_script "firewall/firewalld-basic.sh"
+                print_success "Firewalld configured with basic settings"
+            else
+                print_warning "config-functions.sh not found, skipping firewall configuration"
+            fi
+        else
+            print_info "No supported firewall detected"
+        fi
+    else
+        # Running as user - inform user to configure firewall as root
+        print_info "Firewall configuration requires root privileges"
+        print_info "Run the following as root to configure firewall:"
+        echo "  ${YELLOW}bash install/212-cli-tools.sh${NC} (select security tools again)"
+        echo "  ${YELLOW}or manually configure your firewall${NC}"
     fi
 }
 
