@@ -52,11 +52,10 @@ bash alie.sh --manual
 ## Estructura de Directorios
 
 ```
-src/
 ├── alie.sh                    # Instalador maestro (punto de entrada)
 ├── install/                   # Scripts de instalación
 │   ├── 001-base-install.sh    # Particionado y formateo de disco
-│   ├── 002-shell-editor-select.sh # Selección shell/editor (opcional)
+│   ├── 002-shell-editor-select.sh # Selección shell/editor (bash/zsh/fish/nushell + nano/vim) (opcional)
 │   ├── 003-system-install.sh  # Instalación base (pacstrap)
 │   ├── 101-configure-system.sh # Configuración del sistema (grub, locale)
 │   ├── 201-user-setup.sh      # Creación de usuario y privilegios
@@ -69,14 +68,21 @@ src/
 │   └── 231-desktop-tools.sh   # Aplicaciones adicionales
 ├── lib/                       # Bibliotecas compartidas
 │   ├── shared-functions.sh    # Funciones comunes
-│   └── config-functions.sh    # Despliegue de configuraciones
-├── configs/                   # Archivos de configuración
-│   └── display-managers/      # Configuraciones de DM
-└── docs/                      # Documentación
-    ├── CHANGELOG.md           # Historial de cambios
-    ├── GUIA-RAPIDA.md         # Referencia rápida
-    └── shared/
-        └── SHARED-FUNCTIONS.md # Documentación de funciones
+│   └── config-functions.sh    # Funciones de despliegue de configuraciones
+├── configs/                   # Archivos de configuración y plantillas
+│   ├── README.md              # Documentación de archivos de configuración
+│   ├── audio/                 # Configuración de audio (ALSA/PipeWire)
+│   ├── display-managers/      # Configs de gestores de pantalla (LightDM/SDDM)
+│   ├── editor/                # Configuraciones de editores de texto (nano/vim)
+│   ├── firewall/              # Configuraciones de firewall (UFW/Firewalld)
+│   ├── network/               # Configuraciones de red (NetworkManager/systemd-resolved)
+│   ├── shell/                 # Configuraciones de shell (bash/zsh/fish/nushell/ksh/tcsh)
+│   ├── sudo/                  # Configuraciones de privilegios Sudo/Doas
+│   └── xorg/                  # Configuraciones de drivers gráficos Xorg
+├── README.en.md               # Documentación en inglés
+├── README.es.md               # Documentación en español
+├── LICENSE                    # Licencia AGPLv3
+└── .gitignore
 ```
 
 ## Scripts Disponibles
@@ -85,12 +91,12 @@ src/
 |---|--------|---------------|--------|
 | 0 | `alie.sh` | root/usuario | En cualquier momento (detecta automáticamente) |
 | 1 | `001-base-install.sh` | root | Desde medio de instalación |
-| 2 | `002-shell-editor-select.sh` | root | Selección shell/editor (opcional) |
+| 2 | `002-shell-editor-select.sh` | root | Selección shell/editor (bash/zsh/fish/nushell + nano/vim) (opcional) |
 | 3 | `003-system-install.sh` | root | Desde medio de instalación |
 | 4 | `101-configure-system.sh` | root | Dentro de arch-chroot |
-| 5 | `201-user-setup.sh` | root | Después del primer reinicio |
-| 6 | `211-install-aur-helper.sh` | usuario | Después de reiniciar |
-| 7 | `212-cli-tools.sh` | usuario | Herramientas CLI interactivas |
+| 5 | `201-user-setup.sh` | root | Creación de usuario y configuración de privilegios |
+| 6 | `211-install-aur-helper.sh` | usuario | Instalación de helper AUR (yay/paru) |
+| 7 | `212-cli-tools.sh` | usuario | Selección interactiva de herramientas CLI |
 | 8 | `213-display-server.sh` | root | Selección X11/Wayland |
 | 9 | `220-desktop-select.sh` | root | Elegir DE/WM o saltar |
 | 10 | `221-desktop-environment.sh` | root | Entornos de Escritorio |
@@ -129,12 +135,12 @@ sync
 reboot
 
 # 4. Después del reinicio (como root)
-bash install/201-desktop-install.sh
+bash install/201-user-setup.sh
 reboot
 
 # 5. Después del reinicio (como usuario)
-bash install/211-install-yay.sh
-bash install/212-install-packages.sh
+bash install/211-install-aur-helper.sh
+bash install/212-cli-tools.sh
 reboot
 ```
 
@@ -157,6 +163,22 @@ reboot
 - Detecta modo de arranque (UEFI/BIOS)
 - Verifica conexión a internet antes de instalar
 - Valida entorno (Live USB, chroot, sistema instalado)
+- **Soporte múltiple de shells** - Elige entre Bash, Zsh, Fish o Nushell con configuración completa
+
+### Opciones de Shell
+ALIE soporta múltiples entornos de shell con configuración completa:
+
+#### Shells Disponibles
+- **Bash** - Shell Bourne Again de GNU (predeterminado)
+- **Zsh** - Shell Bourne extendido con características avanzadas
+- **Fish** - Shell interactivo amigable con autosugerencias
+- **Nushell** - Shell moderno escrito en Rust con soporte para datos estructurados
+
+#### Características de Configuración de Shell
+- **Detección Automática**: Los scripts detectan y configuran tu shell elegido
+- **Configuración Completa**: Incluye aliases, configuración de PATH y editores
+- **Soporte de Fallback**: Configuración inline si los archivos de configuración no están disponibles
+- **Características Especiales de Nushell**: Manejo de datos estructurados, prompt personalizado, integración con Starship
 
 ## Personalización
 

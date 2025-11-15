@@ -27,10 +27,8 @@
 
 **Additional resources:**
 
-- [Quick Reference Guide](docs/GUIA-RAPIDA.md)
-- [Naming Scheme](docs/NAMING-SCHEME.md)
-- [Changelog](docs/CHANGELOG.md)
-- [Shared Functions Documentation](docs/shared/SHARED-FUNCTIONS.md)
+- [Configuration Files Documentation](configs/README.md)
+- [Shared Functions Library](lib/shared-functions.sh)
 
 ---
 
@@ -76,7 +74,7 @@ Manually select which installation step to execute.
 ├── alie.sh                     # Master installer (entry point)
 ├── install/                    # Installation scripts (sequential numbering)
 │   ├── 001-base-install.sh     # Disk partitioning (Live USB, root only)
-│   ├── 002-shell-editor-select.sh # Shell/editor selection (OPTIONAL)
+│   ├── 002-shell-editor-select.sh # Shell/editor selection (bash/zsh/fish/nushell + nano/vim) (OPTIONAL)
 │   ├── 003-system-install.sh   # Base system install (pacstrap)
 │   ├── 101-configure-system.sh # System configuration (chroot, root only)
 │   ├── 201-user-setup.sh       # User creation + privilege config (root only)
@@ -88,14 +86,18 @@ Manually select which installation step to execute.
 │   ├── 222-window-manager.sh   # Window managers (i3/bspwm/Openbox/etc.) (root only)
 │   └── 231-desktop-tools.sh    # Additional applications and tools (root only)
 ├── lib/                        # Shared functions and utilities
-│   └── shared-functions.sh     # Common functions for all scripts
-├── docs/                       # Documentation
-│   ├── CHANGELOG.md            # Project history
-│   ├── GUIA-RAPIDA.md          # Quick start guide (Spanish)
-│   ├── SCRIPT-IMPROVEMENTS.md  # Technical improvements log
-│   ├── WIKI-COMPLIANCE.md      # Arch Wiki compliance fixes
-│   └── shared/
-│       └── SHARED-FUNCTIONS.md # Function library documentation
+│   ├── shared-functions.sh     # Common functions for all scripts
+│   └── config-functions.sh     # Configuration deployment functions
+├── configs/                    # Configuration files and templates
+│   ├── README.md               # Configuration files documentation
+│   ├── audio/                  # Audio configuration (ALSA/PipeWire)
+│   ├── display-managers/       # Display manager configs (LightDM/SDDM)
+│   ├── editor/                 # Text editor configurations (nano/vim)
+│   ├── firewall/               # Firewall configurations (UFW/Firewalld)
+│   ├── network/                # Network configurations (NetworkManager/systemd-resolved)
+│   ├── shell/                  # Shell configurations (bash/zsh/fish/nushell/ksh/tcsh)
+│   ├── sudo/                   # Sudo/Doas privilege configurations
+│   └── xorg/                   # Xorg graphics driver configurations
 ├── README.en.md                # English documentation
 ├── README.es.md                # Spanish documentation
 ├── LICENSE                     # AGPLv3 License
@@ -119,7 +121,7 @@ Scripts use a 3-digit naming scheme `XYZ-script-name.sh`:
 - **Y** = Permissions (0=root only, 1=user only, 2=both)
 - **Z** = Step number
 
-See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
+See the Semantic Numbering System section above for details.
 
 ---
 
@@ -132,6 +134,7 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 - ✅ **Modular design** - Shared functions library for code reuse
 - ✅ **Manual mode** - Run individual steps as needed
 - ✅ **Comprehensive logging** - Clear progress indicators and error messages
+- ✅ **Multiple shell support** - Choose from Bash, Zsh, Fish, or Nushell with full configuration
 
 ---
 
@@ -145,7 +148,8 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 
 ### User & Privileges (201)
 - Desktop user with sudo privileges
-- Optional shell customization (zsh/bash/fish)
+- Optional shell customization (bash/zsh/fish/nushell)
+- Comprehensive shell configuration with structured data support (Nushell)
 
 ### AUR Helper & CLI Tools (211-212)
 - YAY or Paru for AUR package management
@@ -181,12 +185,30 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 
 ---
 
+## 🐚 Shell Options
+
+ALIE supports multiple shell environments with full configuration:
+
+### Available Shells
+- **Bash** - Default GNU Bourne Again Shell
+- **Zsh** - Extended Bourne Shell with powerful features
+- **Fish** - Friendly Interactive Shell with autosuggestions
+- **Nushell** - Modern shell written in Rust with structured data support
+
+### Shell Configuration Features
+- **Automatic Detection**: Scripts detect and configure your chosen shell
+- **Comprehensive Setup**: Includes aliases, PATH configuration, and editor settings
+- **Fallback Support**: Inline configuration if config files are unavailable
+- **Nushell Special Features**: Structured data handling, custom prompt, Starship integration
+
+---
+
 ## 📋 Installation Steps
 
 | Step | Script | Environment | User | Description |
 |------|--------|-------------|------|-------------|
 | 1 | `001-base-install.sh` | Live USB | root | Disk partitioning and formatting |
-| 2 | `002-shell-editor-select.sh` | Live USB | root | Shell & editor selection (OPTIONAL) |
+| 2 | `002-shell-editor-select.sh` | Live USB | root | Shell & editor selection (bash/zsh/fish/nushell + nano/vim) (OPTIONAL) |
 | 3 | `003-system-install.sh` | Live USB | root | Base system installation (pacstrap) |
 | 4 | `101-configure-system.sh` | Chroot | root | System configuration (grub, locale) |
 | 5 | `201-user-setup.sh` | Installed | root | User creation & privilege config |

@@ -52,11 +52,10 @@ Useful for:
 ## Directory Structure
 
 ```
-src/
 ├── alie.sh                    # Master installer (entry point)
 ├── install/                   # Installation scripts
 │   ├── 001-base-install.sh    # Disk partitioning & formatting
-│   ├── 002-shell-editor-select.sh # Shell/editor selection (optional)
+│   ├── 002-shell-editor-select.sh # Shell/editor selection (bash/zsh/fish/nushell + nano/vim) (optional)
 │   ├── 003-system-install.sh  # Base system install (pacstrap)
 │   ├── 101-configure-system.sh # System configuration (grub, locale)
 │   ├── 201-user-setup.sh      # User creation & privileges
@@ -69,14 +68,21 @@ src/
 │   └── 231-desktop-tools.sh   # Additional applications
 ├── lib/                       # Shared libraries
 │   ├── shared-functions.sh    # Common functions
-│   └── config-functions.sh    # Config deployment
-├── configs/                   # Configuration files
-│   └── display-managers/      # DM configurations
-└── docs/                      # Documentation
-    ├── CHANGELOG.md           # Change history
-    ├── GUIA-RAPIDA.md         # Quick reference
-    └── shared/
-        └── SHARED-FUNCTIONS.md # Function documentation
+│   └── config-functions.sh    # Configuration deployment functions
+├── configs/                   # Configuration files and templates
+│   ├── README.md              # Configuration files documentation
+│   ├── audio/                 # Audio configuration (ALSA/PipeWire)
+│   ├── display-managers/      # Display manager configs (LightDM/SDDM)
+│   ├── editor/                # Text editor configurations (nano/vim)
+│   ├── firewall/              # Firewall configurations (UFW/Firewalld)
+│   ├── network/               # Network configurations (NetworkManager/systemd-resolved)
+│   ├── shell/                 # Shell configurations (bash/zsh/fish/nushell/ksh/tcsh)
+│   ├── sudo/                  # Sudo/Doas privilege configurations
+│   └── xorg/                  # Xorg graphics driver configurations
+├── README.en.md               # English documentation
+├── README.es.md               # Spanish documentation
+├── LICENSE                    # AGPLv3 License
+└── .gitignore
 ```
 
 ## Available Scripts
@@ -85,12 +91,12 @@ src/
 |---|--------|--------|------|
 | 0 | `alie.sh` | root/user | Anytime (auto-detects environment) |
 | 1 | `001-base-install.sh` | root | From installation media |
-| 2 | `002-shell-editor-select.sh` | root | Optional shell/editor selection |
+| 2 | `002-shell-editor-select.sh` | root | Optional shell/editor selection (bash/zsh/fish/nushell + nano/vim) |
 | 3 | `003-system-install.sh` | root | From installation media |
 | 4 | `101-configure-system.sh` | root | Inside arch-chroot |
-| 5 | `201-user-setup.sh` | root | After first reboot |
-| 6 | `211-install-aur-helper.sh` | user | After reboot |
-| 7 | `212-cli-tools.sh` | user | Interactive CLI tools |
+| 5 | `201-user-setup.sh` | root | User creation & privilege configuration |
+| 6 | `211-install-aur-helper.sh` | user | AUR helper installation (yay/paru) |
+| 7 | `212-cli-tools.sh` | user | Interactive CLI tools selection |
 | 8 | `213-display-server.sh` | root | X11/Wayland selection |
 | 9 | `220-desktop-select.sh` | root | Choose DE/WM or skip |
 | 10 | `221-desktop-environment.sh` | root | Desktop Environments |
@@ -129,12 +135,12 @@ sync
 reboot
 
 # 4. After reboot (as root)
-bash install/201-desktop-install.sh
+bash install/201-user-setup.sh
 reboot
 
 # 5. After reboot (as user)
-bash install/211-install-yay.sh
-bash install/212-install-packages.sh
+bash install/211-install-aur-helper.sh
+bash install/212-cli-tools.sh
 reboot
 ```
 
@@ -157,6 +163,22 @@ reboot
 - Detects boot mode (UEFI/BIOS)
 - Verifies internet connection before installing
 - Validates environment (Live USB, chroot, installed system)
+- **Multiple shell support** - Choose from Bash, Zsh, Fish, or Nushell with full configuration
+
+### Shell Options
+ALIE supports multiple shell environments with full configuration:
+
+#### Available Shells
+- **Bash** - Default GNU Bourne Again Shell
+- **Zsh** - Extended Bourne Shell with powerful features
+- **Fish** - Friendly Interactive Shell with autosuggestions
+- **Nushell** - Modern shell written in Rust with structured data support
+
+#### Shell Configuration Features
+- **Automatic Detection**: Scripts detect and configure your chosen shell
+- **Comprehensive Setup**: Includes aliases, PATH configuration, and editor settings
+- **Fallback Support**: Inline configuration if config files are unavailable
+- **Nushell Special Features**: Structured data handling, custom prompt, Starship integration
 
 ## Customization
 
