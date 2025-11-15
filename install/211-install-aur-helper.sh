@@ -20,6 +20,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Trap cleanup on exit
@@ -61,7 +63,8 @@ detect_aur_helpers() {
 
 # Function to choose AUR helper
 choose_aur_helper() {
-    local installed=($(detect_aur_helpers))
+    local installed
+    mapfile -t installed < <(detect_aur_helpers)
     
     # If helpers already installed, show options
     if [ ${#installed[@]} -gt 0 ]; then
@@ -73,7 +76,7 @@ choose_aur_helper() {
         echo "2) Install additional helper"
         echo "3) Reinstall existing helper"
         echo
-        read -p "Choose option [1-3] (default: 1): " choice
+        read -r -p "Choose option [1-3] (default: 1): " choice
         choice=${choice:-1}
         
         case $choice in
@@ -98,7 +101,7 @@ choose_aur_helper() {
     echo "1) YAY   - Go-based, most popular, great compatibility"
     echo "2) PARU  - Rust-based, faster, modern features"
     echo
-    read -p "Choose AUR helper [1-2] (default: 1): " helper_choice
+    read -r -p "Choose AUR helper [1-2] (default: 1): " helper_choice
     helper_choice=${helper_choice:-1}
     
     case $helper_choice in
@@ -209,7 +212,8 @@ configure_makepkg() {
     fi
     
     # Get CPU info for optimization
-    local cpu_cores=$(nproc)
+    local cpu_cores
+    cpu_cores=$(nproc)
     local make_jobs=$((cpu_cores + 1))
     
     # Determine architecture optimization
@@ -471,7 +475,7 @@ echo "  ✅ YAY (Go) - Popular and stable"
 echo "  ✅ PARU (Rust) - Fast and modern"
 echo "  ✅ Automatic configuration and setup"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to exit..."
+read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # Validate environment
 print_step "STEP 1: Environment Validation"
@@ -512,7 +516,8 @@ selected_helper=$(choose_aur_helper)
 if [ $? -eq 1 ]; then
     # User chose to keep existing helper
     print_step "Updating Package Database"
-    detected=($(detect_aur_helpers))
+    detected=()
+    mapfile -t detected < <(detect_aur_helpers)
     if [ ${#detected[@]} -gt 0 ]; then
         print_info "Syncing package databases using ${detected[0]}..."
         ${detected[0]} -Syy
@@ -536,7 +541,7 @@ fi
 use_binary=false
 if [ "$selected_helper" = "yay" ]; then
     echo
-    read -p "Install yay from binary package? (faster compilation) [Y/n]: " binary_choice
+    read -r -p "Install yay from binary package? (faster compilation) [Y/n]: " binary_choice
     if [[ ! $binary_choice =~ ^[Nn]$ ]]; then
         use_binary=true
     fi
@@ -551,7 +556,7 @@ echo "  ✅ Build packages with debug symbols (-debug packages)"
 echo "  ✅ Useful for development and troubleshooting"
 echo "  ⚠️  Increases build time and disk usage"
 echo
-read -p "Enable debug packages? [y/N]: " enable_debug
+read -r -p "Enable debug packages? [y/N]: " enable_debug
 enable_debug=${enable_debug:-n}
 enable_debug=${enable_debug,,}  # lowercase
 
@@ -585,7 +590,7 @@ if install_aur_helper "$selected_helper" "$use_binary"; then
     print_info "$selected_helper is now ready to install AUR packages"
     
     # Show version and basic info
-    local version=$($selected_helper --version 2>/dev/null | head -n1 || echo "Version unknown")
+    version=$($selected_helper --version 2>/dev/null | head -n1 || echo "Version unknown")
     print_info "Installed: $version"
     
     echo ""

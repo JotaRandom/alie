@@ -20,6 +20,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Global variables for cleanup
@@ -70,7 +72,7 @@ echo "  ??? Disk partitioning and formatting"
 echo "  ??? Base system installation"
 echo "  ??? Bootloader configuration"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to exit..."
+read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # ===================================
 # STEP 1: NETWORK CONNECTIVITY
@@ -94,7 +96,7 @@ if [ "$NETWORK_OK" = false ]; then
     echo "  2) WiFi - configure wireless"
     echo "  3) Skip - I'll configure manually"
     echo "  4) Exit installer"
-    read -p "Choose option [1-4]: " NET_CHOICE
+    read -r -p "Choose option [1-4]: " NET_CHOICE
     
     case "$NET_CHOICE" in
         1)
@@ -119,7 +121,7 @@ if [ "$NETWORK_OK" = false ]; then
             print_info "Available wireless interfaces:"
             ip link show | grep -E "^[0-9]+: (wlan|wlp)" | cut -d: -f2 | sed 's/^ /  - /'
             echo ""
-            read -p "Enter wireless interface name (e.g., wlan0): " WIFI_IFACE
+            read -r -p "Enter wireless interface name (e.g., wlan0): " WIFI_IFACE
             
             if [ -z "$WIFI_IFACE" ]; then
                 print_error "No interface specified"
@@ -137,7 +139,7 @@ if [ "$NETWORK_OK" = false ]; then
                 echo "  4. Enter password when prompted"
                 echo "  5. Type: exit"
                 echo ""
-                read -p "Press Enter to launch iwctl..."
+                read -r -p "Press Enter to launch iwctl..."
                 iwctl
                 
                 # Wait for WiFi connection with timeout
@@ -175,7 +177,7 @@ if [ "$NETWORK_OK" = true ]; then
     print_success "Network is ready"
 else
     print_warning "Network may not be configured"
-    read -p "Continue anyway? (y/N): " CONTINUE_NO_NET
+    read -r -p "Continue anyway? (y/N): " CONTINUE_NO_NET
     if [[ ! $CONTINUE_NO_NET =~ ^[Yy]$ ]]; then
         print_info "Exiting. Configure network and run installer again."
         exit 1
@@ -235,7 +237,7 @@ echo "Partitioning options:"
 echo "  1) Automatic partitioning (DESTRUCTIVE - erases entire disk)"
 echo "  2) Manual partitioning (I'll use cfdisk/fdisk/parted)"
 echo "  3) Use existing partitions (already partitioned)"
-read -p "Choose option [1-3]: " PART_CHOICE
+read -r -p "Choose option [1-3]: " PART_CHOICE
 
 case "$PART_CHOICE" in
     1)
@@ -244,7 +246,7 @@ case "$PART_CHOICE" in
         echo ""
         lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
         echo ""
-        read -p "Enter disk to use (e.g., sda, nvme0n1, vda): " DISK_NAME
+        read -r -p "Enter disk to use (e.g., sda, nvme0n1, vda): " DISK_NAME
         
         # Sanitize disk name - remove /dev/ prefix if present and validate
         DISK_NAME="${DISK_NAME#/dev/}"
@@ -278,7 +280,7 @@ case "$PART_CHOICE" in
         echo ""
         
         print_warning "??????  ALL DATA ON $DISK_PATH WILL BE DESTROYED! ??????"
-        read -p "Type 'YES' in uppercase to confirm: " CONFIRM_WIPE
+        read -r -p "Type 'YES' in uppercase to confirm: " CONFIRM_WIPE
         
         if [ "$CONFIRM_WIPE" != "YES" ]; then
             print_error "Partitioning cancelled"
@@ -289,7 +291,7 @@ case "$PART_CHOICE" in
         RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
         SUGGESTED_SWAP=$((RAM_GB + 2))
         echo ""
-        read -p "Swap size in GB (suggested: ${SUGGESTED_SWAP}GB): " SWAP_SIZE
+        read -r -p "Swap size in GB (suggested: ${SUGGESTED_SWAP}GB): " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-$SUGGESTED_SWAP}
         
         # Validate swap size is a positive integer
@@ -301,17 +303,17 @@ case "$PART_CHOICE" in
         
         if [ "$SWAP_SIZE" -gt 128 ]; then
             print_warning "Swap size of ${SWAP_SIZE}GB seems unusually large"
-            read -p "Continue anyway? (y/N): " CONFIRM_LARGE_SWAP
+            read -r -p "Continue anyway? (y/N): " CONFIRM_LARGE_SWAP
             if ! [[ $CONFIRM_LARGE_SWAP =~ ^[Yy]$ ]]; then
                 exit 1
             fi
         fi
         
         # Ask for separate home
-        read -p "Create separate /home partition? (y/N): " CREATE_HOME
+        read -r -p "Create separate /home partition? (y/N): " CREATE_HOME
         
         if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-            read -p "Size for / (root) in GB (recommended: 30-50GB, minimum: 23GB): " ROOT_SIZE
+            read -r -p "Size for / (root) in GB (recommended: 30-50GB, minimum: 23GB): " ROOT_SIZE
             
             if [ -z "$ROOT_SIZE" ]; then
                 print_error "Root size is required when creating separate /home"
@@ -334,7 +336,7 @@ case "$PART_CHOICE" in
             
             if [ "$ROOT_SIZE" -lt 30 ]; then
                 print_warning "Root size is below recommended 30 GB minimum"
-                read -p "Continue anyway? (y/N): " CONFIRM_SMALL_ROOT
+                read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_ROOT
                 if [[ ! $CONFIRM_SMALL_ROOT =~ ^[Yy]$ ]]; then
                     exit 1
                 fi
@@ -347,7 +349,7 @@ case "$PART_CHOICE" in
         echo "  1) ext4 (stable, widely supported)"
         echo "  2) btrfs (modern, snapshots, compression)"
         echo "  3) xfs (high performance, large files)"
-        read -p "Choose [1-3] (default: 1): " FS_CHOICE
+        read -r -p "Choose [1-3] (default: 1): " FS_CHOICE
         
         case "$FS_CHOICE" in
             2) ROOT_FS="btrfs" ;;
@@ -409,7 +411,7 @@ case "$PART_CHOICE" in
             echo "Partition table type:"
             echo "  1) MBR (msdos) - Traditional, max 2TB"
             echo "  2) GPT - Modern, better for large disks"
-            read -p "Choose [1-2] (default: 2): " PT_CHOICE
+            read -r -p "Choose [1-2] (default: 2): " PT_CHOICE
             
             if [ "$PT_CHOICE" == "1" ]; then
                 PARTITION_TABLE="MBR"
@@ -489,7 +491,7 @@ case "$PART_CHOICE" in
         
         # Ensure partitions are unmounted before formatting
         print_info "Ensuring partitions are not mounted..."
-        for part in ${PART_PREFIX}*; do
+        for part in "${PART_PREFIX}"*; do
             if mountpoint -q "$part" 2>/dev/null || mount | grep -q "$part"; then
                 print_warning "Partition $part is mounted, unmounting..."
                 umount "$part" 2>/dev/null || umount -l "$part" 2>/dev/null || true
@@ -590,7 +592,7 @@ case "$PART_CHOICE" in
         echo ""
         lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
         echo ""
-        read -p "Enter disk to partition (e.g., sda, nvme0n1): " DISK_NAME
+        read -r -p "Enter disk to partition (e.g., sda, nvme0n1): " DISK_NAME
         
         if [ -z "$DISK_NAME" ]; then
             print_error "No disk specified"
@@ -620,7 +622,7 @@ case "$PART_CHOICE" in
         echo "  1) cfdisk (recommended, user-friendly)"
         echo "  2) fdisk (traditional)"
         echo "  3) parted (advanced)"
-        read -p "Choose tool [1-3]: " TOOL_CHOICE
+        read -r -p "Choose tool [1-3]: " TOOL_CHOICE
         
         case "$TOOL_CHOICE" in
             1) cfdisk "$DISK_PATH" ;;
@@ -638,12 +640,12 @@ case "$PART_CHOICE" in
         lsblk "$DISK_PATH"
         echo ""
         
-        read -p "Do you want to format the partitions now? (Y/n): " FORMAT_NOW
+        read -r -p "Do you want to format the partitions now? (Y/n): " FORMAT_NOW
         
         if [[ ! $FORMAT_NOW =~ ^[Nn]$ ]]; then
             # Ask for each partition and format
             if [ "$BOOT_MODE" == "UEFI" ]; then
-                read -p "Enter EFI partition (e.g., /dev/sda1): " EFI_PARTITION
+                read -r -p "Enter EFI partition (e.g., /dev/sda1): " EFI_PARTITION
                 if [ -n "$EFI_PARTITION" ] && [ -b "$EFI_PARTITION" ]; then
                     # Check if partition already has a filesystem (dual-boot warning)
                     EXISTING_FS=$(blkid -o value -s TYPE "$EFI_PARTITION" 2>/dev/null || echo "")
@@ -651,7 +653,7 @@ case "$PART_CHOICE" in
                     if [ -n "$EXISTING_FS" ]; then
                         print_warning "Partition $EFI_PARTITION already has filesystem: $EXISTING_FS"
                         print_warning "This may contain bootloaders from other operating systems!"
-                        read -p "Format anyway? This will destroy other OS bootloaders! (y/N): " CONFIRM_FORMAT_EFI
+                        read -r -p "Format anyway? This will destroy other OS bootloaders! (y/N): " CONFIRM_FORMAT_EFI
                         
                         if [[ ! $CONFIRM_FORMAT_EFI =~ ^[Yy]$ ]]; then
                             print_info "Skipping EFI partition format - will use existing"
@@ -665,28 +667,28 @@ case "$PART_CHOICE" in
                     fi
                 fi
             else
-                read -p "Using GPT? (y/N): " USING_GPT
+                read -r -p "Using GPT? (y/N): " USING_GPT
                 if [[ $USING_GPT =~ ^[Yy]$ ]]; then
                     PARTITION_TABLE="GPT"
-                    read -p "Enter BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
+                    read -r -p "Enter BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
                 else
                     PARTITION_TABLE="MBR"
                 fi
             fi
             
-            read -p "Enter swap partition: " SWAP_PARTITION
+            read -r -p "Enter swap partition: " SWAP_PARTITION
             if [ -n "$SWAP_PARTITION" ] && [ -b "$SWAP_PARTITION" ]; then
                 print_info "Setting up swap..."
                 mkswap "$SWAP_PARTITION"
             fi
             
-            read -p "Enter root partition: " ROOT_PARTITION
+            read -r -p "Enter root partition: " ROOT_PARTITION
             if [ -n "$ROOT_PARTITION" ] && [ -b "$ROOT_PARTITION" ]; then
                 echo "Choose filesystem:"
                 echo "  1) ext4"
                 echo "  2) btrfs"
                 echo "  3) xfs"
-                read -p "Choose [1-3]: " FS_CHOICE
+                read -r -p "Choose [1-3]: " FS_CHOICE
                 
                 case "$FS_CHOICE" in
                     2) ROOT_FS="btrfs" ;;
@@ -702,9 +704,9 @@ case "$PART_CHOICE" in
                 esac
             fi
             
-            read -p "Do you have a separate /home partition? (y/N): " HAS_HOME
+            read -r -p "Do you have a separate /home partition? (y/N): " HAS_HOME
             if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
-                read -p "Enter /home partition: " HOME_PARTITION
+                read -r -p "Enter /home partition: " HOME_PARTITION
                 if [ -n "$HOME_PARTITION" ] && [ -b "$HOME_PARTITION" ]; then
                     print_info "Formatting /home as $ROOT_FS..."
                     case "$ROOT_FS" in
@@ -746,24 +748,24 @@ if [ "$AUTO_PARTITIONED" != true ]; then
     lsblk
     echo ""
     
-    read -p "Enter the root partition (e.g., /dev/sda3): " ROOT_PARTITION
-    read -p "Enter the swap partition (e.g., /dev/sda2): " SWAP_PARTITION
+    read -r -p "Enter the root partition (e.g., /dev/sda3): " ROOT_PARTITION
+    read -r -p "Enter the swap partition (e.g., /dev/sda2): " SWAP_PARTITION
     
     if [ "$BOOT_MODE" == "UEFI" ]; then
-        read -p "Enter the EFI partition (e.g., /dev/sda1): " EFI_PARTITION
+        read -r -p "Enter the EFI partition (e.g., /dev/sda1): " EFI_PARTITION
     else
-        read -p "Are you using GPT partition table? (y/N): " USING_GPT
+        read -r -p "Are you using GPT partition table? (y/N): " USING_GPT
         if [[ $USING_GPT =~ ^[Yy]$ ]]; then
             PARTITION_TABLE="GPT"
-            read -p "Enter the BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
+            read -r -p "Enter the BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
         else
             PARTITION_TABLE="MBR"
         fi
     fi
     
-    read -p "Do you have a separate /home partition? (y/N): " HAS_HOME
+    read -r -p "Do you have a separate /home partition? (y/N): " HAS_HOME
     if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
-        read -p "Enter the /home partition (e.g., /dev/sda4): " HOME_PARTITION
+        read -r -p "Enter the /home partition (e.g., /dev/sda4): " HOME_PARTITION
     fi
 fi
 
@@ -841,7 +843,7 @@ fi
 echo ""
 
 print_warning "This will install Arch Linux with the above configuration"
-read -p "Continue with installation? (y/N): " CONFIRM
+read -r -p "Continue with installation? (y/N): " CONFIRM
 
 if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
     print_info "Installation cancelled"

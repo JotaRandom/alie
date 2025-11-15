@@ -34,12 +34,16 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=lib/shared-functions.sh
 source "$LIB_DIR/shared-functions.sh"
 
 # Function to detect environment
 detect_environment() {
     # Check if running in chroot
-    if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] 2>/dev/null; then
+    local root_stat root_proc_stat
+    root_stat=$(stat -c %d:%i / 2>/dev/null || true)
+    root_proc_stat=$(stat -c %d:%i /proc/1/root/. 2>/dev/null || true)
+    if [ "$root_stat" != "$root_proc_stat" ]; then
         echo "chroot"
         return
     fi
@@ -123,7 +127,7 @@ show_manual_menu() {
     echo "  ${CYAN}0)${NC} Exit without changes"
     echo ""
     
-    read -p "Choose script to run [1-9, A, C, 0]: " choice
+    read -r -p "Choose script to run [1-9, A, C, 0]: " choice
     
     case "$choice" in
         1) RUN_SCRIPT="$INSTALL_DIR/001-base-install.sh"; NEEDS_ROOT=true ;;
@@ -138,8 +142,8 @@ show_manual_menu() {
         [Aa]) RUN_SCRIPT="$INSTALL_DIR/231-desktop-tools.sh"; NEEDS_ROOT=true ;;
         [Cc])
             print_warning "This will clear all progress markers"
-            read -p "Are you sure? (yes/no): " confirm
-            if [ "$confirm" = "yes" ]; then
+            read -r -p "Are you sure? (yes/no): " confirm
+            if [ "${confirm:-}" = "yes" ]; then
                 clear_progress
                 print_info "Progress cleared"
             fi
@@ -194,6 +198,7 @@ print_success "Detected environment: $ENV"
 
 # Check installation progress
 STEP=$(get_installation_step)
+STEP="${STEP:-0}"
 if [ "$STEP" != "0" ]; then
     echo ""
     print_info "Installation progress detected!"
@@ -202,9 +207,7 @@ if [ "$STEP" != "0" ]; then
 fi
 
 # Check for manual mode flag
-MANUAL_MODE=false
-if [ "$1" = "--manual" ] || [ "$1" = "-m" ]; then
-    MANUAL_MODE=true
+if [ "${1:-}" = "--manual" ] || [ "${1:-}" = "-m" ]; then
     print_info "Manual mode enabled - you can choose any step"
     echo ""
     show_manual_menu
@@ -223,13 +226,13 @@ case "$ENV" in
             echo "  1) Continue/Retry base installation (001-base-install.sh)"
             echo "  2) Start fresh (clear progress and reinstall)"
             echo "  3) Exit"
-            read -p "Choose an option [1-3]: " choice
+            read -r -p "Choose an option [1-3]: " choice
             
             case "$choice" in
                 2)
                     print_warning "This will clear all progress markers"
-                    read -p "Are you sure? (yes/no): " confirm
-                    if [ "$confirm" = "yes" ]; then
+                    read -r -p "Are you sure? (yes/no): " confirm
+                    if [ "${confirm:-}" = "yes" ]; then
                         clear_progress
                         print_info "Progress cleared. Re-run the installer."
                         exit 0
@@ -248,7 +251,7 @@ case "$ENV" in
             echo "  1) Install base system (001-base-install.sh)"
             echo "  2) Exit"
             echo ""
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exiting..."
@@ -284,7 +287,7 @@ case "$ENV" in
             echo "What would you like to do?"
             echo "  1) Reconfigure system (101-configure-system.sh)"
             echo "  2) Exit chroot and reboot"
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exit chroot and follow instructions to reboot"
@@ -295,7 +298,7 @@ case "$ENV" in
             echo "  1) Configure system (101-configure-system.sh)"
             echo "  2) Exit"
             echo ""
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exiting..."
@@ -330,7 +333,7 @@ case "$ENV" in
             echo "Next steps:"
             echo "  1) Install YAY (run as regular user)"
             echo "  2) Exit"
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exiting..."
@@ -345,7 +348,7 @@ case "$ENV" in
             echo "  1) Setup user and privileges (201-user-setup.sh)"
             echo "  2) Exit"
             echo ""
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exiting..."
@@ -396,7 +399,7 @@ case "$ENV" in
             echo "  2) Desktop selection - DE/WM (220-desktop-select.sh) - as root"
             echo "  3) Install desktop tools (231-desktop-tools.sh) - as root"
             echo "  4) Exit"
-            read -p "Choose an option [1-4]: " choice
+            read -r -p "Choose an option [1-4]: " choice
             
             case "$choice" in
                 1) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
@@ -412,7 +415,7 @@ case "$ENV" in
             echo "  1) Install CLI tools (212-cli-tools.sh) - as user"
             echo "  2) Setup display server (213-display-server.sh) - as root"
             echo "  3) Exit"
-            read -p "Choose an option [1-3]: " choice
+            read -r -p "Choose an option [1-3]: " choice
             
             case "$choice" in
                 1) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
@@ -426,7 +429,7 @@ case "$ENV" in
             echo "  2) Install CLI tools (212-cli-tools.sh) - requires AUR helper"
             echo "  3) Setup display server (213-display-server.sh) - as root"
             echo "  4) Exit"
-            read -p "Choose an option [1-4]: " choice
+            read -r -p "Choose an option [1-4]: " choice
             
             case "$choice" in
                 1) NEXT_SCRIPT="211-install-aur-helper.sh"; NEEDS_ROOT=false ;;

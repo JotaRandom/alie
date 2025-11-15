@@ -17,8 +17,10 @@ deploy_config() {
     shift 2
     local variables=("$@")
     
-    local configs_dir=$(get_configs_dir "$SCRIPT_DIR")
-    local template_path="$configs_dir/$template"
+    local configs_dir
+    configs_dir=$(get_configs_dir "${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}")
+    local template_path
+    template_path="$configs_dir/$template"
     
     if [ ! -f "$template_path" ]; then
         print_error "Template not found: $template_path"
@@ -28,29 +30,33 @@ deploy_config() {
     print_info "Deploying configuration: $template → $destination"
     
     # Read template
-    local content=$(cat "$template_path")
+    local content
+    content=$(cat "$template_path")
     
     # Apply variable substitutions
     for var in "${variables[@]}"; do
         local key="${var%%=*}"
         local value="${var#*=}"
         # Escape special characters in value for sed
-        local escaped_value=$(printf '%s\n' "$value" | sed 's/[[\.*^$/]/\\&/g')
-        content=$(echo "$content" | sed "s/{{${key}}}/${escaped_value}/g")
+        local escaped_value
+        escaped_value=$(printf '%s\n' "$value" | sed 's/[[\.*^$/]/\\&/g')
+            # Use parameter expansion for literal substring replacement when safe
+            content="${content//{{${key}}}/${escaped_value}}"
     done
     
     # Check if there are unresolved variables
     if echo "$content" | grep -q "{{.*}}"; then
         print_warning "Template has unresolved variables:"
         echo "$content" | grep -o "{{[^}]*}}" | sort -u
-        read -p "Continue anyway? (y/N): " confirm
-        if [[ ! $confirm =~ ^[Yy]$ ]]; then
+        read -r -p "Continue anyway? (y/N): " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
             return 1
         fi
     fi
     
     # Create destination directory if needed
-    local dest_dir=$(dirname "$destination")
+    local dest_dir
+    dest_dir=$(dirname "$destination")
     if [ ! -d "$dest_dir" ]; then
         print_info "Creating directory: $dest_dir"
         mkdir -p "$dest_dir"
@@ -70,7 +76,8 @@ deploy_config_direct() {
     local destination="$2"
     local permissions="${3:-644}"
     
-    local configs_dir=$(get_configs_dir "$SCRIPT_DIR")
+    local configs_dir
+    configs_dir=$(get_configs_dir "${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}")
     local source_path="$configs_dir/$source"
     
     if [ ! -f "$source_path" ]; then
@@ -81,7 +88,8 @@ deploy_config_direct() {
     print_info "Deploying configuration: $source → $destination"
     
     # Create destination directory if needed
-    local dest_dir=$(dirname "$destination")
+    local dest_dir
+    dest_dir=$(dirname "$destination")
     if [ ! -d "$dest_dir" ]; then
         print_info "Creating directory: $dest_dir"
         mkdir -p "$dest_dir"
@@ -100,8 +108,10 @@ deploy_config_direct() {
 execute_config_script() {
     local script="$1"
     
-    local configs_dir=$(get_configs_dir "$SCRIPT_DIR")
-    local script_path="$configs_dir/$script"
+    local configs_dir
+    configs_dir=$(get_configs_dir "${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}")
+    local script_path
+    script_path="$configs_dir/$script"
     
     if [ ! -f "$script_path" ]; then
         print_error "Configuration script not found: $script_path"
@@ -128,7 +138,8 @@ execute_config_script() {
 # Usage: list_configs <category>
 list_configs() {
     local category="$1"
-    local configs_dir=$(get_configs_dir "$SCRIPT_DIR")
+    local configs_dir
+    configs_dir=$(get_configs_dir "${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}")
     
     if [ -n "$category" ]; then
         local category_dir="$configs_dir/$category"
@@ -138,15 +149,14 @@ list_configs() {
         fi
         
         print_info "Available configurations in '$category':"
-        ls -1 "$category_dir" 2>/dev/null | while read -r file; do
+        while IFS= read -r file; do
             echo "  • $file"
-        done
+        done < <(find "$category_dir" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null)
     else
         print_info "Available configuration categories:"
-        ls -1d "$configs_dir"/*/ 2>/dev/null | while read -r dir; do
-            local cat_name=$(basename "$dir")
-            echo "  • $cat_name/"
-        done
+        while IFS= read -r dir; do
+            echo "  • $dir/"
+        done < <(find "$configs_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null)
     fi
 }
 
@@ -198,7 +208,8 @@ show_config_diff() {
     local template="$1"
     local deployed="$2"
     
-    local configs_dir=$(get_configs_dir "$SCRIPT_DIR")
+    local configs_dir
+    configs_dir=$(get_configs_dir "$SCRIPT_DIR")
     local template_path="$configs_dir/$template"
     
     if [ ! -f "$template_path" ]; then
@@ -231,9 +242,12 @@ backup_config() {
     fi
     
     local backup_dir="/var/backups/alie-configs"
-    local timestamp=$(date +%Y%m%d-%H%M%S)
-    local backup_name="$(basename "$file").${timestamp}.bak"
-    local backup_path="$backup_dir/$backup_name"
+    local timestamp
+    timestamp=$(date +%Y%m%d-%H%M%S)
+    local backup_name
+    backup_name="$(basename "$file").${timestamp}.bak"
+    local backup_path
+    backup_path="$backup_dir/$backup_name"
     
     mkdir -p "$backup_dir"
     

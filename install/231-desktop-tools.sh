@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ALIE Desktop Tools and Applications (231-desktop-tools.sh)
 # This script installs additional desktop applications and tools
 # Run AFTER 221-desktop-environment.sh or 222-window-manager.sh
@@ -10,6 +10,8 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/shared-functions.sh"
 
 ################################################################################
@@ -29,7 +31,7 @@ install_file_tools() {
     echo "  6) Compression tools (p7zip, unrar, unzip, zip)"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 3 4 6]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 3 4 6]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -57,7 +59,7 @@ install_text_editors() {
     echo "  4) [Qt]  KWrite"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 3]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 3]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -88,7 +90,7 @@ install_system_utilities() {
     echo "  9) [Qt]  Spectacle (screenshot)"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 2 3]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 2 3]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -137,7 +139,7 @@ install_image_tools() {
     echo "  7) [Qt]  Krita - digital painting"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 5 6]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 5 6]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -168,7 +170,7 @@ install_video_tools() {
     echo "  6) [GTK] Handbrake - video transcoder"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 4 5]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 4 5]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -196,7 +198,7 @@ install_audio_tools() {
     echo "  4) [Qt]  K3b - CD/DVD burning"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 2]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 2]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -220,7 +222,7 @@ install_document_viewers() {
     echo "  2) [Qt]  Okular - PDF/document viewer"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -244,7 +246,7 @@ install_internet() {
     echo "  4) [wxWidgets] FileZilla FTP client"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 2 3]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 2 3]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -264,7 +266,7 @@ install_mint_themes() {
     log_warning "Mint themes require AUR helper (yay/paru)"
     log_info "Install with: yay -S mint-themes mint-y-icons mint-x-icons"
     echo ""
-    read -p "Press Enter to continue..."
+    read -r -p "Press Enter to continue..."
 }
 
 # Development Tools
@@ -281,7 +283,7 @@ install_development() {
     echo "  7) [Java] JetBrains IDEs info (PyCharm, IntelliJ - requires AUR)"
     echo "  0) Skip"
     echo ""
-    read -p "Enter options [e.g., 1 2 3]: " -a choices
+    read -r -a choices -p "Enter options [e.g., 1 2 3]: "
     
     for choice in "${choices[@]}"; do
         case "$choice" in
@@ -294,7 +296,7 @@ install_development() {
             7)
                 log_warning "JetBrains IDEs require AUR helper"
                 log_info "Install with: yay -S pycharm-community-edition intellij-idea-community-edition"
-                read -p "Press Enter to continue..."
+                read -r -p "Press Enter to continue..."
                 ;;
             0) log_info "Skipping development tools"; return ;;
         esac
@@ -360,7 +362,7 @@ show_tools_menu() {
     echo "  0) Exit"
     echo ""
     
-    read -p "Select option [0-13]: " choice
+    read -r -p "Select option [0-13]: " choice
     
     case "$choice" in
         1) install_file_tools ;;
@@ -428,7 +430,7 @@ main() {
     log_warning "Desktop environment must be installed first!"
     echo "  Run 220-desktop-select.sh if not done"
     echo ""
-    read -p "Press Enter to continue or Ctrl+C to exit..."
+    read -r -p "Press Enter to continue or Ctrl+C to exit..."
     
     # Show menu and install
     show_tools_menu

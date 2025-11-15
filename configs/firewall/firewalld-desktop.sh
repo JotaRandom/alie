@@ -1,6 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 # ALIE - Firewalld Desktop Configuration
 # Permissive setup for development workstation
+
+if [ "$EUID" -ne 0 ]; then
+	echo "ERROR: firewall script must be run as root" >&2
+	exit 1
+fi
 
 # Set default zone
 firewall-cmd --set-default-zone=public

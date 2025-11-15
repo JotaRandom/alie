@@ -19,6 +19,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Welcome banner
@@ -33,7 +35,7 @@ echo "  ??? Root password"
 echo "  ??? Package manager (pacman)"
 echo "  ??? Bootloader (GRUB)"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to exit..."
+read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # Validate environment
 print_step "STEP 1: Environment Validation"
@@ -59,7 +61,7 @@ echo ""
 print_info "Hostname Configuration"
 echo "The hostname identifies your computer on a network"
 echo "Example: arch-desktop, my-laptop, workstation"
-read -p "Enter hostname: " HOSTNAME
+read -r -p "Enter hostname: " HOSTNAME
 
 # Validate inputs
 if [ -z "$HOSTNAME" ]; then
@@ -89,7 +91,7 @@ echo "  ??? Europe/Paris         (Central Europe)"
 echo "  ??? Asia/Tokyo           (Japan)"
 echo ""
 print_info "For a complete list, check: /usr/share/zoneinfo/"
-read -p "Enter timezone (e.g., America/New_York): " TIMEZONE
+read -r -p "Enter timezone (e.g., America/New_York): " TIMEZONE
 
 if [ -z "$TIMEZONE" ]; then
     print_error "Timezone cannot be empty"
@@ -108,10 +110,11 @@ if ! [[ "$TIMEZONE" =~ ^[A-Z][a-zA-Z_]+/[A-Z][a-zA-Z_]+(/[A-Z][a-zA-Z_]+)?$ ]]; 
     exit 1
 fi
 
-if [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
+    if [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
     print_error "Invalid timezone '$TIMEZONE'"
     print_info "Available regions:"
-    ls -1 /usr/share/zoneinfo/ | grep -v "^[a-z]" | head -20
+    # List top-level region directories in /usr/share/zoneinfo safely
+    find /usr/share/zoneinfo -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null | grep -v "^[a-z]" | head -20
     exit 1
 fi
 
@@ -128,7 +131,7 @@ echo "  ??? es_MX.UTF-8  (Spanish - Mexico)"
 echo "  ??? de_DE.UTF-8  (German - Germany)"
 echo "  ??? fr_FR.UTF-8  (French - France)"
 echo ""
-read -p "Enter locale (default: en_US.UTF-8): " LOCALE
+read -r -p "Enter locale (default: en_US.UTF-8): " LOCALE
 LOCALE=${LOCALE:-en_US.UTF-8}
 
 if [ -z "$LOCALE" ]; then
@@ -164,7 +167,7 @@ echo "  ??? fr-latin1    (French)"
 echo "  ??? la-latin1    (Latin American)"
 echo ""
 print_info "For all layouts: localectl list-keymaps"
-read -p "Enter keyboard layout (default: us): " KEYMAP
+read -r -p "Enter keyboard layout (default: us): " KEYMAP
 KEYMAP=${KEYMAP:-us}
 
 if [ -z "$KEYMAP" ]; then
@@ -192,7 +195,7 @@ else
         print_success "Detected AMD CPU"
     else
         print_error "Could not auto-detect CPU vendor"
-        read -p "Enter CPU vendor (intel/amd): " CPU_VENDOR
+        read -r -p "Enter CPU vendor (intel/amd): " CPU_VENDOR
         
         if [ "$CPU_VENDOR" != "intel" ] && [ "$CPU_VENDOR" != "amd" ]; then
             print_error "CPU vendor must be 'intel' or 'amd'"
@@ -218,18 +221,18 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
     # Try to use disk from install info
     if [ -n "$ROOT_PARTITION" ]; then
         # Extract disk from root partition (e.g., /dev/sda3 -> /dev/sda)
-        GRUB_DISK=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//')
+        GRUB_DISK="${ROOT_PARTITION%%[0-9]*}"
         print_info "Auto-detected GRUB disk from installation: $GRUB_DISK"
-        read -p "Use this disk for GRUB? (Y/n): " CONFIRM_DISK
+        read -r -p "Use this disk for GRUB? (Y/n): " CONFIRM_DISK
         
         if [[ $CONFIRM_DISK =~ ^[Nn]$ ]]; then
-            read -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
+            read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
         fi
     else
         print_info "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE | grep disk
         echo ""
-        read -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
+        read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
     fi
     
     if [ -z "$GRUB_DISK" ]; then
@@ -261,7 +264,7 @@ fi
 print_step "STEP 4: Configuring Timezone"
 
 print_info "Setting timezone to $TIMEZONE..."
-ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 hwclock --systohc
 print_success "Timezone configured"
 
@@ -353,7 +356,7 @@ if [ "$BOOT_MODE" == "UEFI" ]; then
         exit 1
     fi
 else
-    if grub-install --verbose --target=i386-pc $GRUB_DISK; then
+    if grub-install --verbose --target=i386-pc "$GRUB_DISK"; then
         print_success "GRUB installed successfully (BIOS mode) to $GRUB_DISK"
     else
         print_error "GRUB installation failed!"
@@ -396,7 +399,7 @@ echo "     - Mature and widely tested"
 echo "     - Good compatibility with older applications"
 echo ""
 
-read -p "Select audio server [1-2]: " AUDIO_SERVER
+read -r -p "Select audio server [1-2]: " AUDIO_SERVER
 
 case "$AUDIO_SERVER" in
     1)
@@ -445,7 +448,7 @@ echo ""
 echo "  ${CYAN}5)${NC} Skip (install later if needed)"
 echo ""
 
-read -p "Select option [1-5]: " GST_OPTION
+read -r -p "Select option [1-5]: " GST_OPTION
 
 case "$GST_OPTION" in
     1)
@@ -482,7 +485,7 @@ case "$GST_OPTION" in
         echo "  4) gst-plugins-ugly (patent-encumbered - mp3, dvd)"
         echo "  5) gst-libav (FFmpeg integration - h264, hevc, etc.)"
         echo ""
-        read -p "Enter selections: " -a GST_CHOICES
+        read -r -a GST_CHOICES -p "Enter selections: "
         
         GST_PKGS=()
         for choice in "${GST_CHOICES[@]}"; do
@@ -497,7 +500,7 @@ case "$GST_OPTION" in
         
         if [ ${#GST_PKGS[@]} -gt 0 ]; then
             print_info "Installing selected plugins: ${GST_PKGS[*]}"
-            if retry_command 3 "pacman -S --needed --noconfirm ${GST_PKGS[@]}"; then
+            if retry_command 3 pacman -S --needed --noconfirm "${GST_PKGS[@]}"; then
                 print_success "Selected GStreamer plugins installed"
             else
                 print_warning "Failed to install some plugins"

@@ -18,6 +18,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Load configuration functions
@@ -26,6 +28,8 @@ if [ ! -f "$LIB_DIR/config-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/config-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/config-functions.sh"
 
 # Script information
@@ -61,10 +65,10 @@ echo ""
 echo "  0) None - stick with bash only"
 echo ""
 
-read -p "Select shells to install (space-separated, e.g., '1 2', or 0 for none): " shell_choices
+read -r -a shell_choices -p "Select shells to install (space-separated, e.g., '1 2', or 0 for none): "
 
-if [ "$shell_choices" != "0" ]; then
-    for choice in $shell_choices; do
+if [ "${#shell_choices[@]}" -gt 0 ] && [ "${shell_choices[0]}" != "0" ]; then
+    for choice in "${shell_choices[@]}"; do
         case $choice in
             1)
                 SELECTED_SHELLS+=("zsh")
@@ -106,7 +110,7 @@ echo "Configure nano with syntax highlighting?"
 echo "  1) Yes - install nano-syntax-highlighting package"
 echo "  2) No - use default nano configuration"
 echo ""
-read -p "Choice [1-2] (default: 1): " nano_choice
+read -r -p "Choice [1-2] (default: 1): " nano_choice
 nano_choice=${nano_choice:-1}
 
 if [ "$nano_choice" = "1" ]; then
@@ -125,7 +129,7 @@ echo "Configure vim with enhanced settings?"
 echo "  1) Yes - install vim with recommended plugins support"
 echo "  2) No - use default vim configuration"
 echo ""
-read -p "Choice [1-2] (default: 1): " vim_choice
+read -r -p "Choice [1-2] (default: 1): " vim_choice
 vim_choice=${vim_choice:-1}
 
 if [ "$vim_choice" = "1" ]; then
@@ -149,10 +153,10 @@ echo ""
 echo "  0) None - stick with nano and vim only"
 echo ""
 
-read -p "Select additional editors (space-separated, e.g., '1 3', or 0 for none): " editor_choices
+read -r -a editor_choices -p "Select additional editors (space-separated, e.g., '1 3', or 0 for none): "
 
-if [ "$editor_choices" != "0" ]; then
-    for choice in $editor_choices; do
+if [ "${#editor_choices[@]}" -gt 0 ] && [ "${editor_choices[0]}" != "0" ]; then
+    for choice in "${editor_choices[@]}"; do
         case $choice in
             1)
                 SELECTED_EDITORS+=("neovim")
@@ -205,7 +209,7 @@ if [ ${#SELECTED_EDITORS[@]} -gt 0 ]; then
 fi
 
 echo ""
-read -p "Proceed with this configuration? (Y/n): " confirm
+read -r -p "Proceed with this configuration? (Y/n): " confirm
 if [[ $confirm =~ ^[Nn]$ ]]; then
     print_warning "Installation cancelled by user"
     exit 0

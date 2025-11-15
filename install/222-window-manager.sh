@@ -14,7 +14,11 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/shared-functions.sh"
+# shellcheck source=../lib/config-functions.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/config-functions.sh"
 
 # Global variables
@@ -280,7 +284,7 @@ install_dwm() {
     log_info "  2. Clone dwm from suckless.org"
     log_info "  3. Install to /usr/local/bin"
     echo ""
-    read -p "Continue? (y/n): " confirm
+    read -r -p "Continue? (y/n): " confirm
     
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
         log_info "Installation cancelled"
@@ -409,7 +413,7 @@ main() {
     # Show menu
     while true; do
         show_wm_menu
-        read -p "Select window manager to install: " choice
+        read -r -p "Select window manager to install: " choice
         
         case $choice in
             1)

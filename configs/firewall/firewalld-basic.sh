@@ -1,6 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 # ALIE - Firewalld Basic Configuration
 # Zone-based firewall configuration
+
+if [ "$EUID" -ne 0 ]; then
+	echo "ERROR: firewall script must be run as root" >&2
+	exit 1
+fi
 
 # Set default zone to public (restrictive)
 firewall-cmd --set-default-zone=public

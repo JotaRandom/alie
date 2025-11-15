@@ -1,6 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 # ALIE - UFW Advanced Configuration
 # More permissive setup for development/desktop
+
+if [ "$EUID" -ne 0 ]; then
+	echo "ERROR: firewall script must be run as root" >&2
+	exit 1
+fi
 
 # Default policies
 ufw default deny incoming

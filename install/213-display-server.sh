@@ -20,6 +20,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Information about the script
@@ -49,7 +51,8 @@ show_main_menu() {
     
     # Detect hardware first
     print_info "🔍 Detected Hardware:"
-    local gpu_info=$(lspci 2>/dev/null | grep -E "(VGA|3D|Display)" || echo "Could not detect GPU")
+    local gpu_info
+    gpu_info=$(lspci 2>/dev/null | grep -E "(VGA|3D|Display)" || echo "Could not detect GPU")
     echo "  GPU: $gpu_info"
     echo ""
     
@@ -106,8 +109,8 @@ show_information() {
     echo "   • Use 214-desktop-env.sh for compositors and DE"
     echo ""
     
-    printf "${YELLOW}Press Enter to return to menu...${NC}"
-    read
+    printf '%s' "${YELLOW}Press Enter to return to menu...${NC}"
+    read -r -p ""
 }
 
 # Select individual display packages
@@ -204,7 +207,7 @@ select_individual_display_packages() {
         
         # Show categories
         echo "${YELLOW}━━━ Xorg Core ━━━${NC}"
-        for i in 0 1 2; do
+            for i in 0 1 2; do
             local pkg="${all_packages[$i]}"
             local desc="${package_descriptions[$i]#*:}"
             
@@ -216,7 +219,7 @@ select_individual_display_packages() {
             displayed_packages+=("$pkg")
             
             local status=" "
-            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+            if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
                 status="${GREEN}[X]${NC}"
             fi
             
@@ -226,8 +229,8 @@ select_individual_display_packages() {
         
         echo ""
         echo "${YELLOW}━━━ Xorg Tools ━━━${NC}"
-        for i in {3..16}; do
-            [ $i -ge ${#all_packages[@]} ] && break
+            for i in {3..16}; do
+            [ "$i" -ge "${#all_packages[@]}" ] && break
             local pkg="${all_packages[$i]}"
             local desc="${package_descriptions[$i]#*:}"
             
@@ -239,7 +242,7 @@ select_individual_display_packages() {
             displayed_packages+=("$pkg")
             
             local status=" "
-            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+            if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
                 status="${GREEN}[X]${NC}"
             fi
             
@@ -249,8 +252,8 @@ select_individual_display_packages() {
         
         echo ""
         echo "${YELLOW}━━━ Wayland ━━━${NC}"
-        for i in {17..22}; do
-            [ $i -ge ${#all_packages[@]} ] && break
+            for i in {17..22}; do
+            [ "$i" -ge "${#all_packages[@]}" ] && break
             local pkg="${all_packages[$i]}"
             local desc="${package_descriptions[$i]#*:}"
             
@@ -262,7 +265,7 @@ select_individual_display_packages() {
             displayed_packages+=("$pkg")
             
             local status=" "
-            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+            if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
                 status="${GREEN}[X]${NC}"
             fi
             
@@ -272,8 +275,8 @@ select_individual_display_packages() {
         
         echo ""
         echo "${YELLOW}━━━ Graphics Drivers ━━━${NC}"
-        for i in {23..40}; do
-            [ $i -ge ${#all_packages[@]} ] && break
+            for i in {23..40}; do
+            [ "$i" -ge "${#all_packages[@]}" ] && break
             local pkg="${all_packages[$i]}"
             local desc="${package_descriptions[$i]#*:}"
             
@@ -285,7 +288,7 @@ select_individual_display_packages() {
             displayed_packages+=("$pkg")
             
             local status=" "
-            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+            if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
                 status="${GREEN}[X]${NC}"
             fi
             
@@ -294,25 +297,26 @@ select_individual_display_packages() {
         done
         
         echo ""
-        if [ ${#selected_packages[@]} -gt 0 ]; then
+            if [ "${#selected_packages[@]}" -gt 0 ]; then
             print_info "Selected: ${#selected_packages[@]} package(s)"
         else
             print_warning "No packages selected yet"
         fi
         echo ""
         
-        printf "${CYAN}Enter number, 'all', 'none', 'search <term>', 'I' to install, 'Q' to cancel: ${NC}"
+        printf '%s' "${CYAN}Enter number, 'all', 'none', 'search <term>', 'I' to install, 'Q' to cancel: ${NC}"
         read -r input
         
         case "$input" in
             [0-9]|[0-9][0-9]|[0-9][0-9][0-9])
                 if [ "$input" -ge 1 ] && [ "$input" -lt "$idx" ]; then
-                    local pkg_idx=$((input - 1))
+                    local pkg_idx
+                    pkg_idx=$((input - 1))
                     local actual_idx="${displayed_indices[$pkg_idx]}"
                     local pkg="${all_packages[$actual_idx]}"
                     
-                    if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
-                        selected_packages=($(printf '%s\n' "${selected_packages[@]}" | grep -v "^$pkg$"))
+                    if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
+                        mapfile -t selected_packages < <(printf '%s\n' "${selected_packages[@]}" | grep -Fvx -- "$pkg")
                     else
                         selected_packages+=("$pkg")
                     fi
@@ -335,7 +339,7 @@ select_individual_display_packages() {
                 filter=""
                 ;;
             [iI])
-                if [ ${#selected_packages[@]} -eq 0 ]; then
+                if [ "${#selected_packages[@]}" -eq 0 ]; then
                     print_warning "No packages selected"
                     sleep 1
                 else
@@ -361,7 +365,7 @@ get_display_selection() {
     while true; do
         show_main_menu
         
-        printf "${CYAN}Select option [1-5, I, Q]: ${NC}"
+        printf '%s' "${CYAN}Select option [1-5, I, Q]: ${NC}"
         read -r input
         
         case "$input" in
@@ -386,11 +390,12 @@ get_display_selection() {
                 return 0
                 ;;
             6)
-                local custom_packages=$(select_individual_display_packages)
-                if [ -n "$custom_packages" ]; then
-                    echo "individual:$custom_packages"
-                    return 0
-                fi
+                    local custom_packages
+                    custom_packages=$(select_individual_display_packages)
+                    if [ -n "$custom_packages" ]; then
+                        echo "individual:$custom_packages"
+                        return 0
+                    fi
                 ;;
             [iI])
                 show_information
@@ -401,7 +406,7 @@ get_display_selection() {
                 ;;
             *)
                 print_warning "Invalid option. Please try again."
-                read -p "Press Enter to continue..."
+                read -r -p "Press Enter to continue..."
                 ;;
         esac
     done
@@ -425,7 +430,7 @@ confirm_installation() {
     echo ""
     
     while true; do
-        printf "${YELLOW}Proceed with installation? (y/N): ${NC}"
+        printf '%s' "${YELLOW}Proceed with installation? (y/N): ${NC}"
         read -r confirm
         case "$confirm" in
             [yY]|[yY][eE][sS])
@@ -452,7 +457,8 @@ configure_graphics_drivers() {
     
     print_info "Detecting graphics hardware..."
     
-    local gpu_info=$(lspci | grep -E "(VGA|3D|Display)")
+    local gpu_info
+    gpu_info=$(lspci | grep -E "(VGA|3D|Display)")
     print_info "Detected graphics hardware:"
     echo "$gpu_info"
     echo ""
@@ -468,7 +474,7 @@ configure_graphics_drivers() {
         echo "  2) nvidia-lts (LTS kernel driver)"
         echo "  3) nouveau (open source, basic functionality)"
         
-        read -p "Choose driver [1-3] (default: 1): " nvidia_choice
+        read -r -p "Choose driver [1-3] (default: 1): " nvidia_choice
         nvidia_choice=${nvidia_choice:-1}
         
         case $nvidia_choice in
@@ -526,8 +532,11 @@ deploy_xorg_config() {
     print_info "Deploying Xorg configuration for $gpu_type..."
     
     # Load config functions
-    local LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+    local LIB_DIR
+    LIB_DIR=$(dirname "$SCRIPT_DIR")/lib
     if [ -f "$LIB_DIR/config-functions.sh" ]; then
+        # shellcheck source=../lib/config-functions.sh
+        # shellcheck disable=SC1091
         source "$LIB_DIR/config-functions.sh"
     else
         print_warning "config-functions.sh not found, using manual copy"
@@ -541,7 +550,8 @@ deploy_xorg_config() {
             if command -v deploy_config_direct &>/dev/null; then
                 deploy_config_direct "xorg/20-intel.conf" "/etc/X11/xorg.conf.d/20-intel.conf" "644"
             else
-                local config_file="$(dirname "$SCRIPT_DIR")/configs/xorg/20-intel.conf"
+                local config_file
+                config_file=$(dirname "$SCRIPT_DIR")/configs/xorg/20-intel.conf
                 if [ -f "$config_file" ]; then
                     cp "$config_file" /etc/X11/xorg.conf.d/20-intel.conf
                     chmod 644 /etc/X11/xorg.conf.d/20-intel.conf
@@ -553,7 +563,8 @@ deploy_xorg_config() {
             if command -v deploy_config_direct &>/dev/null; then
                 deploy_config_direct "xorg/20-amdgpu.conf" "/etc/X11/xorg.conf.d/20-amdgpu.conf" "644"
             else
-                local config_file="$(dirname "$SCRIPT_DIR")/configs/xorg/20-amdgpu.conf"
+                local config_file
+                config_file=$(dirname "$SCRIPT_DIR")/configs/xorg/20-amdgpu.conf
                 if [ -f "$config_file" ]; then
                     cp "$config_file" /etc/X11/xorg.conf.d/20-amdgpu.conf
                     chmod 644 /etc/X11/xorg.conf.d/20-amdgpu.conf
@@ -565,7 +576,8 @@ deploy_xorg_config() {
             if command -v deploy_config_direct &>/dev/null; then
                 deploy_config_direct "xorg/20-nvidia.conf" "/etc/X11/xorg.conf.d/20-nvidia.conf" "644"
             else
-                local config_file="$(dirname "$SCRIPT_DIR")/configs/xorg/20-nvidia.conf"
+                local config_file
+                config_file=$(dirname "$SCRIPT_DIR")/configs/xorg/20-nvidia.conf
                 if [ -f "$config_file" ]; then
                     cp "$config_file" /etc/X11/xorg.conf.d/20-nvidia.conf
                     chmod 644 /etc/X11/xorg.conf.d/20-nvidia.conf
@@ -676,13 +688,13 @@ install_xorg_custom() {
             echo ""
         fi
         
-        printf "${CYAN}Select categories (1-7), 'I' to install, 'Q' to quit: ${NC}"
+        printf '%s' "${CYAN}Select categories (1-7), 'I' to install, 'Q' to quit: ${NC}"
         read -r input
         
         case "$input" in
             [1-7])
-                if [[ " ${categories[*]} " =~ " $input " ]]; then
-                    categories=($(printf '%s\n' "${categories[@]}" | grep -v "^$input$"))
+                if printf '%s\n' "${categories[@]}" | grep -Fqx -- "$input"; then
+                    mapfile -t categories < <(printf '%s\n' "${categories[@]}" | grep -Fvx -- "$input")
                 else
                     categories+=("$input")
                 fi
@@ -690,7 +702,7 @@ install_xorg_custom() {
             [iI])
                 if [ ${#categories[@]} -eq 0 ]; then
                     print_warning "No categories selected."
-                    read -p "Press Enter to continue..."
+                    read -r -p "Press Enter to continue..."
                 else
                     break
                 fi
@@ -700,7 +712,7 @@ install_xorg_custom() {
                 ;;
             *)
                 print_warning "Invalid option."
-                read -p "Press Enter to continue..."
+                read -r -p "Press Enter to continue..."
                 ;;
         esac
         
@@ -792,7 +804,7 @@ install_wayland_complete() {
     echo ""
     
     while true; do
-        printf "${CYAN}Install gstreamer-vaapi? (y/N): ${NC}"
+        printf '%s' "${CYAN}Install gstreamer-vaapi? (y/N): ${NC}"
         read -r install_vaapi
         case "$install_vaapi" in
             [yY]|[yY][eE][sS])
@@ -855,13 +867,13 @@ install_wayland_custom() {
             echo ""
         fi
         
-        printf "${CYAN}Select categories (1-7), 'I' to install, 'Q' to quit: ${NC}"
+        printf '%s' "${CYAN}Select categories (1-7), 'I' to install, 'Q' to quit: ${NC}"
         read -r input
         
         case "$input" in
             [1-5])
-                if [[ " ${categories[*]} " =~ " $input " ]]; then
-                    categories=($(printf '%s\n' "${categories[@]}" | grep -v "^$input$"))
+                if printf '%s\n' "${categories[@]}" | grep -Fqx -- "$input"; then
+                    mapfile -t categories < <(printf '%s\n' "${categories[@]}" | grep -Fvx -- "$input")
                 else
                     categories+=("$input")
                 fi
@@ -869,7 +881,7 @@ install_wayland_custom() {
             [iI])
                 if [ ${#categories[@]} -eq 0 ]; then
                     print_warning "No categories selected."
-                    read -p "Press Enter to continue..."
+                    read -r -p "Press Enter to continue..."
                 else
                     break
                 fi
@@ -879,7 +891,7 @@ install_wayland_custom() {
                 ;;
             *)
                 print_warning "Invalid option."
-                read -p "Press Enter to continue..."
+                read -r -p "Press Enter to continue..."
                 ;;
         esac
         

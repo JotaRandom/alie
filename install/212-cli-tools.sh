@@ -20,6 +20,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Information about the script
@@ -178,7 +180,7 @@ select_individual_packages() {
             displayed_packages+=("$pkg")
             
             local status=" "
-            if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
+            if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
                 status="${GREEN}[X]${NC}"
             fi
             
@@ -194,7 +196,7 @@ select_individual_packages() {
         fi
         echo ""
         
-        printf "${CYAN}Enter number, 'all', 'none', 'search <term>', 'I' to install, 'Q' to cancel: ${NC}"
+        printf '%s' "${CYAN}Enter number, 'all', 'none', 'search <term>', 'I' to install, 'Q' to cancel: ${NC}"
         read -r input
         
         case "$input" in
@@ -204,8 +206,8 @@ select_individual_packages() {
                     local actual_idx="${displayed_indices[$pkg_idx]}"
                     local pkg="${all_packages[$actual_idx]}"
                     
-                    if [[ " ${selected_packages[*]} " =~ " $pkg " ]]; then
-                        selected_packages=($(printf '%s\n' "${selected_packages[@]}" | grep -v "^$pkg$"))
+                    if printf '%s\n' "${selected_packages[@]}" | grep -Fqx -- "$pkg"; then
+                        mapfile -t selected_packages < <(printf '%s\n' "${selected_packages[@]}" | grep -Fvx -- "$pkg")
                     else
                         selected_packages+=("$pkg")
                     fi
@@ -282,15 +284,15 @@ get_user_selection() {
             echo ""
         fi
         
-        printf "${CYAN}Select categories (1-7), 'A' for all, 'C' for custom, 'I' to install, 'Q' to quit: ${NC}"
+        printf '%s' "${CYAN}Select categories (1-7), 'A' for all, 'C' for custom, 'I' to install, 'Q' to quit: ${NC}"
         read -r input
         
         case "$input" in
             [1-7])
                 # Toggle category selection
-                if [[ " ${selected_categories[*]} " =~ " $input " ]]; then
+                if printf '%s\n' "${selected_categories[@]}" | grep -Fqx -- "$input"; then
                     # Remove from selection
-                    selected_categories=($(printf '%s\n' "${selected_categories[@]}" | grep -v "^$input$"))
+                    mapfile -t selected_categories < <(printf '%s\n' "${selected_categories[@]}" | grep -Fvx -- "$input")
                 else
                     # Add to selection
                     selected_categories+=("$input")
@@ -301,7 +303,8 @@ get_user_selection() {
                 ;;
             [cC])
                 # Custom individual package selection
-                local custom_packages=$(select_individual_packages)
+                local custom_packages
+                custom_packages=$(select_individual_packages)
                 if [ -n "$custom_packages" ]; then
                     echo "custom:$custom_packages"
                     return 0
@@ -310,7 +313,7 @@ get_user_selection() {
             [iI])
                 if [ ${#selected_categories[@]} -eq 0 ]; then
                     print_warning "No categories selected. Please select at least one category."
-                    read -p "Press Enter to continue..."
+                    read -r -p "Press Enter to continue..."
                 else
                     echo "${selected_categories[@]}"
                     return 0
@@ -322,7 +325,7 @@ get_user_selection() {
                 ;;
             *)
                 print_warning "Invalid option. Please try again."
-                read -p "Press Enter to continue..."
+                read -r -p "Press Enter to continue..."
                 ;;
         esac
     done
@@ -353,7 +356,7 @@ confirm_installation() {
     echo ""
     
     while true; do
-        printf "${YELLOW}Proceed with installation? (y/N): ${NC}"
+        printf '%s' "${YELLOW}Proceed with installation? (y/N): ${NC}"
         read -r confirm
         case "$confirm" in
             [yY]|[yY][eE][sS])
@@ -750,9 +753,11 @@ EOF
     
     # Ensure .bashrc sources aliases
     if ! grep -q "bash_aliases" "$HOME/.bashrc" 2>/dev/null; then
-        echo "" >> "$HOME/.bashrc"
-        echo "# Load aliases" >> "$HOME/.bashrc" 
-        echo "[ -f ~/.bash_aliases ] && source ~/.bash_aliases" >> "$HOME/.bashrc"
+        {
+            echo ""
+            echo "# Load aliases"
+            echo "[ -f ~/.bash_aliases ] && source ~/.bash_aliases"
+        } >> "$HOME/.bashrc"
         print_success "Aliases added to .bashrc"
     fi
 }
@@ -766,7 +771,8 @@ main() {
     print_success "Environment validation completed"
     
     # Get user selection
-    local selection=$(get_user_selection)
+    local selection
+    selection=$(get_user_selection)
     
     # Check if custom selection
     if [[ "$selection" == custom:* ]]; then
@@ -813,7 +819,9 @@ main() {
     fi
     
     # Category-based installation
-    selected_categories=($selection)
+    # Split the selected categories into an array safely
+    local selected_categories
+    read -r -a selected_categories <<< "$selection"
     
     # Confirm installation
     confirm_installation "${selected_categories[@]}"

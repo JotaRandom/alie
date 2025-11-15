@@ -13,7 +13,11 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/shared-functions.sh"
+# shellcheck source=../lib/config-functions.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/config-functions.sh"
 
 # Global variables for display server detection
@@ -487,7 +491,7 @@ main() {
     # Show menu
     while true; do
         show_de_menu
-        read -p "Select desktop environment to install: " choice
+        read -r -p "Select desktop environment to install: " choice
         
         case $choice in
             1)

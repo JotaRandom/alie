@@ -20,6 +20,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Load configuration deployment functions
@@ -29,6 +31,8 @@ if [ ! -f "$LIB_DIR/config-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/config-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/config-functions.sh"
 
 # Information about the script
@@ -57,7 +61,7 @@ configure_privilege_escalation() {
     echo ""
     print_info "Note: For maximum compatibility, sudo will be installed alongside other tools"
     
-    read -p "Choose primary privilege escalation tool [1-4] (default: 1): " priv_choice
+    read -r -p "Choose primary privilege escalation tool [1-4] (default: 1): " priv_choice
     priv_choice=${priv_choice:-1}
     
     case $priv_choice in
@@ -349,7 +353,8 @@ configure_run0() {
     fi
     
     # Check systemd version
-    local systemd_version=$(systemctl --version | head -n1 | awk '{print $2}')
+    local systemd_version
+    systemd_version=$(systemctl --version | head -n1 | awk '{print $2}')
     if [ "${systemd_version:-0}" -lt 254 ]; then
         print_warning "systemd version ${systemd_version} detected. run0 requires v254+"
         print_info "Falling back to sudo configuration..."
@@ -435,7 +440,7 @@ create_desktop_user() {
     echo ""
     
     while true; do
-        read -p "Enter username for desktop user: " USERNAME
+        read -r -p "Enter username for desktop user: " USERNAME
         
         # Sanitize username
         USERNAME="${USERNAME,,}"  # Convert to lowercase
@@ -584,7 +589,7 @@ configure_user_shell() {
     echo ""
     
     # Ask user to select shell
-    read -p "Select default shell for $username [1-${#available_shells[@]}] (default: 1/bash): " shell_choice
+    read -r -p "Select default shell for $username [1-${#available_shells[@]}] (default: 1/bash): " shell_choice
     shell_choice=${shell_choice:-1}
     
     # Validate choice
@@ -622,7 +627,8 @@ configure_shell_environment() {
     print_info "Configuring $shell_name environment..."
     
     # Get configs directory
-    local configs_dir="$(dirname "$SCRIPT_DIR")/configs/shell"
+    local configs_dir
+    configs_dir=$(dirname "$SCRIPT_DIR")/configs/shell
     
     case "$shell_name" in
         "zsh")
@@ -924,7 +930,7 @@ echo "  ✅ Essential system tools for desktop use"
 echo "  ✅ User environment and directories"
 echo "  ✅ Basic system services"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to exit..."
+read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # Validate environment
 print_step "STEP 1: Environment Validation"

@@ -32,6 +32,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+# shellcheck disable=SC2034
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
@@ -52,8 +53,10 @@ get_terminal_height() {
 
 # Check if terminal is too small for banners
 is_terminal_small() {
-    local width=$(get_terminal_width)
-    local height=$(get_terminal_height)
+    local width
+    local height
+    width=$(get_terminal_width)
+    height=$(get_terminal_height)
     
     # Consider small if less than 70 columns or 20 lines
     if [ "$width" -lt 70 ] || [ "$height" -lt 20 ]; then
@@ -66,7 +69,7 @@ is_terminal_small() {
 # Pause for user interaction in TTY
 press_any_key() {
     echo ""
-    read -p "Press any key to continue..." -n1 -s
+    read -r -n1 -s -p "Press any key to continue..."
     echo ""
 }
 
@@ -84,7 +87,7 @@ smart_clear() {
 show_progress() {
     local message="$1"
     echo -n "${CYAN}${message}${NC}"
-    for i in {1..3}; do
+    for _ in {1..3}; do
         sleep 0.5
         echo -n "."
     done
@@ -113,15 +116,16 @@ print_error() {
 
 print_step() {
     echo ""
-    local width=$(get_terminal_width)
+    local width
+    width=$(get_terminal_width)
     local line_char="#"
     
     # Create separator line based on terminal width
-    printf "${MAGENTA}"
+    printf '%b' "$MAGENTA"
     printf "%${width}s\n" | tr ' ' "$line_char"
-    printf "  $1\n"
+    printf '  %s\n' "$1"
     printf "%${width}s\n" | tr ' ' "$line_char"
-    printf "${NC}"
+    printf '%b' "$NC"
     echo ""
 }
 
@@ -135,18 +139,19 @@ print_step() {
 retry_command() {
     local max_attempts=$1
     shift
-    local command="$@"
+    local command_str
+    command_str="$*"
     local attempt=1
     
-    while [ $attempt -le $max_attempts ]; do
-        if eval "$command"; then
+    while [ "$attempt" -le "$max_attempts" ]; do
+        if eval "$command_str"; then
             return 0
         else
-            if [ $attempt -lt $max_attempts ]; then
+            if [ "$attempt" -lt "$max_attempts" ]; then
                 local wait_time=$((attempt * 3))
                 print_warning "Command failed (attempt $attempt/$max_attempts)"
                 print_info "Retrying in ${wait_time}s..."
-                sleep $wait_time
+                sleep "$wait_time"
                 attempt=$((attempt + 1))
             else
                 print_error "Command failed after $max_attempts attempts"
@@ -165,11 +170,11 @@ wait_for_operation() {
     local interval=${3:-1}
     local elapsed=0
     
-    while [ $elapsed -lt $timeout ]; do
+    while [ "$elapsed" -lt "$timeout" ]; do
         if eval "$check_command" 2>/dev/null; then
             return 0
         fi
-        sleep $interval
+        sleep "$interval"
         elapsed=$((elapsed + interval))
     done
     
@@ -194,8 +199,10 @@ verify_chroot() {
     fi
     
     # Method 2: Compare device numbers of / and /proc/1/root/.
-    local root_dev=$(stat -c %d:%i /)
-    local init_dev=$(stat -c %d:%i /proc/1/root/. 2>/dev/null || echo "")
+    local root_dev
+    local init_dev
+    root_dev=$(stat -c %d:%i /)
+    init_dev=$(stat -c %d:%i /proc/1/root/. 2>/dev/null || echo "")
     
     if [ -n "$init_dev" ] && [ "$root_dev" != "$init_dev" ]; then
         print_success "Running in chroot environment"
@@ -204,9 +211,9 @@ verify_chroot() {
     
     # If we can't determine or it looks like we're not in chroot
     print_warning "Could not definitively verify chroot environment"
-    read -p "Continue anyway? (y/N): " CONTINUE
+    read -r -p "Continue anyway? (y/N): " CONTINUE
     
-    if [[ ! $CONTINUE =~ ^[Yy]$ ]]; then
+    if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
         print_error "Aborted by user"
         return 1
     fi
@@ -438,15 +445,17 @@ load_install_info() {
     
     if [ -f "$info_file" ]; then
         print_info "Loading installation configuration from $info_file..."
+        # shellcheck source=/root/.alie-install-info
+        # shellcheck disable=SC1091
         source "$info_file"
         print_success "Configuration loaded successfully"
         
         # Display loaded variables for debugging (optional)
         if [ "${DEBUG:-0}" = "1" ]; then
             print_info "Loaded variables:"
-            cat "$info_file" | while read line; do
+            while IFS= read -r line; do
                 echo "  $line"
-            done
+            done < "$info_file"
         fi
         
         return 0
@@ -468,7 +477,7 @@ save_install_info() {
     print_info "Saving installation configuration to $output_file..."
     
     # Create or truncate file
-    > "$output_file"
+    : > "$output_file"
     
     # Write each variable
     for var_name in "${variables[@]}"; do
@@ -513,12 +522,12 @@ wait_for_internet() {
     
     print_info "Checking internet connectivity..."
     
-    while [ $attempt -le $max_attempts ]; do
+    while [ "$attempt" -le "$max_attempts" ]; do
         if check_internet; then
             print_success "Internet connection verified"
             return 0
         else
-            if [ $attempt -lt $max_attempts ]; then
+            if [ "$attempt" -lt "$max_attempts" ]; then
                 print_warning "No internet connection (attempt $attempt/$max_attempts)"
                 print_info "Waiting 3 seconds..."
                 sleep 3
@@ -644,7 +653,8 @@ fi
 # Get the preferred AUR helper (saved from installation or auto-detect)
 get_aur_helper() {
     # First try to load saved preference
-    local saved_helper=$(load_install_info "aur_helper" 2>/dev/null || echo "")
+    local saved_helper
+    saved_helper=$(load_install_info "aur_helper" 2>/dev/null || echo "")
     
     if [ -n "$saved_helper" ] && command -v "$saved_helper" &>/dev/null; then
         echo "$saved_helper"
@@ -674,7 +684,8 @@ get_aur_helper() {
 # Universal AUR package installation
 aur_install() {
     local packages=("$@")
-    local helper=$(get_aur_helper)
+    local helper
+    helper=$(get_aur_helper)
     
     if [ -z "$helper" ]; then
         print_error "No AUR helper available"
@@ -702,7 +713,8 @@ aur_install() {
 
 # Universal AUR system update
 aur_update() {
-    local helper=$(get_aur_helper)
+    local helper
+    helper=$(get_aur_helper)
     
     if [ -z "$helper" ]; then
         print_error "No AUR helper available"
@@ -731,7 +743,8 @@ aur_update() {
 # Universal AUR package search
 aur_search() {
     local search_term="$1"
-    local helper=$(get_aur_helper)
+    local helper
+    helper=$(get_aur_helper)
     
     if [ -z "$helper" ]; then
         print_error "No AUR helper available"
@@ -802,7 +815,8 @@ aur_install_with_retry() {
 
 # Check if AUR helper supports AUR packages
 aur_helper_supports_aur() {
-    local helper=$(get_aur_helper)
+    local helper
+    helper=$(get_aur_helper)
     
     case "$helper" in
         "paru"|"yay")
@@ -819,14 +833,17 @@ aur_helper_supports_aur() {
 
 # Check if debug packages are enabled
 aur_debug_enabled() {
-    local debug_setting=$(load_install_info "aur_helper_debug" 2>/dev/null || echo "n")
+    local debug_setting
+    debug_setting=$(load_install_info "aur_helper_debug" 2>/dev/null || echo "n")
     [[ "$debug_setting" == "y" ]]
 }
 
 # Show current AUR helper configuration
 show_aur_config() {
-    local helper=$(get_aur_helper)
-    local debug_enabled=$(aur_debug_enabled && echo "enabled" || echo "disabled")
+    local helper
+    helper=$(get_aur_helper)
+    local debug_enabled
+    debug_enabled=$(aur_debug_enabled && echo "enabled" || echo "disabled")
     
     print_info "AUR Helper Configuration:"
     echo "  • Helper: $helper"
@@ -884,7 +901,8 @@ detect_cpu_vendor() {
 
 # Get microcode package for detected CPU
 get_microcode_package() {
-    local cpu_vendor=$(detect_cpu_vendor)
+    local cpu_vendor
+    cpu_vendor=$(detect_cpu_vendor)
     case "$cpu_vendor" in
         intel) echo "intel-ucode" ;;
         amd) echo "amd-ucode" ;;
@@ -917,7 +935,8 @@ detect_partition_table() {
     fi
     
     # Use parted to detect partition table type
-    local pt_type=$(parted -s "$disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}')
+    local pt_type
+    pt_type=$(parted -s "$disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}')
     case "$pt_type" in
         gpt) echo "GPT" ;;
         msdos) echo "MBR" ;;
@@ -928,7 +947,8 @@ detect_partition_table() {
 # Detect root filesystem type
 detect_root_filesystem() {
     local root_mount="${1:-/}"
-    local fs_type=$(findmnt -n -o FSTYPE "$root_mount" 2>/dev/null)
+    local fs_type
+    fs_type=$(findmnt -n -o FSTYPE "$root_mount" 2>/dev/null)
     echo "${fs_type:-unknown}"
 }
 
@@ -940,7 +960,8 @@ get_partition_from_mount() {
         return 1
     fi
     
-    local device=$(findmnt -n -o SOURCE "$mount_point" 2>/dev/null)
+    local device
+    device=$(findmnt -n -o SOURCE "$mount_point" 2>/dev/null)
     echo "$device"
 }
 
@@ -976,20 +997,23 @@ detect_system_info() {
     fi
     
     # Swap partition detection
-    local swap_dev=$(swapon --show --noheadings 2>/dev/null | head -n1 | awk '{print $1}')
+    local swap_dev
+    swap_dev=$(swapon --show --noheadings 2>/dev/null | head -n1 | awk '{print $1}')
     if [ -n "$swap_dev" ]; then
         SWAP_PARTITION="$swap_dev"
     fi
     
     # Partition table detection
     if [ -n "$ROOT_PARTITION" ]; then
-        local root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
+        local root_disk
+        root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
         PARTITION_TABLE=$(detect_partition_table "$root_disk")
         
         # BIOS boot partition detection for GPT
         if [ "$BOOT_MODE" = "BIOS" ] && [ "$PARTITION_TABLE" = "GPT" ]; then
             # Try to find BIOS boot partition
-            local bios_part=$(parted -s "$root_disk" print 2>/dev/null | grep "bios_grub" | awk '{print $1}')
+            local bios_part
+            bios_part=$(parted -s "$root_disk" print 2>/dev/null | grep "bios_grub" | awk '{print $1}')
             if [ -n "$bios_part" ]; then
                 BIOS_BOOT_PARTITION="${root_disk}${bios_part}"
             fi
@@ -1045,6 +1069,8 @@ load_system_config() {
     
     if [ -f "$config_file" ]; then
         print_info "Loading system configuration from $config_file..."
+        # shellcheck source=/tmp/.alie-install-config
+        # shellcheck disable=SC1091
         source "$config_file"
         print_success "Configuration loaded successfully"
         return 0
@@ -1060,7 +1086,8 @@ load_system_config() {
 
 # Get the configured privilege escalation tool
 get_privilege_tool() {
-    local priv_tool=$(get_install_info "privilege_tool" 2>/dev/null || echo "")
+    local priv_tool
+    priv_tool=$(get_install_info "privilege_tool" 2>/dev/null || echo "")
     
     if [ -n "$priv_tool" ]; then
         echo "$priv_tool"
@@ -1084,36 +1111,38 @@ get_privilege_tool() {
 # Execute command with appropriate privilege escalation
 # Usage: run_privileged "command with args"
 run_privileged() {
-    local cmd="$*"
-    local priv_tool=$(get_privilege_tool)
+    local -a priv_cmd
+    priv_cmd=("$@")
+    local priv_tool
+    priv_tool=$(get_privilege_tool)
     
     case "$priv_tool" in
         "run0")
             if command -v run0 &>/dev/null; then
-                run0 $cmd
+                run0 "${priv_cmd[@]}"
             else
                 # Fallback to sudo if run0 not available
-                sudo $cmd
+                sudo "${priv_cmd[@]}"
             fi
             ;;
         "doas")
             if command -v doas &>/dev/null; then
-                doas $cmd
+                doas "${priv_cmd[@]}"
             else
                 # Fallback to sudo if doas not available
-                sudo $cmd
+                sudo "${priv_cmd[@]}"
             fi
             ;;
         "sudo-rs")
             if command -v sudo-rs &>/dev/null; then
-                sudo-rs $cmd
+                sudo-rs "${priv_cmd[@]}"
             else
                 # Fallback to regular sudo
-                sudo $cmd
+                sudo "${priv_cmd[@]}"
             fi
             ;;
         *)
-            sudo $cmd
+            sudo "${priv_cmd[@]}"
             ;;
     esac
 }
@@ -1121,13 +1150,13 @@ run_privileged() {
 # Execute command with privilege escalation and retry logic
 # Usage: run_privileged_retry "command with args"
 run_privileged_retry() {
-    local cmd="$*"
-    run_with_retry "run_privileged $cmd"
+    run_with_retry "run_privileged $*"
 }
 
 # Check if user has privilege escalation configured
 has_privilege_access() {
-    local priv_tool=$(get_privilege_tool)
+    local priv_tool
+    priv_tool=$(get_privilege_tool)
     
     case "$priv_tool" in
         "run0")
@@ -1169,7 +1198,8 @@ has_privilege_access() {
 
 # Print information about configured privilege escalation
 print_privilege_info() {
-    local priv_tool=$(get_privilege_tool)
+    local priv_tool
+    priv_tool=$(get_privilege_tool)
     
     print_info "Privilege escalation tool: $priv_tool"
     

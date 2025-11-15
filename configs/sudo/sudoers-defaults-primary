@@ -20,4 +20,7 @@ Defaults !lecture
 Defaults logfile=/var/log/sudo.log
 
 # Require a tty for sudo (security - prevents some attacks)
-Defaults requiretty
+# NOTE: `requiretty` can break noninteractive services (systemd, automation).
+# It is commented out by default to avoid surprising failures on Arch systems.
+# Uncomment only if you understand the implications.
+# Defaults requiretty

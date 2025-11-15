@@ -21,6 +21,8 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
 # Script header
@@ -60,7 +62,7 @@ fi
 if ! check_progress "01-partitions-ready"; then
     print_warning "001-base-install.sh progress marker not found"
     print_info "This script expects partitions to be ready"
-    read -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
+    read -r -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
     if [[ ! $CONTINUE_ANYWAY =~ ^[Yy]$ ]]; then
         exit 1
     fi
@@ -143,35 +145,47 @@ echo "This will take several minutes depending on your connection..."
 echo ""
 
 # Build package list using detected configuration
-PACKAGES="base linux linux-firmware networkmanager grub vim sudo nano"
+PACKAGES=(
+    base
+    linux
+    linux-firmware
+    networkmanager
+    grub
+    vim
+    sudo
+    nano
+)
 
 # Add microcode if detected
 if [ -n "${MICROCODE_PKG:-}" ]; then
     print_info "Adding microcode package: $MICROCODE_PKG"
-    PACKAGES="$PACKAGES $MICROCODE_PKG"
+    PACKAGES+=("$MICROCODE_PKG")
 else
     print_info "No microcode package needed"
 fi
 
 # Add EFI tools for UEFI systems
 if [ "$BOOT_MODE" = "UEFI" ]; then
-    PACKAGES="$PACKAGES efibootmgr"
+    PACKAGES+=("efibootmgr")
     print_info "Adding UEFI boot tools"
 fi
 
 # Add selected shells and editors from 002-shell-editor-select.sh
 if [ -f /tmp/.alie-shell-editor-config ]; then
     print_info "Loading shell and editor selection..."
+    # shellcheck disable=SC1091
     source "/tmp/.alie-shell-editor-config"
     
     if [ -n "${EXTRA_SHELLS:-}" ]; then
-        PACKAGES="$PACKAGES $EXTRA_SHELLS"
-        print_info "Adding shells: $EXTRA_SHELLS"
+        read -r -a _extra_shells <<< "$EXTRA_SHELLS"
+        PACKAGES+=("${_extra_shells[@]}")
+        print_info "Adding shells: ${_extra_shells[*]}"
     fi
     
     if [ -n "${EXTRA_EDITORS:-}" ]; then
-        PACKAGES="$PACKAGES $EXTRA_EDITORS"
-        print_info "Adding editors: $EXTRA_EDITORS"
+        read -r -a _extra_editors <<< "$EXTRA_EDITORS"
+        PACKAGES+=("${_extra_editors[@]}")
+        print_info "Adding editors: ${_extra_editors[*]}"
     fi
 fi
 
@@ -185,19 +199,19 @@ if [ "$AVAILABLE_SPACE_MB" -lt 2048 ]; then
     exit 1
 elif [ "$AVAILABLE_SPACE_MB" -lt 5120 ]; then
     print_warning "Low disk space: ${AVAILABLE_SPACE_MB}MB. Installation may fail if packages are large."
-    read -p "Continue anyway? (y/N): " CONTINUE_LOW_SPACE
+    read -r -p "Continue anyway? (y/N): " CONTINUE_LOW_SPACE
     if [[ ! $CONTINUE_LOW_SPACE =~ ^[Yy]$ ]]; then
         exit 1
     fi
 fi
 
 # Use -K flag to initialize empty pacman keyring (recommended by wiki)
-print_info "Running: pacstrap -K /mnt $PACKAGES"
+print_info "Running: pacstrap -K /mnt ${PACKAGES[*]}"
 echo ""
 
 # Disable set -e temporarily for pacstrap to handle errors gracefully
 set +e
-pacstrap -K /mnt $PACKAGES
+pacstrap -K /mnt "${PACKAGES[@]}"
 PACSTRAP_EXIT_CODE=$?
 set -e
 
@@ -209,12 +223,12 @@ if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
     echo "  - Insufficient disk space"
     echo "  - Package signing errors"
     echo ""
-    read -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
+    read -r -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
     
     if [[ ! $RETRY_PACSTRAP =~ ^[Nn]$ ]]; then
         print_info "Retrying pacstrap..."
         set +e
-        pacstrap -K /mnt $PACKAGES
+        pacstrap -K /mnt "${PACKAGES[@]}"
         PACSTRAP_EXIT_CODE=$?
         set -e
         

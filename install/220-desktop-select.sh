@@ -12,6 +12,8 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/shared-functions.sh
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/shared-functions.sh"
 
 ################################################################################
@@ -49,7 +51,7 @@ show_de_info() {
     echo "  - Less flexibility for advanced customization"
     echo "  - Larger installation size"
     echo ""
-    read -p "Press Enter to continue..."
+    read -r -p "Press Enter to continue..."
 }
 
 show_wm_info() {
@@ -84,7 +86,7 @@ show_wm_info() {
     echo "  - Need to choose all components (terminal, file manager, etc.)"
     echo "  - Not beginner-friendly"
     echo ""
-    read -p "Press Enter to continue..."
+    read -r -p "Press Enter to continue..."
 }
 
 show_skip_info() {
@@ -104,7 +106,7 @@ show_skip_info() {
     echo "  - You can install DE/WM manually later"
     echo "  - All CLI tools are still available"
     echo ""
-    read -p "Press Enter to continue..."
+    read -r -p "Press Enter to continue..."
 }
 
 ################################################################################
@@ -162,7 +164,7 @@ main() {
     
     while true; do
         show_main_menu
-        read -p "Select option: " choice
+        read -r -p "Select option: " choice
         
         case $choice in
             1)
@@ -183,7 +185,7 @@ main() {
             i|I)
                 while true; do
                     show_info_menu
-                    read -p "Select option: " info_choice
+                    read -r -p "Select option: " info_choice
                     
                     case $info_choice in
                         1) show_de_info ;;
