@@ -1,0 +1,7 @@
+[Seat:*]
+greeter-session=lightdm-slick-greeter
+
+# Additional recommended settings (optional)
+# allow-guest=false
+# autologin-user=
+# autologin-session=

@@ -1,0 +1,30 @@
+# ALIE - NetworkManager Configuration
+# /etc/NetworkManager/NetworkManager.conf
+
+[main]
+# Use dnsmasq for local DNS caching
+#dns=dnsmasq
+
+# Plugins for different connection types
+plugins=keyfile
+
+# Set systemd-resolved as DNS backend (recommended)
+dns=systemd-resolved
+
+[logging]
+# Log level: OFF, ERR, WARN, INFO, DEBUG, TRACE
+level=INFO
+
+[connection]
+# WiFi backend: wpa_supplicant or iwd
+wifi.backend=wpa_supplicant
+
+# Enable MAC address randomization for privacy
+wifi.scan-rand-mac-address=yes
+
+# Connection settings
+ipv6.ip6-privacy=2
+
+[device]
+# Manage all devices
+wifi.scan-rand-mac-address=yes

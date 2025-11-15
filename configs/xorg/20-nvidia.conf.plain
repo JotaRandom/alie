@@ -1,0 +1,42 @@
+# NVIDIA GPU Configuration for Xorg
+# File: /etc/X11/xorg.conf.d/20-nvidia.conf
+# Driver: nvidia (proprietary)
+# Note: This is a basic configuration. Use nvidia-xconfig for full config.
+
+Section "Device"
+    Identifier  "NVIDIA Graphics"
+    Driver      "nvidia"
+    
+    # Enable hardware acceleration
+    Option      "NoLogo"      "true"
+    
+    # Triple buffering for smoother performance
+    Option      "TripleBuffer" "true"
+    
+    # Preserve video memory allocations across VT switches
+    Option      "UseEdidDpi"  "false"
+    
+    # Enable TearFree-like behavior (ForceCompositionPipeline)
+    # This prevents screen tearing
+    Option      "metamodes"   "nvidia-auto-select +0+0 {ForceCompositionPipeline=On, ForceFullCompositionPipeline=On}"
+    
+    # Coolbits for overclocking (optional, default disabled)
+    # Option      "Coolbits"    "4"
+EndSection
+
+Section "Screen"
+    Identifier  "NVIDIA Screen"
+    Device      "NVIDIA Graphics"
+    
+    DefaultDepth 24
+    
+    SubSection "Display"
+        Depth   24
+    EndSubSection
+EndSection
+
+# Optional: ServerLayout for multi-GPU setups
+Section "ServerLayout"
+    Identifier  "NVIDIA Layout"
+    Screen      "NVIDIA Screen" 0 0
+EndSection

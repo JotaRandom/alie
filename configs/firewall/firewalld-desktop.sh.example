@@ -1,0 +1,16 @@
+#!/bin/sh
+# Ejemplo: comandos que aplica `firewalld-desktop.sh` (zona development, puertos de desarrollo)
+
+firewall-cmd --set-default-zone=public
+firewall-cmd --permanent --new-zone=development 2>/dev/null || true
+firewall-cmd --permanent --zone=development --set-target=ACCEPT
+firewall-cmd --permanent --zone=public --add-service=ssh
+firewall-cmd --permanent --zone=public --add-service=http
+firewall-cmd --permanent --zone=public --add-service=https
+firewall-cmd --permanent --zone=public --add-port=3000/tcp
+firewall-cmd --permanent --zone=public --add-port=8080/tcp
+firewall-cmd --permanent --zone=public --add-port=5432/tcp
+firewall-cmd --permanent --zone=trusted --add-source=192.168.1.0/24
+firewall-cmd --permanent --zone=public --add-masquerade
+firewall-cmd --reload
+firewall-cmd --list-all-zones
