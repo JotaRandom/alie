@@ -1,96 +1,194 @@
 # ALIE Configuration System
 
-Sistema modular de configuraciones para ALIE. Los archivos de configuración están separados de los scripts de instalación para facilitar su personalización y mantenimiento.
+Modular configuration system for ALIE. Configuration files are separated from installation scripts to facilitate customization and maintenance.
 
-## 📁 Estructura de Directorios
+## 📁 Directory Structure
 
 ```
 configs/
-├── audio/              # Configuraciones de audio (ALSA, PipeWire)
-├── display-managers/   # Configuraciones de gestores de pantalla (LightDM, SDDM, GDM)
-├── editor/             # Configuraciones de editores (vim, nano)
-├── firewall/           # Configuraciones de firewall (ufw, firewalld)
-├── network/            # Configuraciones de red (NetworkManager, DNS)
-├── shell/              # Configuraciones de shell (bash, zsh)
-└── sudo/               # Configuraciones de privilegios (sudo, doas)
+├── audio/              # Audio configurations (ALSA, PipeWire)
+├── display-managers/   # Display manager configurations (LightDM, SDDM, GDM)
+├── editor/             # Editor configurations (vim, nano)
+├── firewall/           # Firewall configurations (ufw, firewalld)
+├── network/            # Network configurations (NetworkManager, DNS)
+├── shell/              # Shell configurations (bash, zsh)
+├── sudo/               # Privilege configurations (sudo, doas)
+└── xorg/               # Xorg GPU configurations
 ```
 
-## 🎯 Filosofía del Sistema
+## 🎯 System Philosophy
 
-### Ventajas de Configuraciones Externas
+### Advantages of External Configurations
 
-1. **Modularidad**: Modificar configuraciones sin tocar scripts
-2. **Reusabilidad**: Mismo config para diferentes instalaciones
-3. **Versionado**: Control de cambios independiente
-4. **Testing**: Probar configuraciones antes de deploy
-5. **Backup**: Fácil respaldo y restauración
+1. **Modularity**: Modify configurations without touching scripts
+2. **Reusability**: Same config for different installations
+3. **Versioning**: Independent change control
+4. **Testing**: Test configurations before deployment
+5. **Backup**: Easy backup and restoration
 
-### Tipos de Archivos
+### File Types
 
-- **`.template`**: Requieren sustitución de variables (ej: `{{USERNAME}}`)
-- **Sin extensión o `.conf`**: Listos para copiar directamente
-- **`.sh`**: Scripts ejecutables para configuración automática
+- **`.template`**: Require variable substitution (e.g., `{{USERNAME}}`)
+- **No extension or `.conf`**: Ready to copy directly
+- **`.sh`**: Executable scripts for automatic configuration
+- **`.plain`**: Byte-for-byte copies of config contents for manual copy/paste
+- **`.example`**: Explain script effects and show resulting configurations
 
-## 📋 Categorías de Configuración
+## 📋 Manual Configuration Application
+
+### Using .plain Files
+
+`.plain` files contain the exact content that would be applied by the installation scripts. Use these for manual configuration without running scripts.
+
+#### How to Apply .plain Files
+
+1. **Locate the .plain file** for the configuration you want to apply
+2. **Copy the content** to the appropriate destination
+3. **Set correct permissions** (see Security Considerations section)
+
+**Example - Applying ALSA configuration manually:**
+
+```bash
+# Copy ALSA configuration
+sudo cp configs/audio/asound.plain /etc/asound.conf
+
+# Set correct permissions
+sudo chmod 644 /etc/asound.conf
+```
+
+#### Available .plain Files
+
+| Category | File | Destination | Permissions |
+|----------|------|-------------|-------------|
+| **Audio** | `asound.plain` | `/etc/asound.conf` | `644` |
+| | `pipewire.plain` | `/etc/pipewire/pipewire.conf` | `644` |
+| | `wireplumber.plain` | `/etc/wireplumber/main.conf.d/50-alie.conf` | `644` |
+| **Display Managers** | `lightdm-slick-greeter.plain` | `/etc/lightdm/slick-greeter.conf` | `644` |
+| | `sddm.plain` | `/etc/sddm.conf` | `644` |
+| **Firewall** | `ufw-basic.plain` | Applied via script | N/A |
+| | `ufw-desktop.plain` | Applied via script | N/A |
+| | `firewalld-basic.plain` | Applied via script | N/A |
+| | `firewalld-desktop.plain` | Applied via script | N/A |
+| **Network** | `NetworkManager.plain` | `/etc/NetworkManager/NetworkManager.conf` | `644` |
+| | `resolved.plain` | `/etc/systemd/resolved.conf` | `644` |
+| **Shell** | `bashrc.plain` | `~/.bashrc` | `644` |
+| | `zshrc.plain` | `~/.zshrc` | `644` |
+| | `config.fish.plain` | `~/.config/fish/config.fish` | `644` |
+| | `tcshrc.plain` | `~/.tcshrc` | `644` |
+| | `kshrc.plain` | `~/.kshrc` | `644` |
+| **Sudo** | `sudoers-defaults-primary.plain` | `/etc/sudoers.d/00-alie-defaults` | `440` |
+| | `sudoers-defaults-backup.plain` | `/etc/sudoers.d/00-alie-defaults` | `440` |
+| **Xorg** | `20-intel.plain` | `/etc/X11/xorg.conf.d/20-intel.conf` | `644` |
+| | `20-amdgpu.plain` | `/etc/X11/xorg.conf.d/20-amdgpu.conf` | `644` |
+| | `20-nvidia.plain` | `/etc/X11/xorg.conf.d/20-nvidia.conf` | `644` |
+
+### Using .example Files
+
+`.example` files show what the configuration scripts do and what the final result looks like. Use these to understand the configuration process.
+
+#### How to Use .example Files
+
+1. **Read the .example file** to understand what the script does
+2. **Apply the configuration manually** or run the corresponding script
+3. **Verify the result** matches the example
+
+**Example - Understanding firewall configuration:**
+
+```bash
+# Read what the UFW basic script does
+cat configs/firewall/ufw-basic.example
+
+# Apply the configuration
+sudo configs/firewall/ufw-basic.sh
+
+# Or apply manually following the example
+```
+
+#### Important Notes for Manual Application
+
+- **⚠️ Sudo/Doas configurations cannot be applied manually** because they require username substitution
+- **🔒 Critical permissions must be set correctly** (especially for sudoers files)
+- **📋 Firewall configurations are applied via scripts** - .plain files show intermediate states
+- **🔄 Some configurations require service restarts** to take effect
+- **📁 Create directories if they don't exist** (e.g., `/etc/wireplumber/main.conf.d/`)
+
+#### Manual Application Workflow
+
+```bash
+# 1. Choose configuration category
+cd configs/audio/
+
+# 2. Read the example to understand
+cat asound.example
+
+# 3. Apply the plain content
+sudo cp asound.plain /etc/asound.conf
+sudo chmod 644 /etc/asound.conf
+
+# 4. Restart relevant services if needed
+sudo systemctl restart pipewire  # example for audio
+```
+
+## 📋 Configuration Categories
 
 ### 1. Sudo/Doas (`configs/sudo/`)
 
-Configuraciones de escalación de privilegios.
+Privilege escalation configurations.
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | Descripción | Variables |
-|---------|-------------|-----------|
-| `sudoers-user-primary.template` | Configuración sudo como herramienta principal | `{{USERNAME}}` |
-| `sudoers-user-backup.template` | Configuración sudo como backup de doas | `{{USERNAME}}` |
-| `sudoers-defaults-primary` | Configuración global sudo (principal) | Ninguna |
-| `sudoers-defaults-backup` | Configuración global sudo (backup) | Ninguna |
-| `doas.conf.template` | Configuración OpenDoas | `{{USERNAME}}` |
+| File | Description | Variables |
+|------|-------------|-----------|
+| `sudoers-user-primary.template` | Sudo config as primary tool | `{{USERNAME}}` |
+| `sudoers-user-backup.template` | Sudo config as doas backup | `{{USERNAME}}` |
+| `sudoers-defaults-primary` | Global sudo config (primary) | None |
+| `sudoers-defaults-backup` | Global sudo config (backup) | None |
+| `doas.conf.template` | OpenDoas configuration | `{{USERNAME}}` |
 
-#### Uso en Scripts
+#### Usage in Scripts
 
 ```bash
-# Cargar funciones de configuración
+# Load configuration functions
 source "$LIB_DIR/config-functions.sh"
 
-# Desplegar configuración con variables
+# Deploy configuration with variables
 deploy_config "sudo/sudoers-user-primary.template" \
     "/etc/sudoers.d/10-alie-$USERNAME" \
     "USERNAME=$USERNAME"
 
-# Establecer permisos (crítico para sudoers)
+# Set permissions (critical for sudoers)
 chmod 440 "/etc/sudoers.d/10-alie-$USERNAME"
 
-# Validar antes de aplicar
+# Validate before applying
 validate_sudoers "/etc/sudoers.d/10-alie-$USERNAME"
 ```
 
-#### Limitación: Variables Dependientes de Usuario
+#### Limitation: User-Dependent Variables
 
-**IMPORTANTE**: Las configuraciones de sudo/doas **no pueden** ser completamente estáticas porque dependen del nombre de usuario, que se define durante la instalación.
+**IMPORTANT**: Sudo/doas configurations **cannot** be completely static because they depend on the username, which is defined during installation.
 
-**Solución Implementada**: Sistema de plantillas con `{{USERNAME}}`
+**Implemented Solution**: Template system with `{{USERNAME}}`
 
 ### 2. Firewall (`configs/firewall/`)
 
-Configuraciones de cortafuegos para diferentes escenarios.
+Firewall configurations for different scenarios.
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | Descripción | Uso |
-|---------|-------------|-----|
-| `ufw-basic.sh` | UFW mínimo (SSH only) | Servidores, seguridad máxima |
-| `ufw-desktop.sh` | UFW permisivo (desarrollo) | Workstations, desarrollo |
-| `firewalld-basic.sh` | Firewalld mínimo | Servidores con zones |
-| `firewalld-desktop.sh` | Firewalld desarrollo | Desktop con múltiples zones |
+| File | Description | Usage |
+|------|-------------|-------|
+| `ufw-basic.sh` | Minimal UFW (SSH only) | Servers, maximum security |
+| `ufw-desktop.sh` | Permissive UFW (development) | Workstations, development |
+| `firewalld-basic.sh` | Minimal Firewalld | Servers with zones |
+| `firewalld-desktop.sh` | Development Firewalld | Desktop with multiple zones |
 
-#### Uso en Scripts
+#### Usage in Scripts
 
 ```bash
-# Opción 1: Ejecutar script de configuración directamente
+# Option 1: Execute configuration script directly
 execute_config_script "firewall/ufw-basic.sh"
 
-# Opción 2: Dar opciones al usuario
+# Option 2: Give options to user
 print_info "Select firewall configuration:"
 echo "1. Basic (SSH only)"
 echo "2. Desktop (Development)"
@@ -102,33 +200,33 @@ case $choice in
 esac
 ```
 
-#### Diferencias UFW vs Firewalld
+#### UFW vs Firewalld Differences
 
-- **UFW**: Simple, ideal para desktop/laptop, configuración lineal
-- **Firewalld**: Potente, basado en zones, ideal para servidores
+- **UFW**: Simple, ideal for desktop/laptop, linear configuration
+- **Firewalld**: Powerful, zone-based, ideal for servers
 
-**Nota**: Son mutuamente excluyentes - activar solo uno.
+**Note**: They are mutually exclusive - activate only one.
 
 ### 3. Audio (`configs/audio/`)
 
-Configuraciones de sistema de audio (ALSA + PipeWire).
+Audio system configurations (ALSA + PipeWire).
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | Destino | Descripción |
-|---------|---------|-------------|
-| `asound.conf` | `/etc/asound.conf` | Config global ALSA |
-| `pipewire.conf` | `/etc/pipewire/pipewire.conf` | Config PipeWire daemon |
+| File | Destination | Description |
+|------|-------------|-------------|
+| `asound.conf` | `/etc/asound.conf` | Global ALSA config |
+| `pipewire.conf` | `/etc/pipewire/pipewire.conf` | PipeWire daemon config |
 | `wireplumber.conf` | `/etc/wireplumber/main.conf.d/50-alie.conf` | Session manager |
 
-#### Uso en Scripts
+#### Usage in Scripts
 
 ```bash
-# Desplegar configuraciones de audio
+# Deploy audio configurations
 deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
 deploy_config_direct "audio/pipewire.conf" "/etc/pipewire/pipewire.conf" "644"
 
-# WirePlumber requiere directorio específico
+# WirePlumber requires specific directory
 mkdir -p /etc/wireplumber/main.conf.d
 deploy_config_direct "audio/wireplumber.conf" \
     "/etc/wireplumber/main.conf.d/50-alie.conf" "644"
@@ -136,105 +234,105 @@ deploy_config_direct "audio/wireplumber.conf" \
 
 ### 4. Display Managers (`configs/display-managers/`)
 
-Configuraciones para gestores de inicio de sesión gráfico.
+Configurations for graphical login managers.
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | Destino | Descripción |
-|---------|---------|-------------|
-| `lightdm-slick-greeter.conf` | `/etc/lightdm/slick-greeter.conf` | Configuración de Slick Greeter (Cinnamon) |
-| `sddm.conf` | `/etc/sddm.conf` | Configuración de SDDM (KDE Plasma) |
-| `configure-lightdm-slick.sh` | Script ejecutable | Modifica lightdm.conf para usar Slick Greeter |
+| File | Destination | Description |
+|------|-------------|-------------|
+| `lightdm-slick-greeter.conf` | `/etc/lightdm/slick-greeter.conf` | Slick Greeter config (Cinnamon) |
+| `sddm.conf` | `/etc/sddm.conf` | SDDM configuration (KDE Plasma) |
+| `configure-lightdm-slick.sh` | Executable script | Modifies lightdm.conf to use Slick Greeter |
 
-#### Uso en Scripts
+#### Usage in Scripts
 
 ```bash
-# LightDM con Slick Greeter (Cinnamon/Mint)
-# Requiere modificación del lightdm.conf principal
+# LightDM with Slick Greeter (Cinnamon/Mint)
+# Requires modification of main lightdm.conf
 backup_config "/etc/lightdm/lightdm.conf"
 execute_config_script "display-managers/configure-lightdm-slick.sh"
 deploy_config_direct "display-managers/lightdm-slick-greeter.conf" \
     "/etc/lightdm/slick-greeter.conf" "644"
 
 # SDDM (KDE Plasma)
-# Configuración opcional - SDDM funciona sin config
+# Optional configuration - SDDM works without config
 deploy_config_direct "display-managers/sddm.conf" \
     "/etc/sddm.conf" "644"
 
 # GDM (GNOME)
-# No requiere configuración - usa Wayland por defecto
+# No configuration required - uses Wayland by default
 ```
 
-#### Notas Importantes
+#### Important Notes
 
-- **LightDM GTK Greeter** (XFCE4): No requiere configuración, es el greeter por defecto
-- **LightDM Slick Greeter** (Cinnamon): REQUIERE modificar lightdm.conf manualmente
-- **GDM** (GNOME): No requiere configuración
-- **SDDM** (KDE): Configuración opcional para personalizar tema/comportamiento
+- **LightDM GTK Greeter** (XFCE4): No configuration required, it's the default greeter
+- **LightDM Slick Greeter** (Cinnamon): REQUIRES manual modification of lightdm.conf
+- **GDM** (GNOME): No configuration required
+- **SDDM** (KDE): Optional configuration for customizing theme/behavior
 
 ### 5. Network (`configs/network/`)
 
-Configuraciones de red (NetworkManager, DNS, hosts).
+Network configurations (NetworkManager, DNS, hosts).
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | Destino | Variables |
-|---------|---------|-----------|
+| File | Destination | Variables |
+|------|-------------|-----------|
 | `hosts.template` | `/etc/hosts` | `{{HOSTNAME}}` |
-| `NetworkManager.conf` | `/etc/NetworkManager/NetworkManager.conf` | Ninguna |
-| `resolved.conf` | `/etc/systemd/resolved.conf` | Ninguna |
+| `NetworkManager.conf` | `/etc/NetworkManager/NetworkManager.conf` | None |
+| `resolved.conf` | `/etc/systemd/resolved.conf` | None |
 
-#### Uso en Scripts
+#### Usage in Scripts
 
 ```bash
-# Hosts con hostname variable
+# Hosts with variable hostname
 deploy_config "network/hosts.template" \
     "/etc/hosts" \
     "HOSTNAME=$HOSTNAME"
 
-# NetworkManager directo
+# NetworkManager direct
 deploy_config_direct "network/NetworkManager.conf" \
     "/etc/NetworkManager/NetworkManager.conf" "644"
 ```
 
-## 🔧 Funciones Helper
+## 🔧 Helper Functions
 
-El archivo `lib/config-functions.sh` provee funciones para manejar configuraciones.
+The `lib/config-functions.sh` file provides functions for handling configurations.
 
-### Funciones Principales
+### Main Functions
 
 #### `deploy_config`
-Despliega template con sustitución de variables.
+Deploys template with variable substitution.
 
 ```bash
 deploy_config <template_file> <destination> [variables...]
 
-# Ejemplo
+# Example
 deploy_config "sudo/doas.conf.template" "/etc/doas.conf" "USERNAME=john"
 ```
 
 #### `deploy_config_direct`
-Copia archivo sin modificaciones.
+Copies file without modifications.
 
 ```bash
 deploy_config_direct <source_file> <destination> [permissions]
 
-# Ejemplo
+# Example
 deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
 ```
 
 #### `execute_config_script`
-Ejecuta script de configuración.
+Executes configuration script.
 
 ```bash
 execute_config_script <script_file>
 
-# Ejemplo
+# Example
 execute_config_script "firewall/ufw-basic.sh"
 ```
 
 #### `validate_sudoers` / `validate_doas`
-Valida sintaxis antes de aplicar.
+Validates syntax before applying.
 
 ```bash
 validate_sudoers "/etc/sudoers.d/10-alie-user"
@@ -242,77 +340,77 @@ validate_doas "/etc/doas.conf"
 ```
 
 #### `backup_config`
-Crea backup antes de modificar.
+Creates backup before modifying.
 
 ```bash
 backup_config "/etc/doas.conf"
-# Crea: /var/backups/alie-configs/doas.conf.20250114-153045.bak
+# Creates: /var/backups/alie-configs/doas.conf.20250114-153045.bak
 ```
 
 #### `list_configs`
-Lista configuraciones disponibles.
+Lists available configurations.
 
 ```bash
-list_configs          # Lista categorías
-list_configs sudo     # Lista archivos en categoría
+list_configs          # Lists categories
+list_configs sudo     # Lists files in category
 ```
 
-## 📝 Guía de Uso para Desarrolladores
+## 📝 Developer Usage Guide
 
-### Agregar Nueva Configuración
+### Adding New Configuration
 
-1. **Crear archivo en `/configs/<categoría>/`**
+1. **Create file in `/configs/<category>/`**
 
 ```bash
-# Crear directorio si no existe
-mkdir -p configs/nueva-categoria
+# Create directory if it doesn't exist
+mkdir -p configs/new-category
 
-# Crear archivo de configuración
-cat > configs/nueva-categoria/mi-config.conf << 'EOF'
-# Mi configuración
-parametro = valor
+# Create configuration file
+cat > configs/new-category/my-config.conf << 'EOF'
+# My configuration
+parameter = value
 EOF
 ```
 
-2. **Si requiere variables, usar `.template`**
+2. **If variables required, use `.template`**
 
 ```bash
-cat > configs/nueva-categoria/mi-config.template << 'EOF'
-# Usuario: {{USERNAME}}
+cat > configs/new-category/my-config.template << 'EOF'
+# User: {{USERNAME}}
 user = {{USERNAME}}
 home = /home/{{USERNAME}}
 EOF
 ```
 
-3. **Actualizar script de instalación**
+3. **Update installation script**
 
 ```bash
-# En install/XXX-script.sh
+# In install/XXX-script.sh
 source "$LIB_DIR/config-functions.sh"
 
-deploy_config "nueva-categoria/mi-config.template" \
-    "/etc/mi-app/config" \
+deploy_config "new-category/my-config.template" \
+    "/etc/my-app/config" \
     "USERNAME=$USERNAME"
 ```
 
-### Modificar Configuración Existente
+### Modifying Existing Configuration
 
-1. **Editar archivo en `/configs/`** (NO en el script)
-2. **Probar cambios** antes de commit
-3. **Documentar** cambios en este README si son significativos
+1. **Edit file in `/configs/`** (NOT in the script)
+2. **Test changes** before commit
+3. **Document** changes in this README if significant
 
-### Variables Soportadas
+### Supported Variables
 
-| Variable | Descripción | Usada en |
-|----------|-------------|----------|
-| `{{USERNAME}}` | Nombre de usuario creado | sudo, doas, network |
-| `{{HOSTNAME}}` | Nombre del host | network/hosts |
+| Variable | Description | Used in |
+|----------|-------------|---------|
+| `{{USERNAME}}` | Created username | sudo, doas, network |
+| `{{HOSTNAME}}` | Host name | network/hosts |
 
-Para agregar más variables, modificar `deploy_config()` en `config-functions.sh`.
+To add more variables, modify `deploy_config()` in `config-functions.sh`.
 
-## 🎨 Ejemplos de Uso Completo
+## 🎨 Complete Usage Examples
 
-### Ejemplo 1: Deploy Completo de Sudo
+### Example 1: Complete Sudo Deploy
 
 ```bash
 #!/bin/bash
@@ -322,22 +420,22 @@ source "$LIB_DIR/config-functions.sh"
 USERNAME="john"
 PRIV_TOOL="sudo"
 
-# Backup de configuración existente
+# Backup existing configuration
 backup_config "/etc/sudoers.d/10-alie-$USERNAME"
 
-# Desplegar configuración de usuario
+# Deploy user configuration
 deploy_config "sudo/sudoers-user-primary.template" \
     "/etc/sudoers.d/10-alie-$USERNAME" \
     "USERNAME=$USERNAME"
 
-# Establecer permisos críticos
+# Set critical permissions
 chmod 440 "/etc/sudoers.d/10-alie-$USERNAME"
 
-# Desplegar configuración global
+# Deploy global configuration
 deploy_config_direct "sudo/sudoers-defaults-primary" \
     "/etc/sudoers.d/00-alie-defaults" "440"
 
-# Validar antes de continuar
+# Validate before continuing
 if validate_sudoers "/etc/sudoers.d/10-alie-$USERNAME"; then
     print_success "Sudo configured successfully"
 else
@@ -346,7 +444,7 @@ else
 fi
 ```
 
-### Ejemplo 2: Deploy Firewall con Selección
+### Example 2: Firewall Deploy with Selection
 
 ```bash
 #!/bin/bash
@@ -363,7 +461,7 @@ echo "1. Basic (Server)"
 echo "2. Desktop (Development)"
 read -p "Choice [1-2]: " profile_choice
 
-# Determinar script a ejecutar
+# Determine script to execute
 if [ "$fw_choice" = "1" ]; then
     if [ "$profile_choice" = "1" ]; then
         script="firewall/ufw-basic.sh"
@@ -378,11 +476,11 @@ else
     fi
 fi
 
-# Ejecutar configuración
+# Execute configuration
 execute_config_script "$script"
 ```
 
-### Ejemplo 3: Deploy Audio Completo
+### Example 3: Complete Audio Deploy
 
 ```bash
 #!/bin/bash
@@ -391,7 +489,7 @@ source "$LIB_DIR/config-functions.sh"
 
 print_step "Configuring Audio System"
 
-# ALSA global
+# Global ALSA
 backup_config "/etc/asound.conf"
 deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
 
@@ -408,26 +506,26 @@ deploy_config_direct "audio/wireplumber.conf" \
 print_success "Audio configuration deployed"
 ```
 
-## ⚠️ Consideraciones de Seguridad
+## ⚠️ Security Considerations
 
-### Permisos Críticos
+### Critical Permissions
 
-| Archivo | Permisos | Propietario | Razón |
-|---------|----------|-------------|-------|
-| `/etc/sudoers.d/*` | `440` | `root:root` | Seguridad sudo |
-| `/etc/doas.conf` | `400` | `root:root` | Requerido por doas |
-| Firewall configs | `644` | `root:root` | Lectura pública OK |
-| Audio configs | `644` | `root:root` | Lectura pública OK |
+| File | Permissions | Owner | Reason |
+|------|-------------|-------|--------|
+| `/etc/sudoers.d/*` | `440` | `root:root` | Sudo security |
+| `/etc/doas.conf` | `400` | `root:root` | Required by doas |
+| Firewall configs | `644` | `root:root` | Public read OK |
+| Audio configs | `644` | `root:root` | Public read OK |
 
-### Validación Obligatoria
+### Mandatory Validation
 
-**NUNCA** desplegar sudo/doas sin validar:
+**NEVER** deploy sudo/doas without validation:
 
 ```bash
-# MAL ❌
+# BAD ❌
 deploy_config "sudo/sudoers-user.template" "/etc/sudoers.d/user"
 
-# BIEN ✅
+# GOOD ✅
 deploy_config "sudo/sudoers-user.template" "/etc/sudoers.d/user"
 chmod 440 "/etc/sudoers.d/user"
 validate_sudoers "/etc/sudoers.d/user" || exit 1
@@ -435,20 +533,20 @@ validate_sudoers "/etc/sudoers.d/user" || exit 1
 
 ## 🔍 Testing
 
-### Test Individual
+### Individual Test
 
 ```bash
-# Test validación
+# Test validation
 bash lib/config-functions.sh
 source lib/shared-functions.sh
 source lib/config-functions.sh
 validate_sudoers configs/sudo/sudoers-defaults-primary
 ```
 
-### Test Deploy (en VM/Container)
+### Deploy Test (in VM/Container)
 
 ```bash
-# Test en entorno aislado
+# Test in isolated environment
 SCRIPT_DIR="$(pwd)/install"
 LIB_DIR="$(pwd)/lib"
 
@@ -460,12 +558,12 @@ deploy_config_direct "audio/asound.conf" "/tmp/test-asound.conf"
 cat /tmp/test-asound.conf
 ```
 
-## 📊 Migración desde Scripts Antiguos
+## 📊 Migration from Old Scripts
 
-### Antes (Configuración Inline)
+### Before (Inline Configuration)
 
 ```bash
-# En install/201-user-setup.sh
+# In install/201-user-setup.sh
 cat > /etc/doas.conf << EOF
 permit persist :wheel
 permit persist $USERNAME
@@ -473,10 +571,10 @@ EOF
 chmod 400 /etc/doas.conf
 ```
 
-### Después (Configuración Modular)
+### After (Modular Configuration)
 
 ```bash
-# En install/201-user-setup.sh
+# In install/201-user-setup.sh
 source "$LIB_DIR/config-functions.sh"
 
 deploy_config "sudo/doas.conf.template" \
@@ -488,135 +586,135 @@ validate_doas "/etc/doas.conf"
 
 ## 🚀 Roadmap
 
-### Implementado ✅
-- [x] Sistema de plantillas con variables
-- [x] Funciones helper para deploy
-- [x] Validación de sudo/doas
-- [x] Backup automático
-- [x] Configs de firewall, audio, network, sudo
+### Implemented ✅
+- [x] Template system with variables
+- [x] Helper functions for deployment
+- [x] Sudo/doas validation
+- [x] Automatic backup
+- [x] Firewall, audio, network, sudo configs
 
-### Pendiente 📋
-- [ ] Migrar todos los scripts a usar config externo
+### Pending 📋
+- [ ] Migrate all scripts to use external config
 - [ ] Git configs
 - [ ] Vim/Neovim configs
-- [ ] Sistema de "perfiles" (server, desktop, minimal)
-- [ ] Wizard interactivo para selección de configs
+- [ ] "Profiles" system (server, desktop, minimal)
+- [ ] Interactive wizard for config selection
 
 ### Shell Configurations (`configs/shell/`)
 
-Configuraciones optimizadas para diferentes shells disponibles en Arch Linux.
+Optimized configurations for different shells available in Arch Linux.
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | Shell | Destino | Descripción |
-|---------|-------|---------|-------------|
-| `bashrc` | Bash | `~/.bashrc` | Enhanced Bash config con aliases y colors |
-| `zshrc` | Zsh | `~/.zshrc` | Zsh con autocompletion, historia mejorada |
-| `config.fish` | Fish | `~/.config/fish/config.fish` | Fish con sintaxis moderna |
-| `tcshrc` | Tcsh | `~/.tcshrc` | TENEX C Shell con prompt coloreado |
-| `kshrc` | Korn Shell | `~/.kshrc` | Korn Shell con funciones útiles |
+| File | Shell | Destination | Description |
+|------|-------|-------------|-------------|
+| `bashrc` | Bash | `~/.bashrc` | Enhanced Bash config with aliases and colors |
+| `zshrc` | Zsh | `~/.zshrc` | Zsh with autocompletion, enhanced history |
+| `config.fish` | Fish | `~/.config/fish/config.fish` | Fish with modern syntax |
+| `tcshrc` | Tcsh | `~/.tcshrc` | TENEX C Shell with colored prompt |
+| `kshrc` | Korn Shell | `~/.kshrc` | Korn Shell with useful functions |
 
-#### Características Comunes
+#### Common Features
 
-Todas las configuraciones incluyen:
-- ✅ Prompt coloreado y personalizado
-- ✅ Aliases útiles (ls, ll, la, grep con colores)
-- ✅ Historial configurado (1000+ comandos)
-- ✅ Man pages con colores
-- ✅ Aliases de seguridad (rm -i, cp -i, mv -i)
-- ✅ Configuración de editor por defecto
+All configurations include:
+- ✅ Colored and customized prompt
+- ✅ Useful aliases (ls, ll, la, grep with colors)
+- ✅ Configured history (1000+ commands)
+- ✅ Colored man pages
+- ✅ Safety aliases (rm -i, cp -i, mv -i)
+- ✅ Default editor configuration
 
-#### Uso en Scripts
+#### Usage in Scripts
 
-Las configuraciones se despliegan automáticamente en `install/201-user-setup.sh`:
+Configurations are automatically deployed in `install/201-user-setup.sh`:
 
 ```bash
-# La función configure_shell_environment() maneja el deploy
+# The configure_shell_environment() function handles deployment
 configure_shell_environment "$username" "$shell_name"
 
-# Soporta: bash, zsh, fish, tcsh, ksh
-# Dash no requiere configuración (POSIX shell minimalista)
+# Supports: bash, zsh, fish, tcsh, ksh
+# Dash requires no configuration (minimal POSIX shell)
 ```
 
-#### Notas por Shell
+#### Notes by Shell
 
-- **Bash**: Config mejorado opcional, sistema ya tiene uno básico
-- **Zsh**: Requiere configuración para aprovechar sus features
-- **Fish**: Configuración en directorio separado (~/.config/fish/)
-- **Tcsh**: Sintaxis estilo C, variables con `setenv`
-- **Ksh**: Compatible con Bash, funciones adicionales (extract, up)
-- **Dash**: No requiere config, solo variables de entorno del sistema
+- **Bash**: Optional enhanced config, system already has basic one
+- **Zsh**: Requires configuration to leverage its features
+- **Fish**: Configuration in separate directory (~/.config/fish/)
+- **Tcsh**: C-style syntax, variables with `setenv`
+- **Ksh**: Bash-compatible, additional functions (extract, up)
+- **Dash**: No config required, only system environment variables
 
 ### Xorg GPU Configurations (`configs/xorg/`)
 
-Configuraciones optimizadas de X11 para diferentes GPUs, desplegadas automáticamente según detección de hardware.
+Optimized X11 configurations for different GPUs, automatically deployed based on hardware detection.
 
-#### Archivos Disponibles
+#### Available Files
 
-| Archivo | GPU | Destino | Driver | Características |
-|---------|-----|---------|--------|-----------------|
+| File | GPU | Destination | Driver | Features |
+|------|-----|-------------|--------|----------|
 | `20-intel.conf` | Intel | `/etc/X11/xorg.conf.d/20-intel.conf` | `intel` | TearFree, SNA acceleration, DRI3 |
 | `20-amdgpu.conf` | AMD | `/etc/X11/xorg.conf.d/20-amdgpu.conf` | `amdgpu` | TearFree, FreeSync, Glamor |
 | `20-nvidia.conf` | NVIDIA | `/etc/X11/xorg.conf.d/20-nvidia.conf` | `nvidia` | ForceCompositionPipeline, TripleBuffer |
 
-#### Características por GPU
+#### Features by GPU
 
 **Intel (`xf86-video-intel`)**:
-- ✅ TearFree habilitado (sin tearing)
-- ✅ Aceleración SNA (Sandy Bridge y newer)
-- ✅ DRI3 para mejor rendimiento
+- ✅ TearFree enabled (no tearing)
+- ✅ SNA acceleration (Sandy Bridge and newer)
+- ✅ DRI3 for better performance
 - ✅ Triple buffering
-- ✅ Control de backlight integrado
+- ✅ Integrated backlight control
 
 **AMD (`amdgpu`)**:
-- ✅ TearFree habilitado
+- ✅ TearFree enabled
 - ✅ Variable Refresh Rate (FreeSync/Adaptive Sync)
 - ✅ Glamor acceleration
-- ✅ Page flipping habilitado
-- ✅ Color tiling optimizado
+- ✅ Page flipping enabled
+- ✅ Optimized color tiling
 
-**NVIDIA (`nvidia` propietario)**:
+**NVIDIA (`nvidia` proprietary)**:
 - ✅ ForceCompositionPipeline (anti-tearing)
 - ✅ ForceFullCompositionPipeline
 - ✅ Triple buffering
-- ✅ NoLogo (sin logo NVIDIA al iniciar)
-- 🔒 Coolbits comentado (overclock deshabilitado por seguridad)
+- ✅ NoLogo (no NVIDIA logo on startup)
+- 🔒 Coolbits commented (overclock disabled for security)
 
-#### Deploy Automático
+#### Automatic Deployment
 
-Las configuraciones se despliegan automáticamente en `install/213-display-server.sh`:
+Configurations are automatically deployed in `install/213-display-server.sh`:
 
 ```bash
-# La función configure_graphics_drivers() detecta el hardware
+# The configure_graphics_drivers() function detects hardware
 configure_graphics_drivers
 
-# Internamente llama a deploy_xorg_config() con el tipo de GPU
-deploy_xorg_config "intel"   # o "amd" o "nvidia"
+# Internally calls deploy_xorg_config() with GPU type
+deploy_xorg_config "intel"   # or "amd" or "nvidia"
 ```
 
-#### Notas Importantes
+#### Important Notes
 
-- **Nouveau**: No requiere configuración personalizada (usa defaults de Xorg)
-- **Múltiples GPUs**: Solo se instala config para la GPU principal detectada
-- **Modesetting**: Intel puede usar driver `modesetting` en lugar de `intel` (mejor en algunos casos)
-- **NVIDIA Optimus**: Requiere configuración adicional (bumblebee/optimus-manager, no incluido)
+- **Nouveau**: No custom configuration required (uses Xorg defaults)
+- **Multiple GPUs**: Only installs config for detected primary GPU
+- **Modesetting**: Intel can use `modesetting` driver instead of `intel` (better in some cases)
+- **NVIDIA Optimus**: Requires additional configuration (bumblebee/optimus-manager, not included)
 
-#### Personalización
+#### Customization
 
-Para modificar configuraciones:
+To modify configurations:
 
 ```bash
-# Editar config antes de deploy
+# Edit config before deployment
 nano configs/xorg/20-intel.conf
 
-# O después de instalación
+# Or after installation
 sudo nano /etc/X11/xorg.conf.d/20-intel.conf
 
-# Reiniciar X para aplicar
-sudo systemctl restart lightdm  # o gdm, sddm
+# Restart X to apply
+sudo systemctl restart lightdm  # or gdm, sddm
 ```
 
-## 📚 Referencias
+## 📚 References
 
 - [ArchWiki - sudo](https://wiki.archlinux.org/title/Sudo)
 - [ArchWiki - doas](https://wiki.archlinux.org/title/Doas)
@@ -626,5 +724,5 @@ sudo systemctl restart lightdm  # o gdm, sddm
 
 ---
 
-**Última actualización**: 2025-01-14  
-**Versión**: 1.0
+**Last update**: 2025-01-14  
+**Version**: 1.0
