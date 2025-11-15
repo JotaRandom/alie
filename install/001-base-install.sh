@@ -2,7 +2,7 @@
 # ALIE Base System Installation Script
 # This script should be run from the Arch Linux installation media
 #
-# ?????? WARNING: EXPERIMENTAL SCRIPT
+# [WARNING] WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 # Make sure you have backups of any important data.
@@ -67,10 +67,10 @@ show_alie_banner
 show_warning_banner
 
 print_info "This installer will guide you through:"
-echo "  ??? Network connectivity verification"
-echo "  ??? Disk partitioning and formatting"
-echo "  ??? Base system installation"
-echo "  ??? Bootloader configuration"
+echo "  - Network connectivity verification"
+echo "  - Disk partitioning and formatting"
+echo "  - Base system installation"
+echo "  - Bootloader configuration"
 echo ""
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -210,19 +210,19 @@ if [ -d /sys/firmware/efi/efivars ]; then
         print_success "Boot mode: UEFI"
     fi
     
-    echo "  ?????? Requires: EFI partition (512MB-1GB, FAT32)"
+    echo "  [INFO] Requires: EFI partition (512MB-1GB, FAT32)"
 else
     BOOT_MODE="BIOS"
     print_success "Boot mode: BIOS (Legacy)"
-    echo "  ?????? Can use: MBR or GPT partition table"
+    echo "  [INFO] Can use: MBR or GPT partition table"
 fi
 
 # Show system info
 echo ""
 print_info "System Information:"
-echo "  ??? CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
-echo "  ??? RAM: $(free -h | awk '/^Mem:/ {print $2}')"
-echo "  ??? Architecture: $(uname -m)"
+echo "  - CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
+echo "  - RAM: $(free -h | awk '/^Mem:/ {print $2}')"
+echo "  - Architecture: $(uname -m)"
 
 # ===================================
 # STEP 3: DISK PARTITIONING
@@ -241,15 +241,23 @@ read -r -p "Choose option [1-3]: " PART_CHOICE
 
 case "$PART_CHOICE" in
     1)
-        # Automatic partitioning
-        print_warning "AUTOMATIC PARTITIONING - THIS WILL ERASE THE ENTIRE DISK!"
+        # Automatic partitioning - ENHANCED SAFETY VERSION
+        print_warning "[WARNING] AUTOMATIC PARTITIONING - THIS WILL ERASE THE ENTIRE DISK!"
+        print_warning "This operation is IRREVERSIBLE and will destroy ALL data on the selected disk!"
         echo ""
-        lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
+        
+        # Show available disks with more details
+        echo "Available disks:"
+        lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
+        echo ""
+        echo "[WARNING] Make sure you select the CORRECT disk!"
+        echo "   - Check SIZE and MODEL to identify your target disk"
+        echo "   - ROTA=1 means HDD (rotational), ROTA=0 means SSD"
         echo ""
         read -r -p "Enter disk to use (e.g., sda, nvme0n1, vda): " DISK_NAME
         
-        # Sanitize disk name - remove /dev/ prefix if present and validate
-        DISK_NAME="${DISK_NAME#/dev/}"
+        # Enhanced disk name sanitization and validation
+        DISK_NAME="${DISK_NAME#/dev/}"  # Remove /dev/ prefix if present
         DISK_NAME="$(echo "$DISK_NAME" | tr -d '[:space:]')"  # Remove whitespace
         
         if [ -z "$DISK_NAME" ]; then
@@ -257,99 +265,214 @@ case "$PART_CHOICE" in
             exit 1
         fi
         
-        # Validate disk name format (alphanumeric only, no special chars except digits)
-        if ! [[ "$DISK_NAME" =~ ^[a-z]+[0-9]*n?[0-9]*$ ]]; then
+        # Validate disk name format (more restrictive)
+        if ! [[ "$DISK_NAME" =~ ^(sd[a-z]|nvme[0-9]+n[0-9]+|vd[a-z]|hd[a-z]|mmcblk[0-9]+)$ ]]; then
             print_error "Invalid disk name format: $DISK_NAME"
-            print_info "Expected format: sda, sdb, nvme0n1, vda, etc."
+            print_info "Expected formats: sda, sdb, nvme0n1, vda, hda, mmcblk0, etc."
             exit 1
         fi
         
         DISK_PATH="/dev/$DISK_NAME"
         
+        # CRITICAL: Validate disk exists and is not system disk
         if [ ! -b "$DISK_PATH" ]; then
             print_error "$DISK_PATH is not a valid block device"
             print_info "Available disks:"
-            lsblk -d -o NAME,SIZE,TYPE | grep disk
+            lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
             exit 1
         fi
         
-        # Show current layout
+        # Check if disk is currently mounted or in use
+        if mount | grep -q "^$DISK_PATH" || swapon --show | grep -q "^$DISK_PATH"; then
+            print_error "Disk $DISK_PATH is currently in use (mounted or swap active)"
+            print_info "Please unmount all partitions on this disk first"
+            mount | grep "^$DISK_PATH"
+            swapon --show | grep "^$DISK_PATH"
+            exit 1
+        fi
+        
+        # Check if this is the system disk (where we're running from)
+        ROOT_DISK=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//' | sed 's/p*$//')
+        if [ "$DISK_PATH" = "$ROOT_DISK" ]; then
+            print_error "Cannot partition the disk where Arch Linux is currently running!"
+            print_info "This would destroy the live system. Choose a different disk."
+            exit 1
+        fi
+        
+        # Get disk size in GB for validation
+        DISK_SIZE_GB=$(lsblk -b -d -o SIZE "$DISK_PATH" | tail -1 | awk '{print int($1/1024/1024/1024)}')
+        
+        if [ "$DISK_SIZE_GB" -lt 20 ]; then
+            print_error "Disk too small: ${DISK_SIZE_GB}GB"
+            print_info "Minimum recommended size is 20GB for a basic Arch Linux installation"
+            exit 1
+        fi
+        
+        # Show current layout and data warning
         echo ""
         print_info "Current disk layout:"
         lsblk "$DISK_PATH"
         echo ""
         
-        print_warning "??????  ALL DATA ON $DISK_PATH WILL BE DESTROYED! ??????"
-        read -r -p "Type 'YES' in uppercase to confirm: " CONFIRM_WIPE
+        # Check for existing partitions and warn about data
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}[0-9]")
+        if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
+            print_warning "[WARNING] This disk has $EXISTING_PARTITIONS existing partition(s)!"
+            print_warning "All data on these partitions will be PERMANENTLY LOST!"
+            echo ""
+            lsblk "$DISK_PATH" | grep "^${DISK_NAME}[0-9]"
+            echo ""
+        fi
         
-        if [ "$CONFIRM_WIPE" != "YES" ]; then
-            print_error "Partitioning cancelled"
+        print_warning "[DANGER] FINAL WARNING: This will DESTROY ALL DATA on $DISK_PATH!"
+        print_info "Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
+        read -r -p "Type 'DESTROY-ALL-DATA' to confirm: " CONFIRM_WIPE
+        
+        if [ "$CONFIRM_WIPE" != "DESTROY-ALL-DATA" ]; then
+            print_error "Partitioning cancelled - confirmation failed"
             exit 1
         fi
         
-        # Ask for swap size
+        # Ask for swap size with better validation
         RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
         SUGGESTED_SWAP=$((RAM_GB + 2))
+        
+        # For systems with >64GB RAM, cap swap at 32GB (modern recommendation)
+        if [ "$RAM_GB" -gt 64 ]; then
+            SUGGESTED_SWAP=32
+        fi
+        
+        echo ""
+        print_info "Swap partition sizing:"
+        echo "  - RAM detected: ${RAM_GB}GB"
+        echo "  - Suggested swap: ${SUGGESTED_SWAP}GB"
+        echo "  - For hibernation: Add RAM size to swap"
+        echo "  - Minimum: 2GB, Maximum: 32GB (for modern systems)"
         echo ""
         read -r -p "Swap size in GB (suggested: ${SUGGESTED_SWAP}GB): " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-$SUGGESTED_SWAP}
         
-        # Validate swap size is a positive integer
+        # Enhanced swap validation
         if ! [[ "$SWAP_SIZE" =~ ^[0-9]+$ ]] || [ "$SWAP_SIZE" -lt 1 ]; then
             print_error "Invalid swap size: $SWAP_SIZE"
             print_info "Swap size must be a positive integer (GB)"
             exit 1
         fi
         
-        if [ "$SWAP_SIZE" -gt 128 ]; then
-            print_warning "Swap size of ${SWAP_SIZE}GB seems unusually large"
-            read -r -p "Continue anyway? (y/N): " CONFIRM_LARGE_SWAP
-            if ! [[ $CONFIRM_LARGE_SWAP =~ ^[Yy]$ ]]; then
+        if [ "$SWAP_SIZE" -lt 2 ]; then
+            print_warning "Swap size ${SWAP_SIZE}GB is below recommended minimum of 2GB"
+            read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_SWAP
+            if [[ ! $CONFIRM_SMALL_SWAP =~ ^[Yy]$ ]]; then
                 exit 1
             fi
         fi
         
-        # Ask for separate home
+        if [ "$SWAP_SIZE" -gt 64 ]; then
+            print_warning "Swap size of ${SWAP_SIZE}GB is unusually large"
+            print_info "Modern systems rarely need more than 32GB swap"
+            read -r -p "Continue anyway? (y/N): " CONFIRM_LARGE_SWAP
+            if [[ ! $CONFIRM_LARGE_SWAP =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        fi
+        
+        # Ask for separate home with size validation
+        echo ""
+        print_info "Separate /home partition:"
+        echo "  - Pros: User data survives OS reinstalls, better organization"
+        echo "  - Cons: More complex partitioning, fixed sizes"
+        echo "  - Alternative: Use subvolumes (Btrfs) or symlinks"
+        echo ""
         read -r -p "Create separate /home partition? (y/N): " CREATE_HOME
         
+        ROOT_SIZE=""
         if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-            read -r -p "Size for / (root) in GB (recommended: 30-50GB, minimum: 23GB): " ROOT_SIZE
+            # Calculate available space after EFI/swap
+            EFI_SIZE=1  # 1GB for EFI
+            RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE + 5))  # +5GB buffer
+            AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
+            
+            echo ""
+            print_info "Root partition sizing:"
+            echo "  - Disk size: ${DISK_SIZE_GB}GB"
+            echo "  - Reserved for EFI/swap: ${RESERVED_SPACE}GB"
+            echo "  - Available for root: ${AVAILABLE_FOR_ROOT}GB"
+            echo "  - Recommended root size: 30-50GB (includes /usr, /var, /opt)"
+            echo "  - Minimum: 25GB for basic installation"
+            echo ""
+            
+            read -r -p "Size for / (root) in GB (recommended: 40GB): " ROOT_SIZE
             
             if [ -z "$ROOT_SIZE" ]; then
                 print_error "Root size is required when creating separate /home"
                 exit 1
             fi
             
-            # Validate root size is a positive integer
+            # Validate root size
             if ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -lt 1 ]; then
                 print_error "Invalid root size: $ROOT_SIZE"
                 print_info "Root size must be a positive integer (GB)"
                 exit 1
             fi
             
-            # Validate minimum size (following wiki recommendation)
-            if [ "$ROOT_SIZE" -lt 23 ]; then
+            # Check minimum size
+            if [ "$ROOT_SIZE" -lt 25 ]; then
                 print_error "Root partition too small: ${ROOT_SIZE}GB"
-                print_info "Minimum recommended size is 23GB for ALIE"
+                print_info "Minimum recommended size is 25GB for ALIE with basic desktop"
                 exit 1
             fi
             
+            # Check available space
+            if [ "$ROOT_SIZE" -gt "$AVAILABLE_FOR_ROOT" ]; then
+                print_error "Root size ${ROOT_SIZE}GB exceeds available space ${AVAILABLE_FOR_ROOT}GB"
+                exit 1
+            fi
+            
+            # Warn about small root
             if [ "$ROOT_SIZE" -lt 30 ]; then
-                print_warning "Root size is below recommended 30 GB minimum"
+                print_warning "Root size ${ROOT_SIZE}GB is below recommended 30GB minimum"
+                print_info "You may run out of space during package installation"
                 read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_ROOT
                 if [[ ! $CONFIRM_SMALL_ROOT =~ ^[Yy]$ ]]; then
                     exit 1
                 fi
             fi
+            
+            # Check remaining space for /home
+            HOME_SIZE=$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))
+            if [ "$HOME_SIZE" -lt 10 ]; then
+                print_warning "Only ${HOME_SIZE}GB left for /home after root partition"
+                print_info "Consider smaller root partition or no separate /home"
+                read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_HOME
+                if [[ ! $CONFIRM_SMALL_HOME =~ ^[Yy]$ ]]; then
+                    exit 1
+                fi
+            fi
         fi
         
-        # Choose filesystem
+        # Enhanced filesystem selection with explanations
         echo ""
-        echo "Choose filesystem for root partition:"
-        echo "  1) ext4 (stable, widely supported)"
-        echo "  2) btrfs (modern, snapshots, compression)"
-        echo "  3) xfs (high performance, large files)"
-        read -r -p "Choose [1-3] (default: 1): " FS_CHOICE
+        print_info "Filesystem selection for root partition:"
+        echo ""
+        echo "  ${CYAN}1)${NC} ext4 (recommended for most users)"
+        echo "     - Mature, stable, widely supported"
+        echo "     - Good performance, journaling, proven reliability"
+        echo "     - Easy to resize, repair, and maintain"
+        echo "     - Default choice for Linux distributions"
+        echo ""
+        echo "  ${CYAN}2)${NC} btrfs (advanced users, modern features)"
+        echo "     - Snapshots, compression, subvolumes, RAID"
+        echo "     - Built-in checksums, self-healing (RAID1/10)"
+        echo "     - Dynamic resizing, efficient storage"
+        echo "     - Higher learning curve, potential stability issues"
+        echo ""
+        echo "  ${CYAN}3)${NC} xfs (high-performance, large files)"
+        echo "     - Excellent performance with large files"
+        echo "     - Dynamic inode allocation, project quotas"
+        echo "     - Good for media servers, databases"
+        echo "     - Cannot shrink, limited repair tools"
+        echo ""
+        read -r -p "Choose filesystem [1-3] (default: 1): " FS_CHOICE
         
         case "$FS_CHOICE" in
             2) ROOT_FS="btrfs" ;;
@@ -359,23 +482,64 @@ case "$PART_CHOICE" in
         
         print_success "Selected filesystem: $ROOT_FS"
         
-        # Re-validate disk exists before proceeding
+        # Final safety check before partitioning
+        echo ""
+        print_info "[PLAN] Partitioning Plan:"
+        echo "  Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
+        echo "  Boot mode: $BOOT_MODE"
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            echo "  EFI partition: 512MB (FAT32)"
+        fi
+        echo "  Swap partition: ${SWAP_SIZE}GB (Linux swap)"
+        echo "  Root partition: ${ROOT_SIZE:-rest}GB ($ROOT_FS)"
+        if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
+            echo "  Home partition: remaining space ($ROOT_FS)"
+        fi
+        echo ""
+        print_warning "[WARNING] This will ERASE ALL DATA on $DISK_PATH!"
+        read -r -p "Final confirmation - proceed with partitioning? (yes/no): " FINAL_CONFIRM
+        
+        if [[ ! "$FINAL_CONFIRM" =~ ^(yes|y)$ ]]; then
+            print_error "Partitioning cancelled by user"
+            exit 1
+        fi
+        
+        # Re-validate disk exists before proceeding (double-check)
         if [ ! -b "$DISK_PATH" ]; then
             print_error "Disk $DISK_PATH disappeared! It may have been disconnected."
             exit 1
         fi
         
-        # Perform partitioning
+        # Perform partitioning with enhanced safety checks
         print_info "Creating partition table and partitions..."
+        
+        # Validate total space requirements before partitioning
+        EFI_SIZE=1  # 1GB for EFI
+        TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE))
+        if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
+            TOTAL_RESERVED=$((TOTAL_RESERVED + ROOT_SIZE + 10))  # +10GB minimum for /home
+        fi
+        
+        if [ "$TOTAL_RESERVED" -gt "$DISK_SIZE_GB" ]; then
+            print_error "Insufficient disk space!"
+            print_info "Required: ${TOTAL_RESERVED}GB, Available: ${DISK_SIZE_GB}GB"
+            exit 1
+        fi
         
         # Unmount if mounted
         umount -R /mnt 2>/dev/null || true
         swapoff -a 2>/dev/null || true
         
-        # Wipe disk
+        # Wipe disk with verification
         print_info "Wiping existing partition signatures..."
         wipefs -af "$DISK_PATH" &>/dev/null || true
         sgdisk -Z "$DISK_PATH" &>/dev/null || true
+        
+        # Verify disk is still available after wipe
+        if [ ! -b "$DISK_PATH" ]; then
+            print_error "Disk $DISK_PATH became unavailable after wipe!"
+            exit 1
+        fi
         
         if [ "$BOOT_MODE" == "UEFI" ]; then
             # UEFI partitioning (GPT)
@@ -609,13 +773,13 @@ case "$PART_CHOICE" in
         echo ""
         echo "Partitioning guidelines:"
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            echo "  ??? EFI partition: 512MB-1GB, type EFI System"
+            echo "  - EFI partition: 512MB-1GB, type EFI System"
         else
-            echo "  ??? For GPT: Create 1MB BIOS boot partition (type: BIOS boot)"
+            echo "  - For GPT: Create 1MB BIOS boot partition (type: BIOS boot)"
         fi
-        echo "  ??? Swap partition: RAM size + 2GB recommended"
-        echo "  ??? Root partition: 30-50GB minimum (type: Linux filesystem)"
-        echo "  ??? Home partition: Remaining space (optional)"
+        echo "  - Swap partition: RAM size + 2GB recommended"
+        echo "  - Root partition: 30-50GB minimum (type: Linux filesystem)"
+        echo "  - Home partition: Remaining space (optional)"
         echo ""
         
         echo "Available tools:"
@@ -826,19 +990,19 @@ print_step "STEP 5: Installation Summary"
 
 echo ""
 print_info "Installation Configuration:"
-echo "  ??? Boot mode: $BOOT_MODE"
+echo "  - Boot mode: $BOOT_MODE"
 if [ "$BOOT_MODE" == "BIOS" ]; then
-    echo "  ??? Partition table: ${PARTITION_TABLE:-Not specified}"
+    echo "  - Partition table: ${PARTITION_TABLE:-Not specified}"
 fi
-echo "  ??? Root partition: $ROOT_PARTITION"
-echo "  ??? Swap partition: $SWAP_PARTITION"
+echo "  - Root partition: $ROOT_PARTITION"
+echo "  - Swap partition: $SWAP_PARTITION"
 if [ "$BOOT_MODE" == "UEFI" ]; then
-    echo "  ??? EFI partition: $EFI_PARTITION"
+    echo "  - EFI partition: $EFI_PARTITION"
 elif [ "$PARTITION_TABLE" == "GPT" ]; then
-    echo "  ??? BIOS boot partition: $BIOS_BOOT_PARTITION"
+    echo "  - BIOS boot partition: $BIOS_BOOT_PARTITION"
 fi
 if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
-    echo "  ??? Home partition: $HOME_PARTITION"
+    echo "  - Home partition: $HOME_PARTITION"
 fi
 echo ""
 

@@ -27,7 +27,7 @@ deploy_config() {
         return 1
     fi
     
-    print_info "Deploying configuration: $template → $destination"
+    print_info "Deploying configuration: $template -> $destination"
     
     # Read template
     local content
@@ -85,7 +85,7 @@ deploy_config_direct() {
         return 1
     fi
     
-    print_info "Deploying configuration: $source → $destination"
+    print_info "Deploying configuration: $source -> $destination"
     
     # Create destination directory if needed
     local dest_dir
@@ -150,12 +150,12 @@ list_configs() {
         
         print_info "Available configurations in '$category':"
         while IFS= read -r file; do
-            echo "  • $file"
+            echo "  - $file"
         done < <(find "$category_dir" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null)
     else
         print_info "Available configuration categories:"
         while IFS= read -r dir; do
-            echo "  • $dir/"
+            echo "  - $dir/"
         done < <(find "$configs_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null)
     fi
 }
@@ -173,10 +173,10 @@ validate_sudoers() {
     print_info "Validating sudoers syntax..."
     
     if visudo -c -f "$file" &>/dev/null; then
-        print_success "✓ Sudoers syntax is valid"
+        print_success "[OK] Sudoers syntax is valid"
         return 0
     else
-        print_error "✗ Sudoers syntax is invalid!"
+        print_error "[ERROR] Sudoers syntax is invalid!"
         return 1
     fi
 }
@@ -194,10 +194,10 @@ validate_doas() {
     print_info "Validating doas syntax..."
     
     if doas -C "$file" &>/dev/null; then
-        print_success "✓ Doas syntax is valid"
+        print_success "[OK] Doas syntax is valid"
         return 0
     else
-        print_error "✗ Doas syntax is invalid!"
+        print_error "[ERROR] Doas syntax is invalid!"
         return 1
     fi
 }

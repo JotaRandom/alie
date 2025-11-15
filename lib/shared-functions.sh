@@ -99,19 +99,19 @@ show_progress() {
 # =============================================================================
 
 print_info() {
-    echo -e "${CYAN}??? ${NC}$1"
+    echo -e "${CYAN}[INFO] ${NC}$1"
 }
 
 print_success() {
-    echo -e "${GREEN}??? ${NC}$1"
+    echo -e "${GREEN}[OK] ${NC}$1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}??? ${NC}$1"
+    echo -e "${YELLOW}[WARNING] ${NC}$1"
 }
 
 print_error() {
-    echo -e "${RED}??? ${NC}$1" >&2
+    echo -e "${RED}[ERROR] ${NC}$1" >&2
 }
 
 print_step() {
@@ -846,30 +846,30 @@ show_aur_config() {
     debug_enabled=$(aur_debug_enabled && echo "enabled" || echo "disabled")
     
     print_info "AUR Helper Configuration:"
-    echo "  • Helper: $helper"
-    echo "  • Debug packages: $debug_enabled"
+    echo "  - Helper: $helper"
+    echo "  - Debug packages: $debug_enabled"
     
     case "$helper" in
         "yay")
             if [ -f "$HOME/.config/yay/config.json" ]; then
-                echo "  • Config file: ~/.config/yay/config.json [OK]"
+                echo "  - Config file: ~/.config/yay/config.json [OK]"
             else
-                echo "  • Config file: ~/.config/yay/config.json [--]"
+                echo "  - Config file: ~/.config/yay/config.json [--]"
             fi
             ;;
         "paru")
             if [ -f "$HOME/.config/paru/paru.conf" ]; then
-                echo "  • Config file: ~/.config/paru/paru.conf [OK]"
+                echo "  - Config file: ~/.config/paru/paru.conf [OK]"
             else
-                echo "  • Config file: ~/.config/paru/paru.conf [--]"
+                echo "  - Config file: ~/.config/paru/paru.conf [--]"
             fi
             ;;
     esac
     
     if aur_debug_enabled && [ -f "$HOME/.makepkg.conf" ]; then
-        echo "  • Makepkg config: ~/.makepkg.conf [OK]"
+        echo "  - Makepkg config: ~/.makepkg.conf [OK]"
     elif aur_debug_enabled; then
-        echo "  • Makepkg config: ~/.makepkg.conf [--]"
+        echo "  - Makepkg config: ~/.makepkg.conf [--]"
     fi
 }
 

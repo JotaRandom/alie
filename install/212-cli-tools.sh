@@ -3,7 +3,7 @@
 # Select and install only the CLI tools categories you want
 # Run as regular user (not root)
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# [WARNING] WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -140,12 +140,12 @@ select_individual_packages() {
     print_section_header "Individual Package Selection" "Choose specific packages to install"
     echo ""
     print_info "Instructions:"
-    echo "  • Type package number to toggle selection"
-    echo "  • Type 'all' to select all packages"
-    echo "  • Type 'none' to deselect all"
-    echo "  • Type 'search <term>' to filter packages"
-    echo "  • Type 'I' to install selected packages"
-    echo "  • Type 'Q' to cancel"
+    echo "  - Type package number to toggle selection"
+    echo "  - Type 'all' to select all packages"
+    echo "  - Type 'none' to deselect all"
+    echo "  - Type 'search <term>' to filter packages"
+    echo "  - Type 'I' to install selected packages"
+    echo "  - Type 'Q' to cancel"
     echo ""
     
     local filter=""
@@ -351,7 +351,7 @@ confirm_installation() {
     echo ""
     print_info "You selected to install:"
     for name in "${category_names[@]}"; do
-        echo "  • ${CYAN}$name${NC}"
+        echo "  - ${CYAN}$name${NC}"
     done
     echo ""
     
@@ -905,13 +905,13 @@ main() {
     print_info "Installed categories:"
     for category in "${selected_categories[@]}"; do
         case "$category" in
-            1) echo "  • ${CYAN}Archive Tools${NC}: Extractors and compressors" ;;
-            2) echo "  • ${CYAN}System Utilities${NC}: Modern CLI replacements" ;;
-            3) echo "  • ${CYAN}Development Tools${NC}: Compilers and build systems" ;;
-            4) echo "  • ${CYAN}Security Tools${NC}: VPN, encryption, security auditing" ;;
-            5) echo "  • ${CYAN}Media Tools${NC}: Audio, video, image processing" ;;
-            6) echo "  • ${CYAN}Admin & Laptop Tools${NC}: System monitoring and power management" ;;
-            7) echo "  • ${CYAN}Shell Enhancements${NC}: Aliases and configurations" ;;
+            1) echo "  - ${CYAN}Archive Tools${NC}: Extractors and compressors" ;;
+            2) echo "  - ${CYAN}System Utilities${NC}: Modern CLI replacements" ;;
+            3) echo "  - ${CYAN}Development Tools${NC}: Compilers and build systems" ;;
+            4) echo "  - ${CYAN}Security Tools${NC}: VPN, encryption, security auditing" ;;
+            5) echo "  - ${CYAN}Media Tools${NC}: Audio, video, image processing" ;;
+            6) echo "  - ${CYAN}Admin & Laptop Tools${NC}: System monitoring and power management" ;;
+            7) echo "  - ${CYAN}Shell Enhancements${NC}: Aliases and configurations" ;;
         esac
     done
     echo ""

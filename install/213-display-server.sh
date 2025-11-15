@@ -3,7 +3,7 @@
 # Choose between Xorg, Wayland, or both display servers
 # This script should be run after user setup, as root
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# [WARNING] WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -50,7 +50,7 @@ show_main_menu() {
     echo ""
     
     # Detect hardware first
-    print_info "🔍 Detected Hardware:"
+    print_info "[DETECTED] Detected Hardware:"
     local gpu_info
     gpu_info=$(lspci 2>/dev/null | grep -E "(VGA|3D|Display)" || echo "Could not detect GPU")
     echo "  GPU: $gpu_info"
@@ -79,34 +79,34 @@ show_information() {
     echo ""
     
     echo "[X] ${CYAN}XORG (X11)${NC}"
-    echo "   • Mature, stable technology (40+ years)"
-    echo "   • Excellent compatibility with older software"
-    echo "   • Better support for NVIDIA proprietary drivers"
-    echo "   • Network transparency (remote X)"
-    echo "   • Standard for most desktop environments"
+    echo "   - Mature, stable technology (40+ years)"
+    echo "   - Excellent compatibility with older software"
+    echo "   - Better support for NVIDIA proprietary drivers"
+    echo "   - Network transparency (remote X)"
+    echo "   - Standard for most desktop environments"
     echo ""
     
     echo "[W] ${CYAN}WAYLAND${NC}"  
-    echo "   • Modern display protocol (better security)"
-    echo "   • Better performance and lower latency"
-    echo "   • Built-in compositing (smoother graphics)"
-    echo "   • Better multi-monitor support"
-    echo "   • Energy efficient for laptops"
-    echo "   • Note: Compositors (Sway, etc.) installed separately"
+    echo "   - Modern display protocol (better security)"
+    echo "   - Better performance and lower latency"
+    echo "   - Built-in compositing (smoother graphics)"
+    echo "   - Better multi-monitor support"
+    echo "   - Energy efficient for laptops"
+    echo "   - Note: Compositors (Sway, etc.) installed separately"
     echo ""
     
     echo "[B] ${CYAN}BOTH${NC}"
-    echo "   • Maximum compatibility - switch as needed"
-    echo "   • Use Wayland with modern apps, X11 for legacy"
-    echo "   • Future-proof your system"
-    echo "   • Recommended for most users"
+    echo "   - Maximum compatibility - switch as needed"
+    echo "   - Use Wayland with modern apps, X11 for legacy"
+    echo "   - Future-proof your system"
+    echo "   - Recommended for most users"
     echo ""
     
     echo "[!] ${CYAN}SCOPE NOTE${NC}"
-    echo "   • This script installs display SERVER protocols only"
-    echo "   • Desktop environments (GNOME, KDE) installed separately"
-    echo "   • Window managers (Sway, i3) installed separately"
-    echo "   • Use 214-desktop-env.sh for compositors and DE"
+    echo "   - This script installs display SERVER protocols only"
+    echo "   - Desktop environments (GNOME, KDE) installed separately"
+    echo "   - Window managers (Sway, i3) installed separately"
+    echo "   - Use 214-desktop-env.sh for compositors and DE"
     echo ""
     
     printf '%s' "${YELLOW}Press Enter to return to menu...${NC}"
@@ -178,12 +178,12 @@ select_individual_display_packages() {
     print_section_header "Individual Display Package Selection" "Choose specific packages"
     echo ""
     print_info "Instructions:"
-    echo "  • Type package number to toggle selection"
-    echo "  • Type 'all' to select all packages"
-    echo "  • Type 'none' to deselect all"
-    echo "  • Type 'search <term>' to filter packages"
-    echo "  • Type 'I' to install selected packages"
-    echo "  • Type 'Q' to cancel"
+    echo "  - Type package number to toggle selection"
+    echo "  - Type 'all' to select all packages"
+    echo "  - Type 'none' to deselect all"
+    echo "  - Type 'search <term>' to filter packages"
+    echo "  - Type 'I' to install selected packages"
+    echo "  - Type 'Q' to cancel"
     echo ""
     
     local filter=""
@@ -206,7 +206,7 @@ select_individual_display_packages() {
         local displayed_packages=()
         
         # Show categories
-        echo "${YELLOW}━━━ Xorg Core ━━━${NC}"
+        echo "${YELLOW}--- Xorg Core ---${NC}"
             for i in 0 1 2; do
             local pkg="${all_packages[$i]}"
             local desc="${package_descriptions[$i]#*:}"
@@ -228,7 +228,7 @@ select_individual_display_packages() {
         done
         
         echo ""
-        echo "${YELLOW}━━━ Xorg Tools ━━━${NC}"
+        echo "${YELLOW}--- Xorg Tools ---${NC}"
             for i in {3..16}; do
             [ "$i" -ge "${#all_packages[@]}" ] && break
             local pkg="${all_packages[$i]}"
@@ -251,7 +251,7 @@ select_individual_display_packages() {
         done
         
         echo ""
-        echo "${YELLOW}━━━ Wayland ━━━${NC}"
+        echo "${YELLOW}--- Wayland ---${NC}"
             for i in {17..22}; do
             [ "$i" -ge "${#all_packages[@]}" ] && break
             local pkg="${all_packages[$i]}"
@@ -274,7 +274,7 @@ select_individual_display_packages() {
         done
         
         echo ""
-        echo "${YELLOW}━━━ Graphics Drivers ━━━${NC}"
+        echo "${YELLOW}--- Graphics Drivers ---${NC}"
             for i in {23..40}; do
             [ "$i" -ge "${#all_packages[@]}" ] && break
             local pkg="${all_packages[$i]}"
@@ -1023,26 +1023,26 @@ main() {
     case "$selection" in
         "xorg-only")
             echo "[OK] ${CYAN}Xorg (X11)${NC} display server installed"
-            echo "   • Traditional, stable graphics environment"
-            echo "   • Compatible with all desktop environments"
+            echo "   - Traditional, stable graphics environment"
+            echo "   - Compatible with all desktop environments"
             ;;
         "wayland-only") 
             echo "[OK] ${CYAN}Wayland${NC} display server installed"
-            echo "   • Modern, secure graphics protocol"
-            echo "   • Better performance and security"
+            echo "   - Modern, secure graphics protocol"
+            echo "   - Better performance and security"
             ;;
         "both")
             echo "[OK] ${CYAN}Both Xorg and Wayland${NC} installed"
-            echo "   • Maximum compatibility and flexibility"
-            echo "   • Switch between protocols as needed"
+            echo "   - Maximum compatibility and flexibility"
+            echo "   - Switch between protocols as needed"
             ;;
         "custom-xorg")
             echo "[OK] ${CYAN}Custom Xorg${NC} components installed"
-            echo "   • Selected components based on your needs"
+            echo "   - Selected components based on your needs"
             ;;
         "custom-wayland")
             echo "[OK] ${CYAN}Custom Wayland${NC} components installed"
-            echo "   • Selected components based on your needs"
+            echo "   - Selected components based on your needs"
             ;;
     esac
     

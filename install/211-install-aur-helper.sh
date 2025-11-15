@@ -3,7 +3,7 @@
 # Supports both YAY and PARU with auto-detection and user choice
 # This script should be run as the regular user (not root)
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# [WARNING] WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -332,10 +332,10 @@ EOF
     
     print_success "makepkg.conf optimized for AUR compilation"
     print_info "Configuration details:"
-    echo "  • Parallel jobs: $make_jobs (${cpu_cores} cores + 1)"
-    echo "  • Architecture: x86-64-v3 optimized"
-    echo "  • Compression: zstd multithreaded"
-    echo "  • Debug packages: $([[ "$enable_debug" == "y" ]] && echo "enabled" || echo "disabled")"
+    echo "  - Parallel jobs: $make_jobs (${cpu_cores} cores + 1)"
+    echo "  - Architecture: x86-64-v3 optimized"
+    echo "  - Compression: zstd multithreaded"
+    echo "  - Debug packages: $([[ "$enable_debug" == "y" ]] && echo "enabled" || echo "disabled")"
 }
 
 # Function to configure AUR helper post-installation
@@ -471,9 +471,9 @@ show_alie_banner
 show_warning_banner
 
 print_info "This script will install an AUR helper with the following options:"
-echo "  ✅ YAY (Go) - Popular and stable"
-echo "  ✅ PARU (Rust) - Fast and modern"
-echo "  ✅ Automatic configuration and setup"
+echo "  [OK] YAY (Go) - Popular and stable"
+echo "  [OK] PARU (Rust) - Fast and modern"
+echo "  [OK] Automatic configuration and setup"
 echo ""
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -532,7 +532,7 @@ if [ $? -eq 1 ]; then
         print_success "AUR helper is ready to use!"
         echo ""
         print_info "Next step:"
-        echo "  ${CYAN}✨${NC} Run ${YELLOW}212-install-packages.sh${NC} to install packages"
+        echo "  ${CYAN}[INFO]${NC} Run ${YELLOW}212-install-packages.sh${NC} to install packages"
         exit 0
     fi
 fi
@@ -552,9 +552,9 @@ echo
 print_step "Build Configuration Options"
 print_info "Do you want to enable debug package building?"
 echo "This will:"
-echo "  ✅ Build packages with debug symbols (-debug packages)"
-echo "  ✅ Useful for development and troubleshooting"
-echo "  ⚠️  Increases build time and disk usage"
+echo "  [OK] Build packages with debug symbols (-debug packages)"
+echo "  [OK] Useful for development and troubleshooting"
+echo "  [WARNING] Increases build time and disk usage"
 echo
 read -r -p "Enable debug packages? [y/N]: " enable_debug
 enable_debug=${enable_debug:-n}
@@ -595,20 +595,20 @@ if install_aur_helper "$selected_helper" "$use_binary"; then
     
     echo ""
     print_info "Next step:"
-    echo "  ${CYAN}✨${NC} Run ${YELLOW}212-install-packages.sh${NC} to install packages"
+    echo "  ${CYAN}[INFO]${NC} Run ${YELLOW}212-install-packages.sh${NC} to install packages"
     echo ""
     print_info "Basic usage:"
-    echo "  • Update system: ${CYAN}$selected_helper${NC}"
-    echo "  • Search packages: ${CYAN}$selected_helper <search-term>${NC}"
-    echo "  • Install packages: ${CYAN}$selected_helper -S <package-name>${NC}"
+    echo "  - Update system: ${CYAN}$selected_helper${NC}"
+    echo "  - Search packages: ${CYAN}$selected_helper <search-term>${NC}"
+    echo "  - Install packages: ${CYAN}$selected_helper -S <package-name>${NC}"
     echo ""
     print_info "Configuration files created:"
     if [ "$selected_helper" = "yay" ]; then
-        echo "  • YAY config: ${CYAN}~/.config/yay/config.json${NC}"
+        echo "  - YAY config: ${CYAN}~/.config/yay/config.json${NC}"
     else
-        echo "  • PARU config: ${CYAN}~/.config/paru/paru.conf${NC}"
+        echo "  - PARU config: ${CYAN}~/.config/paru/paru.conf${NC}"
     fi
-    echo "  • Optimized makepkg: ${CYAN}/etc/makepkg.conf${NC}"
+    echo "  - Optimized makepkg: ${CYAN}/etc/makepkg.conf${NC}"
     
     if [[ "$enable_debug" == "y" ]]; then
         echo ""
