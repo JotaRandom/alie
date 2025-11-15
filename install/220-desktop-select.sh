@@ -1,11 +1,12 @@
 #!/bin/bash
 # ALIE Desktop Selection Menu (220-desktop-select.sh)
-# This script helps you choose between Desktop Environments, Window Managers, or skip
+# This script helps you choose between Desktop Environments, X11 Window Managers, Wayland Window Managers, or skip
 # Run AFTER 213-display-server.sh
 #
 # Options:
 #   - Desktop Environments (DE): Full desktop experience (Cinnamon, GNOME, KDE, XFCE4)
-#   - Window Managers (WM): Lightweight, manual configuration (i3, bspwm, Openbox, etc.)
+#   - X11 Window Managers (WM): Lightweight X11 WM (i3, bspwm, Awesome, Qtile, Xmonad, dwm)
+#   - Wayland Window Managers (WM): Modern Wayland WM (Sway, Hyprland, River, Niri, Labwc)
 #   - Skip: Continue without installing graphical environment
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
@@ -68,11 +69,22 @@ show_wm_info() {
     echo "  - You choose all additional components"
     echo ""
     echo "Available in ALIE:"
+    echo ""
+    echo "X11 Window Managers:"
     echo "  - i3 / i3-gaps: Tiling, minimalist, productive"
     echo "  - bspwm: Binary space partitioning tiling"
     echo "  - Openbox: Floating, lightweight, flexible"
     echo "  - Awesome: Dynamic tiling, Lua-configured"
+    echo "  - Qtile: Tiling WM written in Python"
+    echo "  - Xmonad: Tiling WM written in Haskell"
     echo "  - dwm: Suckless, ultra-minimal (requires patching)"
+    echo ""
+    echo "Wayland Window Managers:"
+    echo "  - Sway: i3-compatible Wayland WM"
+    echo "  - Hyprland: Dynamic tiling Wayland WM"
+    echo "  - River: Wayland WM with Zig"
+    echo "  - Niri: Scrollable tiling Wayland WM"
+    echo "  - Labwc: Wayland Openbox"
     echo ""
     echo "Pros:"
     echo "  + Extremely lightweight (~50-200MB RAM)"
@@ -124,10 +136,13 @@ show_main_menu() {
     echo "  1) Desktop Environment (DE)"
     echo "     Full graphical experience (Cinnamon, GNOME, KDE, XFCE4)"
     echo ""
-    echo "  2) Window Manager (WM)"
-    echo "     Minimal, customizable (i3, bspwm, Openbox, Awesome, dwm)"
+    echo "  2) Window Manager - X11"
+    echo "     Minimal, customizable X11 WM (i3, bspwm, Awesome, Qtile, etc.)"
     echo ""
-    echo "  3) Skip (No GUI)"
+    echo "  3) Window Manager - Wayland"
+    echo "     Modern Wayland WM (Sway, Hyprland, River, Niri, Labwc)"
+    echo ""
+    echo "  4) Skip (No GUI)"
     echo "     Continue without graphical environment"
     echo ""
     echo "  i) More information"
@@ -172,14 +187,19 @@ main() {
                 exec "${SCRIPT_DIR}/221-desktop-environment.sh"
                 ;;
             2)
-                log_info "Launching Window Manager installer..."
+                log_info "Launching X11 Window Manager installer..."
                 exec "${SCRIPT_DIR}/222-window-manager.sh"
                 ;;
             3)
+                log_info "Launching Wayland Window Manager installer..."
+                exec "${SCRIPT_DIR}/223-wayland-wm.sh"
+                ;;
+            4)
                 log_info "Skipping graphical environment installation"
                 log_success "You can install DE/WM later by running:"
                 log_info "  - Desktop Environment: ${SCRIPT_DIR}/221-desktop-environment.sh"
-                log_info "  - Window Manager: ${SCRIPT_DIR}/222-window-manager.sh"
+                log_info "  - X11 Window Manager: ${SCRIPT_DIR}/222-window-manager.sh"
+                log_info "  - Wayland Window Manager: ${SCRIPT_DIR}/223-wayland-wm.sh"
                 exit 0
                 ;;
             i|I)

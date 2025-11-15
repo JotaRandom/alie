@@ -62,9 +62,10 @@ Useful for:
 │   ├── 211-install-aur-helper.sh # AUR helper (yay/paru)
 │   ├── 212-cli-tools.sh       # Interactive CLI tools selection
 │   ├── 213-display-server.sh  # Display server (X11/Wayland)
-│   ├── 220-desktop-select.sh  # Choose DE/WM or skip
+│   ├── 220-desktop-select.sh  # Choose DE/X11 WM/Wayland WM or skip
 │   ├── 221-desktop-environment.sh # Desktop Environments
-│   ├── 222-window-manager.sh  # Window Managers
+│   ├── 222-window-manager.sh  # X11 Window Managers
+│   ├── 223-wayland-wm.sh      # Wayland Window Managers
 │   └── 231-desktop-tools.sh   # Additional applications
 ├── lib/                       # Shared libraries
 │   ├── shared-functions.sh    # Common functions
@@ -98,10 +99,11 @@ Useful for:
 | 6 | `211-install-aur-helper.sh` | user | AUR helper installation (yay/paru) |
 | 7 | `212-cli-tools.sh` | user | Interactive CLI tools selection |
 | 8 | `213-display-server.sh` | root | X11/Wayland selection |
-| 9 | `220-desktop-select.sh` | root | Choose DE/WM or skip |
+| 9 | `220-desktop-select.sh` | root | Choose DE/X11 WM/Wayland WM or skip |
 | 10 | `221-desktop-environment.sh` | root | Desktop Environments |
-| 11 | `222-window-manager.sh` | root | Window Managers |
-| 12 | `231-desktop-tools.sh` | root | Additional applications |
+| 11 | `222-window-manager.sh` | root | X11 Window Managers |
+| 12 | `223-wayland-wm.sh` | root | Wayland Window Managers |
+| 13 | `231-desktop-tools.sh` | root | Additional applications |
 
 ## Complete Process
 

@@ -530,48 +530,13 @@ configure_user_shell() {
     
     print_step "Configuring User Shell"
     
-    # Get list of installed shells from /etc/shells
-    local available_shells=()
-    local shell_names=()
-    
-    # Check which shells are installed
-    if command -v bash >/dev/null 2>&1; then
-        available_shells+=("/bin/bash")
-        shell_names+=("bash")
-    fi
-    
-    if command -v zsh >/dev/null 2>&1; then
-        available_shells+=("/bin/zsh")
-        shell_names+=("zsh")
-    fi
-    
-    if command -v fish >/dev/null 2>&1; then
-        available_shells+=("/usr/bin/fish")
-        shell_names+=("fish")
-    fi
-    
-    if command -v dash >/dev/null 2>&1; then
-        available_shells+=("/bin/dash")
-        shell_names+=("dash")
-    fi
-    
-    if command -v tcsh >/dev/null 2>&1; then
-        available_shells+=("/bin/tcsh")
-        shell_names+=("tcsh")
-    fi
-    
-    if command -v ksh >/dev/null 2>&1; then
-        available_shells+=("/bin/ksh")
-        shell_names+=("ksh")
-    fi
-    
-    if command -v nu >/dev/null 2>&1; then
-        available_shells+=("/usr/bin/nu")
-        shell_names+=("nushell")
-    fi
+    # Get available shells using centralized function
+    local available_shells
+    available_shells=$(detect_available_shells)
+    local shell_array=($available_shells)
     
     # If only bash is available, use it by default
-    if [ ${#available_shells[@]} -eq 1 ]; then
+    if [ ${#shell_array[@]} -eq 1 ]; then
         print_info "Only bash is available, using it as default shell"
         return 0
     fi
@@ -579,9 +544,10 @@ configure_user_shell() {
     # Show available shells
     print_info "Available shells:"
     echo ""
-    for i in "${!shell_names[@]}"; do
-        local shell_path="${available_shells[$i]}"
-        local shell_name="${shell_names[$i]}"
+    for i in "${!shell_array[@]}"; do
+        local shell_name="${shell_array[$i]}"
+        local shell_path
+        shell_path=$(get_shell_path "$shell_name")
         local num=$((i + 1))
         
         # Mark default
@@ -594,29 +560,25 @@ configure_user_shell() {
     echo ""
     
     # Ask user to select shell
-    read -r -p "Select default shell for $username [1-${#available_shells[@]}] (default: 1/bash): " shell_choice
+    read -r -p "Select default shell for $username [1-${#shell_array[@]}] (default: 1/bash): " shell_choice
     shell_choice=${shell_choice:-1}
     
     # Validate choice
-    if ! [[ "$shell_choice" =~ ^[0-9]+$ ]] || [ "$shell_choice" -lt 1 ] || [ "$shell_choice" -gt ${#available_shells[@]} ]; then
+    if ! [[ "$shell_choice" =~ ^[0-9]+$ ]] || [ "$shell_choice" -lt 1 ] || [ "$shell_choice" -gt ${#shell_array[@]} ]; then
         print_warning "Invalid choice, using bash as default"
         return 0
     fi
     
     # Get selected shell
-    local selected_shell="${available_shells[$((shell_choice - 1))]}"
-    local selected_name="${shell_names[$((shell_choice - 1))]}"
+    local selected_name="${shell_array[$((shell_choice - 1))]}"
     
-    # Change user shell
-    print_info "Changing shell for $username to $selected_name..."
-    if chsh -s "$selected_shell" "$username"; then
-        print_success "Shell changed to: $selected_shell"
-        
+    # Change user shell using centralized function
+    if change_user_shell "$username" "$selected_name"; then
         # Save selection
         save_install_info "user_shell" "$selected_name"
         
-        # Configure shell-specific settings
-        configure_shell_environment "$username" "$selected_name"
+        # Configure shell-specific settings using centralized function
+        configure_shell_for_user "$username" "$selected_name"
     else
         print_error "Failed to change shell"
         return 1
@@ -624,199 +586,6 @@ configure_user_shell() {
 }
 
 # Configure shell-specific environment
-configure_shell_environment() {
-    local username="$1"
-    local shell_name="$2"
-    local user_home="/home/$username"
-    
-    print_info "Configuring $shell_name environment..."
-    
-    # Get configs directory
-    local configs_dir
-    configs_dir=$(dirname "$SCRIPT_DIR")/configs/shell
-    
-    case "$shell_name" in
-        "zsh")
-            local zshrc="$user_home/.zshrc"
-            if [ ! -f "$zshrc" ]; then
-                if [ -f "$configs_dir/zshrc" ]; then
-                    cp "$configs_dir/zshrc" "$zshrc"
-                    print_success "Deployed zsh configuration from: configs/shell/zshrc"
-                else
-                    # Fallback to inline config
-                    cat > "$zshrc" << 'EOF'
-# ALIE Basic Zsh Configuration
-HISTFILE=~/.zsh_history
-HISTSIZE=10000
-SAVEHIST=10000
-setopt appendhistory sharehistory incappendhistory
-autoload -Uz compinit && compinit
-autoload -U colors && colors
-PS1="%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}%# "
-alias ls='ls --color=auto'
-export PATH="$HOME/.local/bin:$PATH"
-EOF
-                    print_warning "Using inline zsh configuration (config file not found)"
-                fi
-                chown "$username:$username" "$zshrc"
-            fi
-            ;;
-            
-        "fish")
-            local fish_config="$user_home/.config/fish"
-            mkdir -p "$fish_config"
-            
-            if [ ! -f "$fish_config/config.fish" ]; then
-                if [ -f "$configs_dir/config.fish" ]; then
-                    cp "$configs_dir/config.fish" "$fish_config/config.fish"
-                    print_success "Deployed fish configuration from: configs/shell/config.fish"
-                else
-                    # Fallback to inline config
-                    cat > "$fish_config/config.fish" << 'EOF'
-# ALIE Basic Fish Configuration
-set fish_greeting ""
-alias ll='ls -alF'
-set -gx PATH $HOME/.local/bin $PATH
-EOF
-                    print_warning "Using inline fish configuration (config file not found)"
-                fi
-                chown -R "$username:$username" "$fish_config"
-            fi
-            ;;
-            
-        "bash")
-            # For bash, we can optionally deploy enhanced config
-            local bashrc="$user_home/.bashrc"
-            if [ -f "$configs_dir/bashrc" ] && [ ! -s "$bashrc" ]; then
-                cp "$configs_dir/bashrc" "$bashrc"
-                chown "$username:$username" "$bashrc"
-                print_success "Deployed bash configuration from: configs/shell/bashrc"
-            fi
-            ;;
-            
-        "tcsh")
-            local tcshrc="$user_home/.tcshrc"
-            if [ ! -f "$tcshrc" ]; then
-                if [ -f "$configs_dir/tcshrc" ]; then
-                    cp "$configs_dir/tcshrc" "$tcshrc"
-                    print_success "Deployed tcsh configuration from: configs/shell/tcshrc"
-                else
-                    # Fallback to inline config
-                    cat > "$tcshrc" << 'EOF'
-# ALIE Basic Tcsh Configuration
-set prompt = "%{\033[1;32m%}%n@%m%{\033[0m%}:%{\033[1;34m%}%~%{\033[0m%}%# "
-set history = 1000
-set savehist = (1000 merge)
-alias ls 'ls --color=auto'
-alias ll 'ls -lh'
-setenv EDITOR nano
-EOF
-                    print_warning "Using inline tcsh configuration (config file not found)"
-                fi
-                chown "$username:$username" "$tcshrc"
-            fi
-            ;;
-            
-        "ksh")
-            local kshrc="$user_home/.kshrc"
-            if [ ! -f "$kshrc" ]; then
-                if [ -f "$configs_dir/kshrc" ]; then
-                    cp "$configs_dir/kshrc" "$kshrc"
-                    print_success "Deployed ksh configuration from: configs/shell/kshrc"
-                else
-                    # Fallback to inline config
-                    cat > "$kshrc" << 'EOF'
-# ALIE Basic Ksh Configuration
-PS1='\u@\h:\w\$ '
-HISTFILE=~/.ksh_history
-HISTSIZE=1000
-set -o vi
-alias ls='ls --color=auto'
-alias ll='ls -lh'
-export EDITOR=nano
-EOF
-                    print_warning "Using inline ksh configuration (config file not found)"
-                fi
-                chown "$username:$username" "$kshrc"
-            fi
-            ;;
-            
-        "nushell")
-            local nu_config_dir="$user_home/.config/nushell"
-            mkdir -p "$nu_config_dir"
-            
-            if [ ! -f "$nu_config_dir/config.nu" ]; then
-                if [ -f "$configs_dir/config.nu" ]; then
-                    cp "$configs_dir/config.nu" "$nu_config_dir/config.nu"
-                    print_success "Deployed nushell configuration from: configs/shell/config.nu"
-                else
-                    # Fallback to inline config
-                    cat > "$nu_config_dir/config.nu" << 'EOF'
-# ALIE Basic Nushell Configuration
-$env.config = {
-  show_banner: false
-  edit_mode: emacs
-  shell_integration: true
-  history: {
-    max_size: 10000
-    sync_on_enter: true
-    file_format: "plaintext"
-  }
-  completions: {
-    algorithm: "fuzzy"
-    case_sensitive: false
-    quick: true
-    partial: true
-    external: {
-      enable: true
-      max_results: 100
-      completer: null
-    }
-  }
-  filesize: {
-    metric: true
-    format: "auto"
-  }
-  table: {
-    mode: rounded
-    index_mode: always
-    show_empty: true
-    padding: { left: 1, right: 1 }
-    trim: {
-      methodology: wrapping
-      wrapping_try_keep_words: true
-      truncating_suffix: "..."
-    }
-    header_on_separator: false
-  }
-  prompt: "# "
-  menus: []
-}
-
-# Useful aliases
-alias ll = ls -l
-alias la = ls -a
-alias lla = ls -la
-alias .. = cd ..
-alias ... = cd ../..
-alias grep = grep --color=auto
-alias df = df -h
-alias free = free -h
-
-# Add local bin to PATH
-$env.PATH = ($env.PATH | split row (char esep) | prepend $"($env.HOME)/.local/bin")
-EOF
-                    print_warning "Using inline nushell configuration (config file not found)"
-                fi
-                chown -R "$username:$username" "$nu_config_dir"
-            fi
-            ;;
-    esac
-    
-    print_success "$shell_name environment configured"
-    return 0
-}
-
 # Install essential system tools
 install_basic_tools() {
     print_step "Installing Basic System Tools"
@@ -865,12 +634,7 @@ install_basic_tools() {
     
     print_info "Installing essential system tools..."
     
-    for package in "${BASIC_PACKAGES[@]}"; do
-        if ! pacman -Qq "$package" &>/dev/null; then
-            print_info "Installing: $package"
-            run_with_retry "pacman -S --needed --noconfirm $package"
-        fi
-    done
+    ensure_packages_installed "${BASIC_PACKAGES[@]}"
     
     print_success "Basic system tools installed"
 }

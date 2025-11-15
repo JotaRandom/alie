@@ -494,7 +494,7 @@ verify_internet
 
 # Verify base-devel and git are installed
 print_info "Checking required packages..."
-if ! pacman -Qq base-devel &>/dev/null; then
+if ! is_package_installed "base-devel"; then
     print_error "base-devel is not installed"
     print_info "Please install it first: run_privileged 'pacman -S --needed base-devel'"
     exit 1

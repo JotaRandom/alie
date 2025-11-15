@@ -62,9 +62,10 @@ bash alie.sh --manual
 │   ├── 211-install-aur-helper.sh # Helper AUR (yay/paru)
 │   ├── 212-cli-tools.sh       # Selección interactiva de herramientas CLI
 │   ├── 213-display-server.sh  # Servidor gráfico (X11/Wayland)
-│   ├── 220-desktop-select.sh  # Elegir DE/WM o saltar
+│   ├── 220-desktop-select.sh  # Elegir DE/WM X11/Wayland o saltar
 │   ├── 221-desktop-environment.sh # Entornos de Escritorio
-│   ├── 222-window-manager.sh  # Gestores de Ventanas
+│   ├── 222-window-manager.sh  # Gestores de Ventanas X11
+│   ├── 223-wayland-wm.sh      # Gestores de Ventanas Wayland
 │   └── 231-desktop-tools.sh   # Aplicaciones adicionales
 ├── lib/                       # Bibliotecas compartidas
 │   ├── shared-functions.sh    # Funciones comunes
@@ -98,10 +99,11 @@ bash alie.sh --manual
 | 6 | `211-install-aur-helper.sh` | usuario | Instalación de helper AUR (yay/paru) |
 | 7 | `212-cli-tools.sh` | usuario | Selección interactiva de herramientas CLI |
 | 8 | `213-display-server.sh` | root | Selección X11/Wayland |
-| 9 | `220-desktop-select.sh` | root | Elegir DE/WM o saltar |
+| 9 | `220-desktop-select.sh` | root | Elegir DE/WM X11/Wayland o saltar |
 | 10 | `221-desktop-environment.sh` | root | Entornos de Escritorio |
-| 11 | `222-window-manager.sh` | root | Gestores de Ventanas |
-| 12 | `231-desktop-tools.sh` | root | Aplicaciones adicionales |
+| 11 | `222-window-manager.sh` | root | Gestores de Ventanas X11 |
+| 12 | `223-wayland-wm.sh` | root | Gestores de Ventanas Wayland |
+| 13 | `231-desktop-tools.sh` | root | Aplicaciones adicionales |
 
 ## Proceso Completo
 

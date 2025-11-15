@@ -423,13 +423,13 @@ enable_desktop_services() {
     # Note: We use 'enable' WITHOUT --now to keep the system in TTY mode
     # User can reboot or manually start the service when ready
     
-    if pacman -Qq sddm &>/dev/null; then
+    if is_display_manager_installed "sddm"; then
         systemctl enable sddm
         log_success "SDDM enabled (will start on next boot)"
-    elif pacman -Qq gdm &>/dev/null; then
+    elif is_display_manager_installed "gdm"; then
         systemctl enable gdm
         log_success "GDM enabled (will start on next boot)"
-    elif pacman -Qq lightdm &>/dev/null; then
+    elif is_display_manager_installed "lightdm"; then
         systemctl enable lightdm
         log_success "LightDM enabled (will start on next boot)"
     else
@@ -550,13 +550,13 @@ main() {
     log_info "  3. Install additional apps: run 231-desktop-tools.sh"
     log_info ""
     log_info "Display Managers installed:"
-    if pacman -Qq sddm &>/dev/null; then
+    if is_display_manager_installed "sddm"; then
         log_info "  - SDDM (KDE Plasma)"
     fi
-    if pacman -Qq gdm &>/dev/null; then
+    if is_display_manager_installed "gdm"; then
         log_info "  - GDM (GNOME)"
     fi
-    if pacman -Qq lightdm &>/dev/null; then
+    if is_display_manager_installed "lightdm"; then
         log_info "  - LightDM (Cinnamon/XFCE4)"
     fi
 }

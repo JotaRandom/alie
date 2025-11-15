@@ -338,6 +338,68 @@ EOF
 }
 
 ################################################################################
+# QTILE WINDOW MANAGER
+################################################################################
+
+install_qtile() {
+    log_section "Installing Qtile Window Manager"
+    
+    check_x11_requirement
+    
+    local packages=(
+        qtile
+        python-psutil
+        python-iwlib
+        
+        lightdm
+        lightdm-gtk-greeter
+    )
+    
+    install_package "${packages[@]}"
+    install_wm_essentials
+    
+    log_info "Creating default Qtile configuration..."
+    log_warning "User should customize ~/.config/qtile/config.py"
+    
+    configure_lightdm_wm
+    
+    log_success "Qtile Window Manager installed"
+    log_info "Start with: startx (or enable lightdm and reboot)"
+}
+
+################################################################################
+# XMONAD WINDOW MANAGER
+################################################################################
+
+install_xmonad() {
+    log_section "Installing Xmonad Window Manager"
+    
+    check_x11_requirement
+    
+    local packages=(
+        xmonad
+        xmonad-contrib
+        xmobar
+        dmenu
+        stalonetray
+        
+        lightdm
+        lightdm-gtk-greeter
+    )
+    
+    install_package "${packages[@]}"
+    install_wm_essentials
+    
+    log_info "Creating default Xmonad configuration..."
+    log_warning "User should customize ~/.xmonad/xmonad.hs"
+    
+    configure_lightdm_wm
+    
+    log_success "Xmonad Window Manager installed"
+    log_info "Start with: startx (or enable lightdm and reboot)"
+}
+
+################################################################################
 # DISPLAY MANAGER CONFIGURATION
 ################################################################################
 
@@ -351,7 +413,7 @@ configure_lightdm_wm() {
 enable_wm_services() {
     log_info "Enabling display manager service..."
     
-    if pacman -Qq lightdm &>/dev/null; then
+    if is_display_manager_installed "lightdm"; then
         systemctl enable lightdm
         log_success "LightDM enabled (will start on next boot)"
     fi
@@ -373,11 +435,15 @@ show_wm_menu() {
     echo ""
     echo "Available Window Managers:"
     echo ""
+    echo "X11 WINDOW MANAGERS:"
+    echo ""
     echo "TILING (keyboard-driven, automatic layout):"
     echo "  1) i3              - Minimalist tiling WM"
     echo "  2) i3-gaps         - i3 with gaps between windows"
     echo "  3) bspwm           - Binary space partitioning tiling"
     echo "  4) Awesome         - Dynamic tiling with Lua config"
+    echo "  7) Qtile           - Tiling WM written in Python"
+    echo "  8) Xmonad          - Tiling WM written in Haskell"
     echo ""
     echo "FLOATING (traditional window behavior):"
     echo "  5) Openbox         - Lightweight, highly configurable"
@@ -395,6 +461,8 @@ show_wm_menu() {
     echo "  - Bar: Polybar"
     echo "  - Compositor: Picom"
     echo "  - File Manager: PCManFM"
+    echo ""
+    echo "For Wayland window managers, run: bash install/223-wayland-wm.sh"
     echo ""
 }
 
@@ -443,6 +511,16 @@ main() {
                 ;;
             6)
                 install_dwm
+                enable_wm_services
+                break
+                ;;
+            7)
+                install_qtile
+                enable_wm_services
+                break
+                ;;
+            8)
+                install_xmonad
                 enable_wm_services
                 break
                 ;;

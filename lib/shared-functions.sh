@@ -503,6 +503,7 @@ save_install_info() {
 
 # Check internet connectivity
 # Returns 0 if connected, 1 otherwise
+# shellcheck disable=SC2120
 check_internet() {
     local test_host="${1:-archlinux.org}"
     local timeout="${2:-5}"
@@ -616,9 +617,425 @@ update_package_db() {
     fi
 }
 
+# Execute command with retry logic (alias for retry_command for backward compatibility)
+# Usage: run_with_retry <max_attempts> <command>
+run_with_retry() {
+    retry_command "$@"
+}
+
 # =============================================================================
-# END OF SHARED FUNCTIONS
+# SHELL CONFIGURATION FUNCTIONS
 # =============================================================================
+
+# Detect available shells on the system
+# Returns: space-separated list of available shell names
+detect_available_shells() {
+    local shells=()
+    
+    if command -v bash >/dev/null 2>&1; then
+        shells+=("bash")
+    fi
+    
+    if command -v zsh >/dev/null 2>&1; then
+        shells+=("zsh")
+    fi
+    
+    if command -v fish >/dev/null 2>&1; then
+        shells+=("fish")
+    fi
+    
+    if command -v dash >/dev/null 2>&1; then
+        shells+=("dash")
+    fi
+    
+    if command -v tcsh >/dev/null 2>&1; then
+        shells+=("tcsh")
+    fi
+    
+    if command -v ksh >/dev/null 2>&1; then
+        shells+=("ksh")
+    fi
+    
+    if command -v nu >/dev/null 2>&1; then
+        shells+=("nushell")
+    fi
+    
+    echo "${shells[*]}"
+}
+
+# Get shell path for a given shell name
+# Usage: get_shell_path <shell_name>
+# Returns: full path to shell executable
+get_shell_path() {
+    local shell_name="$1"
+    
+    case "$shell_name" in
+        "bash") echo "/bin/bash" ;;
+        "zsh") echo "/bin/zsh" ;;
+        "fish") echo "/usr/bin/fish" ;;
+        "dash") echo "/bin/dash" ;;
+        "tcsh") echo "/bin/tcsh" ;;
+        "ksh") echo "/bin/ksh" ;;
+        "nushell") echo "/usr/bin/nu" ;;
+        *) echo "" ;;
+    esac
+}
+
+# Configure shell environment for a user
+# Usage: configure_shell_for_user <username> <shell_name>
+configure_shell_for_user() {
+    local username="$1"
+    local shell_name="$2"
+    local user_home="/home/$username"
+    
+    print_info "Configuring $shell_name environment for $username..."
+    
+    # Get configs directory
+    local configs_dir
+    configs_dir="$(dirname "$(dirname "$SCRIPT_DIR")")/configs/shell"
+    
+    case "$shell_name" in
+        "zsh")
+            configure_zsh_environment "$username" "$configs_dir"
+            ;;
+        "fish")
+            configure_fish_environment "$username" "$configs_dir"
+            ;;
+        "bash")
+            configure_bash_environment "$username" "$configs_dir"
+            ;;
+        "tcsh")
+            configure_tcsh_environment "$username" "$configs_dir"
+            ;;
+        "ksh")
+            configure_ksh_environment "$username" "$configs_dir"
+            ;;
+        "nushell")
+            configure_nushell_environment "$username" "$configs_dir"
+            ;;
+        *)
+            print_warning "No specific configuration available for shell: $shell_name"
+            ;;
+    esac
+    
+    print_success "$shell_name environment configured for $username"
+}
+
+# Configure Zsh environment
+configure_zsh_environment() {
+    local username="$1"
+    local configs_dir="$2"
+    local user_home="/home/$username"
+    local zshrc="$user_home/.zshrc"
+    
+    if [ ! -f "$zshrc" ]; then
+        if [ -f "$configs_dir/zshrc" ]; then
+            cp "$configs_dir/zshrc" "$zshrc"
+            print_success "Deployed zsh configuration from: configs/shell/zshrc"
+        else
+            # Fallback to inline config
+            cat > "$zshrc" << 'EOF'
+# ALIE Basic Zsh Configuration
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt appendhistory sharehistory incappendhistory
+autoload -Uz compinit && compinit
+autoload -U colors && colors
+PS1="%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}%# "
+alias ls='ls --color=auto'
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+            print_warning "Using inline zsh configuration (config file not found)"
+        fi
+        chown "$username:$username" "$zshrc"
+    fi
+}
+
+# Configure Fish environment
+configure_fish_environment() {
+    local username="$1"
+    local configs_dir="$2"
+    local user_home="/home/$username"
+    local fish_config="$user_home/.config/fish"
+    
+    mkdir -p "$fish_config"
+    
+    if [ ! -f "$fish_config/config.fish" ]; then
+        if [ -f "$configs_dir/config.fish" ]; then
+            cp "$configs_dir/config.fish" "$fish_config/config.fish"
+            print_success "Deployed fish configuration from: configs/shell/config.fish"
+        else
+            # Fallback to inline config
+            cat > "$fish_config/config.fish" << 'EOF'
+# ALIE Basic Fish Configuration
+set fish_greeting ""
+alias ll='ls -alF'
+set -gx PATH $HOME/.local/bin $PATH
+EOF
+            print_warning "Using inline fish configuration (config file not found)"
+        fi
+        chown -R "$username:$username" "$fish_config"
+    fi
+}
+
+# Configure Bash environment
+configure_bash_environment() {
+    local username="$1"
+    local configs_dir="$2"
+    local user_home="/home/$username"
+    local bashrc="$user_home/.bashrc"
+    
+    # For bash, we can optionally deploy enhanced config
+    if [ -f "$configs_dir/bashrc" ] && [ ! -s "$bashrc" ]; then
+        cp "$configs_dir/bashrc" "$bashrc"
+        chown "$username:$username" "$bashrc"
+        print_success "Deployed bash configuration from: configs/shell/bashrc"
+    fi
+}
+
+# Configure Tcsh environment
+configure_tcsh_environment() {
+    local username="$1"
+    local configs_dir="$2"
+    local user_home="/home/$username"
+    local tcshrc="$user_home/.tcshrc"
+    
+    if [ ! -f "$tcshrc" ]; then
+        if [ -f "$configs_dir/tcshrc" ]; then
+            cp "$configs_dir/tcshrc" "$tcshrc"
+            print_success "Deployed tcsh configuration from: configs/shell/tcshrc"
+        else
+            # Fallback to inline config
+            cat > "$tcshrc" << 'EOF'
+# ALIE Basic Tcsh Configuration
+set prompt = "%{\033[1;32m%}%n@%m%{\033[0m%}:%{\033[1;34m%}%~%{\033[0m%}%# "
+set history = 1000
+set savehist = (1000 merge)
+alias ls 'ls --color=auto'
+alias ll 'ls -lh'
+setenv EDITOR nano
+EOF
+            print_warning "Using inline tcsh configuration (config file not found)"
+        fi
+        chown "$username:$username" "$tcshrc"
+    fi
+}
+
+# Configure Ksh environment
+configure_ksh_environment() {
+    local username="$1"
+    local configs_dir="$2"
+    local user_home="/home/$username"
+    local kshrc="$user_home/.kshrc"
+    
+    if [ ! -f "$kshrc" ]; then
+        if [ -f "$configs_dir/kshrc" ]; then
+            cp "$configs_dir/kshrc" "$kshrc"
+            print_success "Deployed ksh configuration from: configs/shell/kshrc"
+        else
+            # Fallback to inline config
+            cat > "$kshrc" << 'EOF'
+# ALIE Basic Ksh Configuration
+PS1='\u@\h:\w\$ '
+HISTFILE=~/.ksh_history
+HISTSIZE=1000
+set -o vi
+alias ls='ls --color=auto'
+alias ll='ls -lh'
+export EDITOR=nano
+EOF
+            print_warning "Using inline ksh configuration (config file not found)"
+        fi
+        chown "$username:$username" "$kshrc"
+    fi
+}
+
+# Configure Nushell environment
+configure_nushell_environment() {
+    local username="$1"
+    local configs_dir="$2"
+    local user_home="/home/$username"
+    local nu_config_dir="$user_home/.config/nushell"
+    
+    mkdir -p "$nu_config_dir"
+    
+    if [ ! -f "$nu_config_dir/config.nu" ]; then
+        if [ -f "$configs_dir/config.nu" ]; then
+            cp "$configs_dir/config.nu" "$nu_config_dir/config.nu"
+            print_success "Deployed nushell configuration from: configs/shell/config.nu"
+        else
+            # Fallback to inline config
+            cat > "$nu_config_dir/config.nu" << 'EOF'
+# ALIE Basic Nushell Configuration
+$env.config = {
+  show_banner: false
+  edit_mode: emacs
+  shell_integration: true
+  history: {
+    max_size: 10000
+    sync_on_enter: true
+    file_format: "plaintext"
+  }
+  completions: {
+    algorithm: "fuzzy"
+    case_sensitive: false
+    quick: true
+    partial: true
+    external: {
+      enable: true
+      max_results: 100
+      completer: null
+    }
+  }
+  filesize: {
+    metric: true
+    format: "auto"
+  }
+  table: {
+    mode: rounded
+    index_mode: always
+    show_empty: true
+    padding: { left: 1, right: 1 }
+    trim: {
+      methodology: wrapping
+      wrapping_try_keep_words: true
+      truncating_suffix: "..."
+    }
+    header_on_separator: false
+  }
+  prompt: "# "
+  menus: []
+}
+
+# Useful aliases
+alias ll = ls -l
+alias la = ls -a
+alias lla = ls -la
+alias .. = cd ..
+alias ... = cd ../..
+alias grep = grep --color=auto
+alias df = df -h
+alias free = free -h
+
+# Add local bin to PATH
+$env.PATH = ($env.PATH | split row (char esep) | prepend $"($env.HOME)/.local/bin")
+EOF
+            print_warning "Using inline nushell configuration (config file not found)"
+        fi
+        chown -R "$username:$username" "$nu_config_dir"
+    fi
+}
+
+# Change user shell safely
+# Usage: change_user_shell <username> <shell_name>
+change_user_shell() {
+    local username="$1"
+    local shell_name="$2"
+    local shell_path
+    
+    shell_path=$(get_shell_path "$shell_name")
+    
+    if [ -z "$shell_path" ]; then
+        print_error "Unknown shell: $shell_name"
+        return 1
+    fi
+    
+    print_info "Changing shell for $username to $shell_name..."
+    
+    if chsh -s "$shell_path" "$username"; then
+        print_success "Shell changed to: $shell_path"
+        return 0
+    else
+        print_error "Failed to change shell for $username"
+        return 1
+    fi
+}
+
+# =============================================================================
+# PACKAGE MANAGEMENT FUNCTIONS
+# =============================================================================
+
+# Check if a package is installed
+# Usage: is_package_installed <package_name>
+# Returns: 0 if installed, 1 if not installed
+is_package_installed() {
+    local package="$1"
+    pacman -Qq "$package" &>/dev/null
+}
+
+# Check if multiple packages are installed
+# Usage: are_packages_installed <package1> <package2> ...
+# Returns: 0 if all installed, 1 if any missing
+are_packages_installed() {
+    local packages=("$@")
+    local missing_packages=()
+    
+    for package in "${packages[@]}"; do
+        if ! is_package_installed "$package"; then
+            missing_packages+=("$package")
+        fi
+    done
+    
+    if [ ${#missing_packages[@]} -eq 0 ]; then
+        return 0
+    else
+        print_warning "Missing packages: ${missing_packages[*]}"
+        return 1
+    fi
+}
+
+# Install packages only if not already installed
+# Usage: ensure_packages_installed <package1> <package2> ...
+ensure_packages_installed() {
+    local packages=("$@")
+    local packages_to_install=()
+    
+    for package in "${packages[@]}"; do
+        if ! is_package_installed "$package"; then
+            packages_to_install+=("$package")
+        fi
+    done
+    
+    if [ ${#packages_to_install[@]} -eq 0 ]; then
+        print_info "All packages already installed"
+        return 0
+    fi
+    
+    print_info "Installing packages: ${packages_to_install[*]}"
+    
+    if install_packages "${packages_to_install[@]}"; then
+        print_success "Packages installed successfully"
+        return 0
+    else
+        print_error "Failed to install packages: ${packages_to_install[*]}"
+        return 1
+    fi
+}
+
+# Check if Xorg server is installed
+is_xorg_installed() {
+    is_package_installed "xorg-server"
+}
+
+# Check if Wayland is installed
+is_wayland_installed() {
+    is_package_installed "wayland"
+}
+
+# Check if display manager is installed
+# Usage: is_display_manager_installed <dm_name>
+# Supported: sddm, gdm, lightdm
+is_display_manager_installed() {
+    local dm_name="$1"
+    
+    case "$dm_name" in
+        "sddm") is_package_installed "sddm" ;;
+        "gdm") is_package_installed "gdm" ;;
+        "lightdm") is_package_installed "lightdm" ;;
+        *) return 1 ;;
+    esac
+}
 
 # If sourced, don't execute anything
 # If run directly, show info
