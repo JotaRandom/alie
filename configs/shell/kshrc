@@ -1,0 +1,93 @@
+# ALIE ksh configuration
+# ~/.kshrc for Korn Shell
+
+# Prompt configuration
+PS1='\[\033[1;32m\]\u@\h\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ '
+
+# History settings
+HISTFILE=~/.ksh_history
+HISTSIZE=1000
+SAVEHIST=1000
+
+# Command line editing (vi mode)
+set -o vi  # Use 'set -o emacs' for emacs mode
+
+# Aliases
+alias ls='ls --color=auto'
+alias ll='ls -lh'
+alias la='ls -lah'
+alias grep='grep --color=auto'
+alias h='history'
+alias c='clear'
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# Environment variables
+export EDITOR=nano
+export VISUAL=nano
+export PAGER=less
+
+# Less colors for man pages
+export LESS_TERMCAP_mb=$'\033[1;31m'     # begin bold
+export LESS_TERMCAP_md=$'\033[1;36m'     # begin blink
+export LESS_TERMCAP_me=$'\033[0m'        # reset bold/blink
+export LESS_TERMCAP_so=$'\033[01;44;33m' # begin reverse video
+export LESS_TERMCAP_se=$'\033[0m'        # reset reverse video
+export LESS_TERMCAP_us=$'\033[1;32m'     # begin underline
+export LESS_TERMCAP_ue=$'\033[0m'        # reset underline
+
+# Safety aliases
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Auto-completion settings
+set -o braceexpand
+
+# CD path for quick navigation
+CDPATH=.:~:~/projects
+
+# Path additions (add your custom paths here)
+# export PATH="$PATH:/custom/path"
+
+# Functions
+# Go up N directories
+up() {
+    local d=""
+    limit=$1
+    for ((i=1 ; i <= limit ; i++)); do
+        d=$d/..
+    done
+    d=$(echo $d | sed 's/^\///')
+    if [ -z "$d" ]; then
+        d=..
+    fi
+    cd $d
+}
+
+# Extract archives
+extract() {
+    if [ -f $1 ]; then
+        case $1 in
+            *.tar.bz2)   tar xjf $1     ;;
+            *.tar.gz)    tar xzf $1     ;;
+            *.bz2)       bunzip2 $1     ;;
+            *.rar)       unrar e $1     ;;
+            *.gz)        gunzip $1      ;;
+            *.tar)       tar xf $1      ;;
+            *.tbz2)      tar xjf $1     ;;
+            *.tgz)       tar xzf $1     ;;
+            *.zip)       unzip $1       ;;
+            *.Z)         uncompress $1  ;;
+            *.7z)        7z x $1        ;;
+            *)           echo "'$1' cannot be extracted via extract()" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+# Load user-specific customizations if they exist
+if [ -f ~/.kshrc.local ]; then
+    . ~/.kshrc.local
+fi

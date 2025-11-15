@@ -509,7 +509,7 @@ case "$PART_CHOICE" in
             
             print_info "Formatting EFI partition as FAT32..."
             print_warning "This will erase any existing bootloaders on this partition!"
-            mkfs.fat -F32 "$EFI_PARTITION"
+            mkfs.fat -F32 -n "EFI" "$EFI_PARTITION"
             
             if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
                 HOME_PARTITION="${PART_PREFIX}4"
@@ -538,13 +538,28 @@ case "$PART_CHOICE" in
         print_info "Formatting root partition as $ROOT_FS..."
         case "$ROOT_FS" in
             ext4)
-                mkfs.ext4 -F "$ROOT_PARTITION"
+                # Ext4 with optimal options:
+                # -F: force (even if mounted)
+                # -L: filesystem label
+                # -O ^metadata_csum_seed: disable for better compatibility
+                # -E lazy_itable_init=0,lazy_journal_init=0: initialize fully for reliability
+                mkfs.ext4 -F -L "ArchRoot" -m 1 -E lazy_itable_init=0,lazy_journal_init=0 "$ROOT_PARTITION"
                 ;;
             btrfs)
-                mkfs.btrfs -f "$ROOT_PARTITION"
+                # Btrfs with optimal options:
+                # -f: force
+                # -L: filesystem label
+                # -m: metadata profile (dup for single device)
+                # -d: data profile (single for single device)
+                mkfs.btrfs -f -L "ArchRoot" -m dup -d single "$ROOT_PARTITION"
                 ;;
             xfs)
-                mkfs.xfs -f "$ROOT_PARTITION"
+                # XFS with optimal options:
+                # -f: force
+                # -L: filesystem label
+                # -b size=4096: 4K block size
+                # -m crc=1: enable metadata checksums
+                mkfs.xfs -f -L "ArchRoot" -b size=4096 -m crc=1,finobt=1 "$ROOT_PARTITION"
                 ;;
         esac
         
@@ -552,13 +567,13 @@ case "$PART_CHOICE" in
             print_info "Formatting /home partition as $ROOT_FS..."
             case "$ROOT_FS" in
                 ext4)
-                    mkfs.ext4 -F "$HOME_PARTITION"
+                    mkfs.ext4 -F -L "ArchHome" -m 1 -E lazy_itable_init=0,lazy_journal_init=0 "$HOME_PARTITION"
                     ;;
                 btrfs)
-                    mkfs.btrfs -f "$HOME_PARTITION"
+                    mkfs.btrfs -f -L "ArchHome" -m dup -d single "$HOME_PARTITION"
                     ;;
                 xfs)
-                    mkfs.xfs -f "$HOME_PARTITION"
+                    mkfs.xfs -f -L "ArchHome" -b size=4096 -m crc=1,finobt=1 "$HOME_PARTITION"
                     ;;
             esac
         fi
@@ -642,11 +657,11 @@ case "$PART_CHOICE" in
                             print_info "Skipping EFI partition format - will use existing"
                         else
                             print_info "Formatting EFI partition as FAT32..."
-                            mkfs.fat -F32 "$EFI_PARTITION"
+                            mkfs.fat -F32 -n "EFI" "$EFI_PARTITION"
                         fi
                     else
                         print_info "Formatting EFI partition as FAT32..."
-                        mkfs.fat -F32 "$EFI_PARTITION"
+                        mkfs.fat -F32 -n "EFI" "$EFI_PARTITION"
                     fi
                 fi
             else
@@ -681,9 +696,9 @@ case "$PART_CHOICE" in
                 
                 print_info "Formatting root as $ROOT_FS..."
                 case "$ROOT_FS" in
-                    ext4) mkfs.ext4 -F "$ROOT_PARTITION" ;;
-                    btrfs) mkfs.btrfs -f "$ROOT_PARTITION" ;;
-                    xfs) mkfs.xfs -f "$ROOT_PARTITION" ;;
+                    ext4) mkfs.ext4 -F -L "ArchRoot" -m 1 -E lazy_itable_init=0,lazy_journal_init=0 "$ROOT_PARTITION" ;;
+                    btrfs) mkfs.btrfs -f -L "ArchRoot" -m dup -d single "$ROOT_PARTITION" ;;
+                    xfs) mkfs.xfs -f -L "ArchRoot" -b size=4096 -m crc=1,finobt=1 "$ROOT_PARTITION" ;;
                 esac
             fi
             
@@ -693,9 +708,9 @@ case "$PART_CHOICE" in
                 if [ -n "$HOME_PARTITION" ] && [ -b "$HOME_PARTITION" ]; then
                     print_info "Formatting /home as $ROOT_FS..."
                     case "$ROOT_FS" in
-                        ext4) mkfs.ext4 -F "$HOME_PARTITION" ;;
-                        btrfs) mkfs.btrfs -f "$HOME_PARTITION" ;;
-                        xfs) mkfs.xfs -f "$HOME_PARTITION" ;;
+                        ext4) mkfs.ext4 -F -L "ArchHome" -m 1 -E lazy_itable_init=0,lazy_journal_init=0 "$HOME_PARTITION" ;;
+                        btrfs) mkfs.btrfs -f -L "ArchHome" -m dup -d single "$HOME_PARTITION" ;;
+                        xfs) mkfs.xfs -f -L "ArchHome" -b size=4096 -m crc=1,finobt=1 "$HOME_PARTITION" ;;
                     esac
                 fi
             fi
@@ -868,13 +883,16 @@ print_info "Detected root filesystem: $ROOT_FS"
 # Set mount options based on filesystem
 case "$ROOT_FS" in
     ext4)
-        MOUNT_OPTS="defaults,noatime,commit=60"
+        # ext4: noatime (no access time updates), commit=60 (journal every 60s), errors=remount-ro (safety)
+        MOUNT_OPTS="defaults,noatime,errors=remount-ro,commit=60"
         ;;
     btrfs)
-        MOUNT_OPTS="defaults,noatime,compress=zstd,space_cache=v2"
+        # btrfs: noatime, zstd compression (level 3 default), space_cache=v2 (performance), discard=async (SSD trim)
+        MOUNT_OPTS="defaults,noatime,compress=zstd:3,space_cache=v2,discard=async"
         ;;
     xfs)
-        MOUNT_OPTS="defaults,noatime,inode64"
+        # xfs: noatime, inode64 (64-bit inodes), logbsize=256k (larger log buffer)
+        MOUNT_OPTS="defaults,noatime,inode64,logbsize=256k"
         ;;
     *)
         MOUNT_OPTS="defaults,relatime"
@@ -901,7 +919,8 @@ print_success "Swap activated"
 if [ "$BOOT_MODE" == "UEFI" ]; then
     mkdir -p /mnt/boot
     print_info "Mounting EFI partition..."
-    mount "$EFI_PARTITION" /mnt/boot
+    # EFI: fmask=0077,dmask=0077 (secure permissions), codepage=437,iocharset=iso8859-1 (compatibility)
+    mount -o "defaults,noatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1" "$EFI_PARTITION" /mnt/boot
     MOUNTED_PARTITIONS+=("/mnt/boot")
     print_success "EFI partition mounted"
 fi
@@ -913,13 +932,13 @@ if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
     
     case "$HOME_FS" in
         ext4)
-            HOME_OPTS="defaults,noatime,commit=60"
+            HOME_OPTS="defaults,noatime,errors=remount-ro,commit=60"
             ;;
         btrfs)
-            HOME_OPTS="defaults,noatime,compress=zstd,space_cache=v2"
+            HOME_OPTS="defaults,noatime,compress=zstd:3,space_cache=v2,discard=async"
             ;;
         xfs)
-            HOME_OPTS="defaults,noatime,inode64"
+            HOME_OPTS="defaults,noatime,inode64,logbsize=256k"
             ;;
         *)
             HOME_OPTS="defaults,relatime"

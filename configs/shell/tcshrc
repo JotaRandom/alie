@@ -1,0 +1,60 @@
+# ALIE tcsh configuration
+# ~/.tcshrc for TENEX C Shell
+
+# Prompt configuration
+set prompt = "%{\033[1;32m%}%n@%m%{\033[0m%}:%{\033[1;34m%}%~%{\033[0m%}%# "
+
+# History settings
+set history = 1000
+set savehist = (1000 merge)
+set histfile = ~/.tcsh_history
+
+# Command line editing
+bindkey -v  # vi-style editing (use bindkey -e for emacs-style)
+
+# Completion settings
+set autolist = ambiguous
+set complete = enhance
+set autocorrect
+
+# Directory navigation
+set autoexpand
+set pushdtohome
+set dunique
+
+# Aliases
+alias ls 'ls --color=auto'
+alias ll 'ls -lh'
+alias la 'ls -lah'
+alias grep 'grep --color=auto'
+alias h 'history'
+alias c 'clear'
+alias .. 'cd ..'
+alias ... 'cd ../..'
+
+# Environment variables
+setenv EDITOR nano
+setenv VISUAL nano
+setenv PAGER less
+
+# Less colors
+setenv LESS_TERMCAP_mb '\033[1;31m'     # begin bold
+setenv LESS_TERMCAP_md '\033[1;36m'     # begin blink
+setenv LESS_TERMCAP_me '\033[0m'        # reset bold/blink
+setenv LESS_TERMCAP_so '\033[01;44;33m' # begin reverse video
+setenv LESS_TERMCAP_se '\033[0m'        # reset reverse video
+setenv LESS_TERMCAP_us '\033[1;32m'     # begin underline
+setenv LESS_TERMCAP_ue '\033[0m'        # reset underline
+
+# Safety aliases
+alias rm 'rm -i'
+alias cp 'cp -i'
+alias mv 'mv -i'
+
+# Path additions (add your custom paths here)
+# setenv PATH "${PATH}:/custom/path"
+
+# Load user-specific customizations if they exist
+if ( -f ~/.tcshrc.local ) then
+    source ~/.tcshrc.local
+endif

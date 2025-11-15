@@ -497,11 +497,55 @@ validate_doas "/etc/doas.conf"
 
 ### Pendiente 📋
 - [ ] Migrar todos los scripts a usar config externo
-- [ ] Shell configs (bash, zsh, fish)
 - [ ] Git configs
 - [ ] Vim/Neovim configs
 - [ ] Sistema de "perfiles" (server, desktop, minimal)
 - [ ] Wizard interactivo para selección de configs
+
+### Shell Configurations (`configs/shell/`)
+
+Configuraciones optimizadas para diferentes shells disponibles en Arch Linux.
+
+#### Archivos Disponibles
+
+| Archivo | Shell | Destino | Descripción |
+|---------|-------|---------|-------------|
+| `bashrc` | Bash | `~/.bashrc` | Enhanced Bash config con aliases y colors |
+| `zshrc` | Zsh | `~/.zshrc` | Zsh con autocompletion, historia mejorada |
+| `config.fish` | Fish | `~/.config/fish/config.fish` | Fish con sintaxis moderna |
+| `tcshrc` | Tcsh | `~/.tcshrc` | TENEX C Shell con prompt coloreado |
+| `kshrc` | Korn Shell | `~/.kshrc` | Korn Shell con funciones útiles |
+
+#### Características Comunes
+
+Todas las configuraciones incluyen:
+- ✅ Prompt coloreado y personalizado
+- ✅ Aliases útiles (ls, ll, la, grep con colores)
+- ✅ Historial configurado (1000+ comandos)
+- ✅ Man pages con colores
+- ✅ Aliases de seguridad (rm -i, cp -i, mv -i)
+- ✅ Configuración de editor por defecto
+
+#### Uso en Scripts
+
+Las configuraciones se despliegan automáticamente en `install/201-user-setup.sh`:
+
+```bash
+# La función configure_shell_environment() maneja el deploy
+configure_shell_environment "$username" "$shell_name"
+
+# Soporta: bash, zsh, fish, tcsh, ksh
+# Dash no requiere configuración (POSIX shell minimalista)
+```
+
+#### Notas por Shell
+
+- **Bash**: Config mejorado opcional, sistema ya tiene uno básico
+- **Zsh**: Requiere configuración para aprovechar sus features
+- **Fish**: Configuración en directorio separado (~/.config/fish/)
+- **Tcsh**: Sintaxis estilo C, variables con `setenv`
+- **Ksh**: Compatible con Bash, funciones adicionales (extract, up)
+- **Dash**: No requiere config, solo variables de entorno del sistema
 
 ## 📚 Referencias
 

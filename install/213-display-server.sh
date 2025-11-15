@@ -542,6 +542,9 @@ install_xorg_complete() {
         "xorg-fonts-misc"       # Miscellaneous fonts
         "ttf-dejavu"            # DejaVu fonts
         "ttf-liberation"        # Liberation fonts
+        
+        # Hardware acceleration (VA-API for Xorg/Wayland)
+        "gstreamer-vaapi"       # GStreamer VA-API plugin (requires X11/Wayland)
     )
     
     print_info "Installing complete Xorg with utilities..."
@@ -697,6 +700,36 @@ install_wayland_complete() {
     
     print_info "Installing core Wayland infrastructure..."
     run_privileged "pacman -S --needed --noconfirm ${WAYLAND_COMPLETE[*]}"
+    
+    # Optional: gstreamer-vaapi for hardware acceleration
+    echo ""
+    print_info "Hardware Video Acceleration (optional)"
+    echo ""
+    echo "gstreamer-vaapi provides VA-API hardware acceleration for video playback."
+    echo ""
+    print_warning "Dependencies: This will install X11 libraries (libx11, libxrandr, wayland)"
+    echo "Note: These are protocol libraries only, NOT the X server itself"
+    echo ""
+    
+    while true; do
+        printf "${CYAN}Install gstreamer-vaapi? (y/N): ${NC}"
+        read -r install_vaapi
+        case "$install_vaapi" in
+            [yY]|[yY][eE][sS])
+                print_info "Installing gstreamer-vaapi..."
+                run_privileged "pacman -S --needed --noconfirm gstreamer-vaapi"
+                print_success "gstreamer-vaapi installed"
+                break
+                ;;
+            [nN]|[nN][oO]|"")
+                print_info "Skipping gstreamer-vaapi (can install later if needed)"
+                break
+                ;;
+            *)
+                print_warning "Please answer yes (y) or no (n)."
+                ;;
+        esac
+    done
     
     print_success "Core Wayland installation finished"
 }

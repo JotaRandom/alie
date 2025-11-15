@@ -682,6 +682,53 @@ EOF
                 print_success "Deployed bash configuration from: configs/shell/bashrc"
             fi
             ;;
+            
+        "tcsh")
+            local tcshrc="$user_home/.tcshrc"
+            if [ ! -f "$tcshrc" ]; then
+                if [ -f "$configs_dir/tcshrc" ]; then
+                    cp "$configs_dir/tcshrc" "$tcshrc"
+                    print_success "Deployed tcsh configuration from: configs/shell/tcshrc"
+                else
+                    # Fallback to inline config
+                    cat > "$tcshrc" << 'EOF'
+# ALIE Basic Tcsh Configuration
+set prompt = "%{\033[1;32m%}%n@%m%{\033[0m%}:%{\033[1;34m%}%~%{\033[0m%}%# "
+set history = 1000
+set savehist = (1000 merge)
+alias ls 'ls --color=auto'
+alias ll 'ls -lh'
+setenv EDITOR nano
+EOF
+                    print_warning "Using inline tcsh configuration (config file not found)"
+                fi
+                chown "$username:$username" "$tcshrc"
+            fi
+            ;;
+            
+        "ksh")
+            local kshrc="$user_home/.kshrc"
+            if [ ! -f "$kshrc" ]; then
+                if [ -f "$configs_dir/kshrc" ]; then
+                    cp "$configs_dir/kshrc" "$kshrc"
+                    print_success "Deployed ksh configuration from: configs/shell/kshrc"
+                else
+                    # Fallback to inline config
+                    cat > "$kshrc" << 'EOF'
+# ALIE Basic Ksh Configuration
+PS1='\u@\h:\w\$ '
+HISTFILE=~/.ksh_history
+HISTSIZE=1000
+set -o vi
+alias ls='ls --color=auto'
+alias ll='ls -lh'
+export EDITOR=nano
+EOF
+                    print_warning "Using inline ksh configuration (config file not found)"
+                fi
+                chown "$username:$username" "$kshrc"
+            fi
+            ;;
     esac
     
     print_success "$shell_name environment configured"

@@ -378,9 +378,147 @@ else
 fi
 
 # ===================================
-# STEP 10: ENABLE SERVICES
+# STEP 10: AUDIO SYSTEM CONFIGURATION
 # ===================================
-print_step "STEP 10: Enabling System Services"
+print_step "STEP 10: Audio System Configuration"
+
+echo ""
+print_info "Audio Server Selection"
+echo ""
+echo "Choose your audio server:"
+echo "  ${CYAN}1)${NC} PipeWire (modern, recommended)"
+echo "     - Low latency audio/video routing"
+echo "     - Pro-audio support (JACK compatibility)"
+echo "     - Better Bluetooth support"
+echo ""
+echo "  ${CYAN}2)${NC} PulseAudio (traditional, stable)"
+echo "     - Mature and widely tested"
+echo "     - Good compatibility with older applications"
+echo ""
+
+read -p "Select audio server [1-2]: " AUDIO_SERVER
+
+case "$AUDIO_SERVER" in
+    1)
+        print_info "Installing PipeWire..."
+        if retry_command 3 "pacman -S --needed --noconfirm pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber"; then
+            print_success "PipeWire installed"
+        else
+            print_error "Failed to install PipeWire"
+            exit 1
+        fi
+        ;;
+    2)
+        print_info "Installing PulseAudio..."
+        if retry_command 3 "pacman -S --needed --noconfirm pulseaudio pulseaudio-alsa"; then
+            print_success "PulseAudio installed"
+        else
+            print_error "Failed to install PulseAudio"
+            exit 1
+        fi
+        ;;
+    *)
+        print_error "Invalid selection"
+        exit 1
+        ;;
+esac
+
+echo ""
+print_info "GStreamer Multimedia Framework"
+echo ""
+echo "GStreamer provides multimedia codec support (audio/video playback)"
+echo "Note: Only codec libraries, no GUI or display server dependencies"
+echo ""
+echo "Select GStreamer installation:"
+echo "  ${CYAN}1)${NC} Full install (all plugins - recommended)"
+echo "     base + good + bad + ugly + libav"
+echo ""
+echo "  ${CYAN}2)${NC} Essential only (base + good + libav)"
+echo "     Most common codecs and formats"
+echo ""
+echo "  ${CYAN}3)${NC} Minimal (base only)"
+echo "     Basic audio/video support"
+echo ""
+echo "  ${CYAN}4)${NC} Custom selection"
+echo "     Choose individual plugin groups"
+echo ""
+echo "  ${CYAN}5)${NC} Skip (install later if needed)"
+echo ""
+
+read -p "Select option [1-5]: " GST_OPTION
+
+case "$GST_OPTION" in
+    1)
+        print_info "Installing all GStreamer plugins..."
+        if retry_command 3 "pacman -S --needed --noconfirm gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"; then
+            print_success "All GStreamer plugins installed"
+        else
+            print_warning "Failed to install some GStreamer plugins"
+        fi
+        ;;
+    2)
+        print_info "Installing essential GStreamer plugins..."
+        if retry_command 3 "pacman -S --needed --noconfirm gst-plugins-base gst-plugins-good gst-libav"; then
+            print_success "Essential GStreamer plugins installed"
+        else
+            print_warning "Failed to install some GStreamer plugins"
+        fi
+        ;;
+    3)
+        print_info "Installing minimal GStreamer..."
+        if retry_command 3 "pacman -S --needed --noconfirm gst-plugins-base"; then
+            print_success "Base GStreamer plugins installed"
+        else
+            print_warning "Failed to install GStreamer base"
+        fi
+        ;;
+    4)
+        echo ""
+        print_info "Custom GStreamer Selection"
+        echo "Select plugins to install (space-separated, e.g., 1 2 4):"
+        echo "  1) gst-plugins-base (basic codecs - ogg, vorbis, theora)"
+        echo "  2) gst-plugins-good (common formats - mp3, aac, webm, flac)"
+        echo "  3) gst-plugins-bad (advanced/experimental codecs)"
+        echo "  4) gst-plugins-ugly (patent-encumbered - mp3, dvd)"
+        echo "  5) gst-libav (FFmpeg integration - h264, hevc, etc.)"
+        echo ""
+        read -p "Enter selections: " -a GST_CHOICES
+        
+        GST_PKGS=()
+        for choice in "${GST_CHOICES[@]}"; do
+            case "$choice" in
+                1) GST_PKGS+=("gst-plugins-base") ;;
+                2) GST_PKGS+=("gst-plugins-good") ;;
+                3) GST_PKGS+=("gst-plugins-bad") ;;
+                4) GST_PKGS+=("gst-plugins-ugly") ;;
+                5) GST_PKGS+=("gst-libav") ;;
+            esac
+        done
+        
+        if [ ${#GST_PKGS[@]} -gt 0 ]; then
+            print_info "Installing selected plugins: ${GST_PKGS[*]}"
+            if retry_command 3 "pacman -S --needed --noconfirm ${GST_PKGS[@]}"; then
+                print_success "Selected GStreamer plugins installed"
+            else
+                print_warning "Failed to install some plugins"
+            fi
+        else
+            print_info "No plugins selected"
+        fi
+        ;;
+    5)
+        print_info "Skipping GStreamer plugins"
+        ;;
+    *)
+        print_error "Invalid selection"
+        exit 1
+        ;;
+esac
+
+# ===================================
+# STEP 11: ENABLE SERVICES
+# ===================================
+print_step "STEP 11: Enabling System Services"
 
 print_info "Enabling NetworkManager..."
 systemctl enable NetworkManager
