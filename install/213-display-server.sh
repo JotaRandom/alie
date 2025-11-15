@@ -458,6 +458,7 @@ configure_graphics_drivers() {
     echo ""
     
     local GRAPHICS_PACKAGES=("mesa")  # Base Mesa for all
+    local GPU_TYPE=""  # Track detected GPU for Xorg config
     
     # Detect and add specific drivers
     if echo "$gpu_info" | grep -qi "nvidia"; then
@@ -471,9 +472,18 @@ configure_graphics_drivers() {
         nvidia_choice=${nvidia_choice:-1}
         
         case $nvidia_choice in
-            1) GRAPHICS_PACKAGES+=("nvidia" "nvidia-utils") ;;
-            2) GRAPHICS_PACKAGES+=("nvidia-lts" "nvidia-utils") ;;
-            3) GRAPHICS_PACKAGES+=("xf86-video-nouveau") ;;
+            1) 
+                GRAPHICS_PACKAGES+=("nvidia" "nvidia-utils")
+                GPU_TYPE="nvidia"
+                ;;
+            2) 
+                GRAPHICS_PACKAGES+=("nvidia-lts" "nvidia-utils")
+                GPU_TYPE="nvidia"
+                ;;
+            3) 
+                GRAPHICS_PACKAGES+=("xf86-video-nouveau")
+                GPU_TYPE="nouveau"
+                ;;
         esac
         
         # Add 32-bit support for gaming/compatibility
@@ -487,19 +497,89 @@ configure_graphics_drivers() {
         print_info "AMD GPU detected - using open source drivers"
         GRAPHICS_PACKAGES+=("xf86-video-amdgpu" "vulkan-radeon" "lib32-vulkan-radeon")
         GRAPHICS_PACKAGES+=("lib32-mesa")
+        GPU_TYPE="amd"
     fi
     
     if echo "$gpu_info" | grep -qi "intel"; then
         print_info "Intel GPU detected - using open source drivers"
         GRAPHICS_PACKAGES+=("xf86-video-intel" "vulkan-intel" "lib32-vulkan-intel")
         GRAPHICS_PACKAGES+=("lib32-mesa")
+        GPU_TYPE="intel"
     fi
     
     # Install graphics packages
     print_info "Installing graphics drivers: ${GRAPHICS_PACKAGES[*]}"
     run_privileged "pacman -S --needed --noconfirm ${GRAPHICS_PACKAGES[*]}"
     
+    # Deploy Xorg configuration if GPU was detected
+    if [ -n "$GPU_TYPE" ]; then
+        deploy_xorg_config "$GPU_TYPE"
+    fi
+    
     print_success "Graphics drivers configured"
+}
+
+# Deploy Xorg configuration based on GPU type
+deploy_xorg_config() {
+    local gpu_type="$1"
+    
+    print_info "Deploying Xorg configuration for $gpu_type..."
+    
+    # Load config functions
+    local LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+    if [ -f "$LIB_DIR/config-functions.sh" ]; then
+        source "$LIB_DIR/config-functions.sh"
+    else
+        print_warning "config-functions.sh not found, using manual copy"
+    fi
+    
+    # Create Xorg config directory
+    mkdir -p /etc/X11/xorg.conf.d
+    
+    case "$gpu_type" in
+        "intel")
+            if command -v deploy_config_direct &>/dev/null; then
+                deploy_config_direct "xorg/20-intel.conf" "/etc/X11/xorg.conf.d/20-intel.conf" "644"
+            else
+                local config_file="$(dirname "$SCRIPT_DIR")/configs/xorg/20-intel.conf"
+                if [ -f "$config_file" ]; then
+                    cp "$config_file" /etc/X11/xorg.conf.d/20-intel.conf
+                    chmod 644 /etc/X11/xorg.conf.d/20-intel.conf
+                    print_success "Intel Xorg config deployed"
+                fi
+            fi
+            ;;
+        "amd")
+            if command -v deploy_config_direct &>/dev/null; then
+                deploy_config_direct "xorg/20-amdgpu.conf" "/etc/X11/xorg.conf.d/20-amdgpu.conf" "644"
+            else
+                local config_file="$(dirname "$SCRIPT_DIR")/configs/xorg/20-amdgpu.conf"
+                if [ -f "$config_file" ]; then
+                    cp "$config_file" /etc/X11/xorg.conf.d/20-amdgpu.conf
+                    chmod 644 /etc/X11/xorg.conf.d/20-amdgpu.conf
+                    print_success "AMD Xorg config deployed"
+                fi
+            fi
+            ;;
+        "nvidia")
+            if command -v deploy_config_direct &>/dev/null; then
+                deploy_config_direct "xorg/20-nvidia.conf" "/etc/X11/xorg.conf.d/20-nvidia.conf" "644"
+            else
+                local config_file="$(dirname "$SCRIPT_DIR")/configs/xorg/20-nvidia.conf"
+                if [ -f "$config_file" ]; then
+                    cp "$config_file" /etc/X11/xorg.conf.d/20-nvidia.conf
+                    chmod 644 /etc/X11/xorg.conf.d/20-nvidia.conf
+                    print_success "NVIDIA Xorg config deployed"
+                fi
+            fi
+            ;;
+        "nouveau")
+            print_info "Nouveau uses default Xorg configuration (no custom config needed)"
+            ;;
+        *)
+            print_warning "Unknown GPU type: $gpu_type (no Xorg config deployed)"
+            ;;
+    esac
 }
 
 # ============================================================================

@@ -547,6 +547,75 @@ configure_shell_environment "$username" "$shell_name"
 - **Ksh**: Compatible con Bash, funciones adicionales (extract, up)
 - **Dash**: No requiere config, solo variables de entorno del sistema
 
+### Xorg GPU Configurations (`configs/xorg/`)
+
+Configuraciones optimizadas de X11 para diferentes GPUs, desplegadas automáticamente según detección de hardware.
+
+#### Archivos Disponibles
+
+| Archivo | GPU | Destino | Driver | Características |
+|---------|-----|---------|--------|-----------------|
+| `20-intel.conf` | Intel | `/etc/X11/xorg.conf.d/20-intel.conf` | `intel` | TearFree, SNA acceleration, DRI3 |
+| `20-amdgpu.conf` | AMD | `/etc/X11/xorg.conf.d/20-amdgpu.conf` | `amdgpu` | TearFree, FreeSync, Glamor |
+| `20-nvidia.conf` | NVIDIA | `/etc/X11/xorg.conf.d/20-nvidia.conf` | `nvidia` | ForceCompositionPipeline, TripleBuffer |
+
+#### Características por GPU
+
+**Intel (`xf86-video-intel`)**:
+- ✅ TearFree habilitado (sin tearing)
+- ✅ Aceleración SNA (Sandy Bridge y newer)
+- ✅ DRI3 para mejor rendimiento
+- ✅ Triple buffering
+- ✅ Control de backlight integrado
+
+**AMD (`amdgpu`)**:
+- ✅ TearFree habilitado
+- ✅ Variable Refresh Rate (FreeSync/Adaptive Sync)
+- ✅ Glamor acceleration
+- ✅ Page flipping habilitado
+- ✅ Color tiling optimizado
+
+**NVIDIA (`nvidia` propietario)**:
+- ✅ ForceCompositionPipeline (anti-tearing)
+- ✅ ForceFullCompositionPipeline
+- ✅ Triple buffering
+- ✅ NoLogo (sin logo NVIDIA al iniciar)
+- 🔒 Coolbits comentado (overclock deshabilitado por seguridad)
+
+#### Deploy Automático
+
+Las configuraciones se despliegan automáticamente en `install/213-display-server.sh`:
+
+```bash
+# La función configure_graphics_drivers() detecta el hardware
+configure_graphics_drivers
+
+# Internamente llama a deploy_xorg_config() con el tipo de GPU
+deploy_xorg_config "intel"   # o "amd" o "nvidia"
+```
+
+#### Notas Importantes
+
+- **Nouveau**: No requiere configuración personalizada (usa defaults de Xorg)
+- **Múltiples GPUs**: Solo se instala config para la GPU principal detectada
+- **Modesetting**: Intel puede usar driver `modesetting` en lugar de `intel` (mejor en algunos casos)
+- **NVIDIA Optimus**: Requiere configuración adicional (bumblebee/optimus-manager, no incluido)
+
+#### Personalización
+
+Para modificar configuraciones:
+
+```bash
+# Editar config antes de deploy
+nano configs/xorg/20-intel.conf
+
+# O después de instalación
+sudo nano /etc/X11/xorg.conf.d/20-intel.conf
+
+# Reiniciar X para aplicar
+sudo systemctl restart lightdm  # o gdm, sddm
+```
+
 ## 📚 Referencias
 
 - [ArchWiki - sudo](https://wiki.archlinux.org/title/Sudo)
