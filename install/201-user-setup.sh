@@ -3,7 +3,7 @@
 # This script creates the desktop user and configures sudo/privileges
 # This script should be run after the first reboot, as root
 #
-# ⚠️ WARNING: EXPERIMENTAL SCRIPT
+# [WARNING] WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 
@@ -184,7 +184,7 @@ configure_sudo_family() {
     # Verify all sudoers files are valid
     print_info "Validating sudoers configuration..."
     if validate_sudoers "$user_sudoers_file" && visudo -c &>/dev/null; then
-        print_success "✓ $PRIV_TOOL configured with sudoers.d approach (modular configs)"
+        print_success "[OK] $PRIV_TOOL configured with sudoers.d approach (modular configs)"
         print_info "User-specific config: $user_sudoers_file"
         print_info "Global defaults: $sudo_config_file"
         print_info "Config templates: configs/sudo/"
@@ -192,7 +192,7 @@ configure_sudo_family() {
             print_info "Note: sudo configured as backup for maximum compatibility"
         fi
     else
-        print_error "✗ Sudoers configuration is invalid!"
+        print_error "[ERROR] Sudoers configuration is invalid!"
         print_info "Removing invalid configurations..."
         rm -f "$user_sudoers_file" "$sudo_config_file"
         return 1
@@ -224,9 +224,9 @@ configure_doas() {
     # Validate configuration syntax using doas built-in validator
     print_info "Validating doas configuration syntax..."
     if validate_doas "$doas_conf"; then
-        print_success "✓ doas configuration syntax is valid (modular config)"
+        print_success "[OK] doas configuration syntax is valid (modular config)"
     else
-        print_error "✗ doas configuration has syntax errors!"
+        print_error "[ERROR] doas configuration has syntax errors!"
         print_info "Showing configuration for debugging:"
         cat "$doas_conf"
         print_info "Removing invalid configuration..."
@@ -242,12 +242,12 @@ configure_doas() {
     
     print_success "OpenDoas configured successfully (modular config)"
     print_info "Configuration details:"
-    echo "  • File: $doas_conf"
-    echo "  • Template: configs/sudo/doas.conf.template"
-    echo "  • Permissions: root:root 0400 (strict)"
-    echo "  • Features: persist (5min), full environment, GUI app support"
-    echo "  • User '$USERNAME' can use: doas <command>"
-    echo "  • Compatibility: sudo wrapper created"
+    echo "  - File: $doas_conf"
+    echo "  - Template: configs/sudo/doas.conf.template"
+    echo "  - Permissions: root:root 0400 (strict)"
+    echo "  - Features: persist (5min), full environment, GUI app support"
+    echo "  - User '$USERNAME' can use: doas <command>"
+    echo "  - Compatibility: sudo wrapper created"
 }
 
 # Create sudo compatibility wrapper for programs that hard-code sudo
@@ -303,8 +303,8 @@ EOF
     chmod 755 "$sudo_wrapper" "$sudoedit_wrapper"
     
     print_success "Sudo compatibility wrappers created"
-    print_info "• $sudo_wrapper"
-    print_info "• $sudoedit_wrapper"
+    print_info "- $sudo_wrapper"
+    print_info "- $sudoedit_wrapper"
 }
 
 # Configure bash completion for doas
@@ -395,12 +395,12 @@ alias run0-user='run0 --user'    # Run as specific user
 # Information function
 run0-info() {
     echo "ALIE: Using systemd run0 for privilege escalation"
-    echo "• No SUID binaries (more secure)"
-    echo "• Integrated with systemd"
-    echo "• Usage: run0 <command>"
-    echo "• Shell: run0 --shell"
+    echo "- No SUID binaries (more secure)"
+    echo "- Integrated with systemd"
+    echo "- Usage: run0 <command>"
+    echo "- Shell: run0 --shell"
     if command -v run0 &>/dev/null; then
-        echo "• Version: $(systemctl --version | head -n1)"
+        echo "- Version: $(systemctl --version | head -n1)"
     fi
 }
 
@@ -423,12 +423,12 @@ EOF
     
     print_success "run0 configured successfully"
     print_info "Configuration details:"
-    echo "  • Tool: systemd run0 (v${systemd_version})"
-    echo "  • Security: No SUID binaries"
-    echo "  • Features: Integrated systemd privilege escalation"
-    echo "  • User '$USERNAME' can use: run0 <command>"
-    echo "  • Compatibility: sudo/sudoedit aliases created"
-    echo "  • Additional: sr, suedit shortcuts available"
+    echo "  - Tool: systemd run0 (v${systemd_version})"
+    echo "  - Security: No SUID binaries"
+    echo "  - Features: Integrated systemd privilege escalation"
+    echo "  - User '$USERNAME' can use: run0 <command>"
+    echo "  - Compatibility: sudo/sudoedit aliases created"
+    echo "  - Additional: sr, suedit shortcuts available"
 }
 
 # Enhanced user creation with better validation
@@ -456,9 +456,9 @@ create_desktop_user() {
         if ! [[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
             print_error "Invalid username: $USERNAME"
             print_info "Username requirements:"
-            echo "  • Must start with a lowercase letter or underscore"
-            echo "  • Can contain only lowercase letters, numbers, underscores, and hyphens"
-            echo "  • Maximum 32 characters"
+            echo "  - Must start with a lowercase letter or underscore"
+            echo "  - Can contain only lowercase letters, numbers, underscores, and hyphens"
+            echo "  - Maximum 32 characters"
             continue
         fi
         
@@ -563,6 +563,11 @@ configure_user_shell() {
     if command -v ksh >/dev/null 2>&1; then
         available_shells+=("/bin/ksh")
         shell_names+=("ksh")
+    fi
+    
+    if command -v nu >/dev/null 2>&1; then
+        available_shells+=("/usr/bin/nu")
+        shell_names+=("nushell")
     fi
     
     # If only bash is available, use it by default
@@ -733,6 +738,77 @@ EOF
                     print_warning "Using inline ksh configuration (config file not found)"
                 fi
                 chown "$username:$username" "$kshrc"
+            fi
+            ;;
+            
+        "nushell")
+            local nu_config_dir="$user_home/.config/nushell"
+            mkdir -p "$nu_config_dir"
+            
+            if [ ! -f "$nu_config_dir/config.nu" ]; then
+                if [ -f "$configs_dir/config.nu" ]; then
+                    cp "$configs_dir/config.nu" "$nu_config_dir/config.nu"
+                    print_success "Deployed nushell configuration from: configs/shell/config.nu"
+                else
+                    # Fallback to inline config
+                    cat > "$nu_config_dir/config.nu" << 'EOF'
+# ALIE Basic Nushell Configuration
+$env.config = {
+  show_banner: false
+  edit_mode: emacs
+  shell_integration: true
+  history: {
+    max_size: 10000
+    sync_on_enter: true
+    file_format: "plaintext"
+  }
+  completions: {
+    algorithm: "fuzzy"
+    case_sensitive: false
+    quick: true
+    partial: true
+    external: {
+      enable: true
+      max_results: 100
+      completer: null
+    }
+  }
+  filesize: {
+    metric: true
+    format: "auto"
+  }
+  table: {
+    mode: rounded
+    index_mode: always
+    show_empty: true
+    padding: { left: 1, right: 1 }
+    trim: {
+      methodology: wrapping
+      wrapping_try_keep_words: true
+      truncating_suffix: "..."
+    }
+    header_on_separator: false
+  }
+  prompt: "# "
+  menus: []
+}
+
+# Useful aliases
+alias ll = ls -l
+alias la = ls -a
+alias lla = ls -la
+alias .. = cd ..
+alias ... = cd ../..
+alias grep = grep --color=auto
+alias df = df -h
+alias free = free -h
+
+# Add local bin to PATH
+$env.PATH = ($env.PATH | split row (char esep) | prepend $"($env.HOME)/.local/bin")
+EOF
+                    print_warning "Using inline nushell configuration (config file not found)"
+                fi
+                chown -R "$username:$username" "$nu_config_dir"
             fi
             ;;
     esac
@@ -924,11 +1000,11 @@ show_alie_banner
 show_warning_banner
 
 print_info "This script will set up:"
-echo "  ✅ Desktop user account with proper groups"
-echo "  ✅ Privilege escalation (sudo/doas/sudo-rs)"
-echo "  ✅ Essential system tools for desktop use"
-echo "  ✅ User environment and directories"
-echo "  ✅ Basic system services"
+echo "  [OK] Desktop user account with proper groups"
+echo "  [OK] Privilege escalation (sudo/doas/sudo-rs)"
+echo "  [OK] Essential system tools for desktop use"
+echo "  [OK] User environment and directories"
+echo "  [OK] Basic system services"
 echo ""
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -973,11 +1049,11 @@ echo ""
 print_success "User setup completed!"
 echo ""
 print_info "Summary:"
-echo "  • User: ${CYAN}$USERNAME${NC}"
-echo "  • Privilege tool: ${CYAN}$PRIV_TOOL${NC}"
-echo "  • Groups: wheel, storage, optical, audio, video, network, input, power, lp"
-echo "  • Essential tools installed"
-echo "  • User environment configured"
+echo "  - User: ${CYAN}$USERNAME${NC}"
+echo "  - Privilege tool: ${CYAN}$PRIV_TOOL${NC}"
+echo "  - Groups: wheel, storage, optical, audio, video, network, input, power, lp"
+echo "  - Essential tools installed"
+echo "  - User environment configured"
 echo ""
 print_info "Next steps:"
 echo "  ${CYAN}1.${NC} Install desktop environment: ${YELLOW}bash install/221-desktop-install.sh${NC}"

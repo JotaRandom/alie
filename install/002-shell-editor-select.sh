@@ -61,6 +61,7 @@ echo "  2) fish - Friendly Interactive SHell (user-friendly, modern)"
 echo "  3) dash - Debian Almquist SHell (lightweight, POSIX)"
 echo "  4) tcsh - TENEX C Shell (C-like syntax)"
 echo "  5) ksh - Korn Shell (compatible with sh)"
+echo "  6) nushell - Modern shell written in Rust (structured data)"
 echo ""
 echo "  0) None - stick with bash only"
 echo ""
@@ -89,6 +90,10 @@ if [ "${#shell_choices[@]}" -gt 0 ] && [ "${shell_choices[0]}" != "0" ]; then
             5)
                 SELECTED_SHELLS+=("ksh")
                 print_success "Added: ksh"
+                ;;
+            6)
+                SELECTED_SHELLS+=("nushell")
+                print_success "Added: nushell"
                 ;;
             *)
                 print_warning "Invalid choice: $choice (skipped)"
