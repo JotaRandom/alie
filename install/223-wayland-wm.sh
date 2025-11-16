@@ -270,6 +270,42 @@ install_labwc() {
 }
 
 ################################################################################
+# WLMAKER WINDOW MANAGER
+################################################################################
+
+install_wlmaker() {
+    log_section "Installing Wlmaker Window Manager"
+
+    local packages=(
+        wlmaker
+        waybar
+        wofi
+        mako
+        swaybg
+        swaylock
+        grim
+        slurp
+        wl-clipboard
+
+        # Display manager (optional)
+        greetd
+        greetd-wlgreet
+    )
+
+    # wlmaker is in AUR, so we need to use aur_install
+    aur_install "${packages[@]}"
+    install_wayland_wm_essentials
+
+    log_info "Creating default Wlmaker configuration..."
+    log_warning "User should customize ~/.wlmaker/"
+
+    configure_greetd
+
+    log_success "Wlmaker Window Manager installed"
+    log_info "Start with: wlmaker (or enable greetd and reboot)"
+}
+
+################################################################################
 # DISPLAY MANAGER CONFIGURATION
 ################################################################################
 
@@ -312,6 +348,7 @@ show_wayland_wm_menu() {
     echo ""
     echo "FLOATING (traditional window behavior):"
     echo "  5) labwc            - Wayland Openbox"
+    echo "  6) wlmaker          - Window Maker for Wayland"
     echo ""
     echo "  0) Exit"
     echo ""
@@ -368,6 +405,11 @@ main() {
                 ;;
             5)
                 install_labwc
+                enable_wayland_wm_services
+                break
+                ;;
+            6)
+                install_wlmaker
                 enable_wayland_wm_services
                 break
                 ;;
