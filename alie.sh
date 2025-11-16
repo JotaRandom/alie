@@ -119,15 +119,27 @@ show_manual_menu() {
     echo "     ${YELLOW}->${NC} Choose: Desktop Environment / Window Manager / Skip"
     echo "     ${YELLOW}->${NC} Requires: Display server installed, root privileges"
     echo ""
-    echo "  ${CYAN}A)${NC} Desktop Tools (231-desktop-tools.sh)"
+    echo "  ${CYAN}A)${NC} Desktop Environment (221-desktop-environment.sh)"
+    echo "     ${YELLOW}->${NC} Install Desktop Environments (Cinnamon/GNOME/KDE/XFCE4)"
+    echo "     ${YELLOW}->${NC} Requires: Desktop selection made, root privileges"
+    echo ""
+    echo "  ${CYAN}B)${NC} X11 Window Manager (222-window-manager.sh)"
+    echo "     ${YELLOW}->${NC} Install X11 Window Managers (i3/bspwm/Openbox/Awesome/Qtile/Xmonad/dwm)"
+    echo "     ${YELLOW}->${NC} Requires: Desktop selection made, root privileges"
+    echo ""
+    echo "  ${CYAN}C)${NC} Wayland Window Manager (223-wayland-wm.sh)"
+    echo "     ${YELLOW}->${NC} Install Wayland Window Managers (Sway/Hyprland/River/Niri/Labwc)"
+    echo "     ${YELLOW}->${NC} Requires: Desktop selection made, Wayland installed, root privileges"
+    echo ""
+    echo "  ${CYAN}D)${NC} Desktop Tools (231-desktop-tools.sh)"
     echo "     ${YELLOW}->${NC} Install apps: LibreOffice, GIMP, Firefox, etc."
     echo "     ${YELLOW}->${NC} Requires: DE/WM installed, root privileges"
     echo ""
-    echo "  ${CYAN}C)${NC} Clear progress and exit"
+    echo "  ${CYAN}X)${NC} Clear progress and exit"
     echo "  ${CYAN}0)${NC} Exit without changes"
     echo ""
     
-    read -r -p "Choose script to run [1-9, A, C, 0]: " choice
+    read -r -p "Choose script to run [1-9, A-D, X, 0]: " choice
     
     case "$choice" in
         1) RUN_SCRIPT="$INSTALL_DIR/001-base-install.sh"; NEEDS_ROOT=true ;;
@@ -139,8 +151,11 @@ show_manual_menu() {
         7) RUN_SCRIPT="$INSTALL_DIR/212-cli-tools.sh"; NEEDS_ROOT=false ;;
         8) RUN_SCRIPT="$INSTALL_DIR/213-display-server.sh"; NEEDS_ROOT=true ;;
         9) RUN_SCRIPT="$INSTALL_DIR/220-desktop-select.sh"; NEEDS_ROOT=true ;;
-        [Aa]) RUN_SCRIPT="$INSTALL_DIR/231-desktop-tools.sh"; NEEDS_ROOT=true ;;
-        [Cc])
+        [Aa]) RUN_SCRIPT="$INSTALL_DIR/221-desktop-environment.sh"; NEEDS_ROOT=true ;;
+        [Bb]) RUN_SCRIPT="$INSTALL_DIR/222-window-manager.sh"; NEEDS_ROOT=true ;;
+        [Cc]) RUN_SCRIPT="$INSTALL_DIR/223-wayland-wm.sh"; NEEDS_ROOT=true ;;
+        [Dd]) RUN_SCRIPT="$INSTALL_DIR/231-desktop-tools.sh"; NEEDS_ROOT=true ;;
+        [Xx])
             print_warning "This will clear all progress markers"
             read -r -p "Are you sure? (yes/no): " confirm
             if [ "${confirm:-}" = "yes" ]; then

@@ -83,7 +83,8 @@ Manually select which installation step to execute.
 │   ├── 213-display-server.sh   # Graphics server choice (Xorg/Wayland) (root only)
 │   ├── 220-desktop-select.sh   # Choose DE/WM or skip (root only)
 │   ├── 221-desktop-environment.sh # Desktop environments (Cinnamon/GNOME/KDE/XFCE4) (root only)
-│   ├── 222-window-manager.sh   # Window managers (i3/bspwm/Openbox/etc.) (root only)
+│   ├── 222-window-manager.sh   # X11 Window managers (i3/bspwm/Openbox/etc.) (root only)
+│   ├── 223-wayland-wm.sh       # Wayland Window managers (Sway/Hyprland/etc.) (root only)
 │   └── 231-desktop-tools.sh    # Additional applications and tools (root only)
 ├── lib/                        # Shared functions and utilities
 │   ├── shared-functions.sh     # Common functions for all scripts
@@ -166,12 +167,9 @@ See the Semantic Numbering System section above for details.
 - KDE Plasma (Normal/Full/Complete)
 - XFCE4
 
-**Window Managers** (222):
-- i3 / i3-gaps (tiling)
-- bspwm (tiling)
-- Openbox (floating)
-- Awesome (dynamic tiling)
-- dwm (suckless minimal)
+**Window Managers** (222/223):
+- **X11 Window Managers** (222): i3/i3-gaps, bspwm, Openbox, Awesome, Qtile, Xmonad, dwm
+- **Wayland Window Managers** (223): Sway, Hyprland, River, Niri, Labwc
 
 **Or Skip** - Continue without GUI
 
@@ -217,8 +215,9 @@ ALIE supports multiple shell environments with full configuration:
 | 8 | `213-display-server.sh` | Installed | root | **Interactive** graphics server choice |
 | 9 | `220-desktop-select.sh` | Installed | root | **Interactive** Choose DE/WM or skip |
 | 10 | `221-desktop-environment.sh` | Installed | root | **Interactive** Desktop Environments (Cinnamon/GNOME/KDE/XFCE4) |
-| 11 | `222-window-manager.sh` | Installed | root | **Interactive** Window Managers (i3/bspwm/Openbox/Awesome/dwm) |
-| 12 | `231-desktop-tools.sh` | Installed | root | Desktop applications (LibreOffice, GIMP, etc.) |
+| 11 | `222-window-manager.sh` | Installed | root | **Interactive** X11 Window Managers (i3/bspwm/Openbox/Awesome/Qtile/Xmonad/dwm) |
+| 12 | `223-wayland-wm.sh` | Installed | root | **Interactive** Wayland Window Managers (Sway/Hyprland/River/Niri/Labwc) |
+| 13 | `231-desktop-tools.sh` | Installed | root | Desktop applications (LibreOffice, GIMP, etc.) |
 
 ---
 
