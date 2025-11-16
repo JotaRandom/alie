@@ -9,6 +9,7 @@
 #   - river: Wayland WM with Zig
 #   - niri: Scrollable tiling Wayland WM
 #   - labwc: Wayland Openbox
+#   - wlmaker: Wayland compositor inspired by Window Maker (complete DE)
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
@@ -120,6 +121,13 @@ install_sway() {
     install_wayland_wm_essentials
 
     log_info "Creating default Sway configuration..."
+    if [[ ! -d ~/.config/sway ]]; then
+        mkdir -p ~/.config/sway
+        cp /etc/sway/config ~/.config/sway/
+        log_success "Copied default Sway config to ~/.config/sway/config"
+    else
+        log_info "Sway config directory already exists"
+    fi
     log_warning "User should customize ~/.config/sway/config"
 
     configure_greetd
@@ -156,6 +164,15 @@ install_hyprland() {
     install_wayland_wm_essentials
 
     log_info "Creating default Hyprland configuration..."
+    if [[ ! -d ~/.config/hypr ]]; then
+        mkdir -p ~/.config/hypr
+        # Hyprland creates a default config when first run, but we can copy an example
+        cp /usr/share/hyprland/hyprland.conf ~/.config/hypr/ 2>/dev/null || \
+        log_info "Hyprland will create default config on first run"
+        log_success "Hyprland config directory created at ~/.config/hypr/"
+    else
+        log_info "Hyprland config directory already exists"
+    fi
     log_warning "User should customize ~/.config/hypr/hyprland.conf"
 
     configure_greetd
@@ -191,6 +208,14 @@ install_river() {
     install_wayland_wm_essentials
 
     log_info "Creating default River configuration..."
+    if [[ ! -d ~/.config/river ]]; then
+        mkdir -p ~/.config/river
+        cp /usr/share/river/init ~/.config/river/ 2>/dev/null || \
+        log_info "River will create default config on first run"
+        log_success "River config directory created at ~/.config/river/"
+    else
+        log_info "River config directory already exists"
+    fi
     log_warning "User should customize ~/.config/river/init"
 
     configure_greetd
@@ -226,6 +251,14 @@ install_niri() {
     install_wayland_wm_essentials
 
     log_info "Creating default Niri configuration..."
+    if [[ ! -d ~/.config/niri ]]; then
+        mkdir -p ~/.config/niri
+        niri --generate-config > ~/.config/niri/config.kdl 2>/dev/null || \
+        log_info "Niri will create default config on first run"
+        log_success "Niri config directory created at ~/.config/niri/"
+    else
+        log_info "Niri config directory already exists"
+    fi
     log_warning "User should customize ~/.config/niri/config.kdl"
 
     configure_greetd
@@ -261,6 +294,14 @@ install_labwc() {
     install_wayland_wm_essentials
 
     log_info "Creating default Labwc configuration..."
+    if [[ ! -d ~/.config/labwc ]]; then
+        mkdir -p ~/.config/labwc
+        cp -r /etc/xdg/labwc/* ~/.config/labwc/ 2>/dev/null || \
+        log_info "Labwc will create default config on first run"
+        log_success "Labwc config directory created at ~/.config/labwc/"
+    else
+        log_info "Labwc config directory already exists"
+    fi
     log_warning "User should customize ~/.config/labwc/"
 
     configure_greetd
@@ -274,18 +315,19 @@ install_labwc() {
 ################################################################################
 
 install_wlmaker() {
-    log_section "Installing Wlmaker Window Manager"
+    log_section "Installing Wlmaker (Wayland Compositor)"
 
+    # wlmaker is a complete Wayland compositor inspired by Window Maker
+    # It includes dock, clip, root menu, and workspace management built-in
     local packages=(
         wlmaker
-        waybar
-        wofi
-        mako
-        swaybg
-        swaylock
-        grim
-        slurp
-        wl-clipboard
+        wlroots
+        cairo
+        ncurses
+        xorg-xwayland  # Optional, for X11 app support
+
+        # Required for standalone execution
+        seatd
 
         # Display manager (optional)
         greetd
@@ -294,15 +336,32 @@ install_wlmaker() {
 
     # wlmaker is in AUR, so we need to use aur_install
     aur_install "${packages[@]}"
-    install_wayland_wm_essentials
+
+    # Install only minimal essential tools (wlmaker has most features built-in)
+    local essential_packages=(
+        alacritty      # Terminal emulator
+        grim           # Screenshot tool
+        slurp          # Screen region selector
+        wl-clipboard   # Clipboard manager
+        pcmanfm-qt     # Lightweight Qt file manager (LXQt)
+        gvfs gvfs-mtp  # File system support
+        l3afpad        # Simple text editor (very lightweight)
+        imv            # Image viewer
+        file-roller    # Archive manager
+        htop           # System monitor
+    )
+
+    install_package "${essential_packages[@]}"
 
     log_info "Creating default Wlmaker configuration..."
-    log_warning "User should customize ~/.wlmaker/"
+    log_info "Configuration files will be created in ~/.wlmaker/"
+    log_warning "User should customize ~/.wlmaker/ configuration files"
 
     configure_greetd
 
-    log_success "Wlmaker Window Manager installed"
+    log_success "Wlmaker (Wayland Compositor) installed"
     log_info "Start with: wlmaker (or enable greetd and reboot)"
+    log_info "Note: wlmaker includes dock, workspaces, and menu built-in"
 }
 
 ################################################################################
@@ -348,19 +407,21 @@ show_wayland_wm_menu() {
     echo ""
     echo "FLOATING (traditional window behavior):"
     echo "  5) labwc            - Wayland Openbox"
-    echo "  6) wlmaker          - Window Maker for Wayland"
+    echo "  6) wlmaker          - Wayland compositor (Window Maker style)"
     echo ""
     echo "  0) Exit"
     echo ""
     echo "============================================"
     echo ""
-    echo "Note: All options include essential tools:"
+    echo "Note: Most options include essential tools:"
     echo "  - Terminal: Alacritty"
-    echo "  - Launcher: wofi"
-    echo "  - Bar: waybar"
+    echo "  - Launcher: wofi (except wlmaker - has built-in menu)"
+    echo "  - Bar: waybar (except wlmaker - has built-in dock)"
     echo "  - Compositor: Built-in"
-    echo "  - File Manager: Dolphin"
+    echo "  - File Manager: PCManFM-Qt (ultra-lightweight)"
+    echo "  - Text Editor: L3afpad (minimalist)"
     echo ""
+    echo "wlmaker is a complete compositor with dock/menu built-in"
     echo "Requirements: Wayland must be installed"
     echo ""
 }
@@ -431,8 +492,9 @@ main() {
     log_info "  2. Or start manually: systemctl start greetd"
     log_info ""
     log_info "Configuration:"
-    log_info "  - WM configs are in: ~/.config/<wm-name>/"
-    log_info "  - Create/customize your dotfiles"
+    log_info "  - Default configs copied to: ~/.config/<wm-name>/"
+    log_info "  - Wlmaker configs in: ~/.wlmaker/"
+    log_info "  - Customize your configuration files as needed"
     log_info "  - Install additional apps: run 231-desktop-tools.sh"
     log_info ""
     log_warning "Wayland Window Managers require manual configuration!"

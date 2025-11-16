@@ -99,7 +99,7 @@ install_wm_essentials() {
         gvfs gvfs-mtp
         
         # Text editor
-        mousepad
+        l3afpad
         
         # Image viewer
         feh
@@ -142,9 +142,16 @@ install_i3() {
     install_package "${packages[@]}"
     install_wm_essentials
     
-    # Create basic i3 config
+    # Create basic i3 config from default
     log_info "Creating default i3 configuration..."
-    log_warning "User must run 'i3-config-wizard' on first login"
+    if [[ ! -d ~/.config/i3 ]]; then
+        mkdir -p ~/.config/i3
+        cp /etc/i3/config ~/.config/i3/config
+        log_success "Copied default i3 config to ~/.config/i3/config"
+    else
+        log_info "i3 config directory already exists"
+    fi
+    log_warning "User can run 'i3-config-wizard' to generate a new config"
     
     configure_lightdm_wm
     
@@ -171,7 +178,14 @@ install_i3_gaps() {
     install_wm_essentials
     
     log_info "Creating default i3-gaps configuration..."
-    log_warning "User must run 'i3-config-wizard' on first login"
+    if [[ ! -d ~/.config/i3 ]]; then
+        mkdir -p ~/.config/i3
+        cp /etc/i3/config ~/.config/i3/config
+        log_success "Copied default i3 config to ~/.config/i3/config"
+    else
+        log_info "i3 config directory already exists"
+    fi
+    log_warning "User can run 'i3-config-wizard' to generate a new config"
     
     configure_lightdm_wm
     
@@ -200,8 +214,16 @@ install_bspwm() {
     install_wm_essentials
     
     log_info "Creating default bspwm configuration..."
-    log_warning "User must configure ~/.config/bspwm/bspwmrc"
-    log_warning "User must configure ~/.config/sxhkd/sxhkdrc"
+    if [[ ! -d ~/.config/bspwm ]]; then
+        mkdir -p ~/.config/bspwm ~/.config/sxhkd
+        cp /usr/share/doc/bspwm/examples/bspwmrc ~/.config/bspwm/
+        cp /usr/share/doc/bspwm/examples/sxhkdrc ~/.config/sxhkd/
+        chmod +x ~/.config/bspwm/bspwmrc
+        log_success "Copied default bspwm configs to ~/.config/bspwm/ and ~/.config/sxhkd/"
+    else
+        log_info "bspwm config directory already exists"
+    fi
+    log_warning "User should customize ~/.config/bspwm/bspwmrc and ~/.config/sxhkd/sxhkdrc"
     
     configure_lightdm_wm
     
@@ -232,7 +254,14 @@ install_openbox() {
     install_wm_essentials
     
     log_info "Creating default Openbox configuration..."
-    log_warning "User should copy configs: cp -r /etc/xdg/openbox ~/.config/"
+    if [[ ! -d ~/.config/openbox ]]; then
+        mkdir -p ~/.config/openbox
+        cp -r /etc/xdg/openbox/* ~/.config/openbox/
+        log_success "Copied default Openbox configs to ~/.config/openbox/"
+    else
+        log_info "Openbox config directory already exists"
+    fi
+    log_warning "User can use obconf GUI or edit ~/.config/openbox/rc.xml"
     
     configure_lightdm_wm
     
@@ -261,6 +290,13 @@ install_awesome() {
     install_wm_essentials
     
     log_info "Creating default Awesome configuration..."
+    if [[ ! -d ~/.config/awesome ]]; then
+        mkdir -p ~/.config/awesome
+        cp /etc/xdg/awesome/rc.lua ~/.config/awesome/
+        log_success "Copied default Awesome config to ~/.config/awesome/rc.lua"
+    else
+        log_info "Awesome config directory already exists"
+    fi
     log_warning "User should customize ~/.config/awesome/rc.lua"
     
     configure_lightdm_wm
@@ -359,6 +395,13 @@ install_qtile() {
     install_wm_essentials
     
     log_info "Creating default Qtile configuration..."
+    if [[ ! -d ~/.config/qtile ]]; then
+        mkdir -p ~/.config/qtile
+        cp /usr/share/qtile/config.py ~/.config/qtile/
+        log_success "Copied default Qtile config to ~/.config/qtile/config.py"
+    else
+        log_info "Qtile config directory already exists"
+    fi
     log_warning "User should customize ~/.config/qtile/config.py"
     
     configure_lightdm_wm
@@ -391,6 +434,13 @@ install_xmonad() {
     install_wm_essentials
     
     log_info "Creating default Xmonad configuration..."
+    if [[ ! -d ~/.xmonad ]]; then
+        mkdir -p ~/.xmonad
+        cp /etc/xmonad/xmonad.hs ~/.xmonad/
+        log_success "Copied default Xmonad config to ~/.xmonad/xmonad.hs"
+    else
+        log_info "Xmonad config directory already exists"
+    fi
     log_warning "User should customize ~/.xmonad/xmonad.hs"
     
     configure_lightdm_wm
@@ -461,6 +511,7 @@ show_wm_menu() {
     echo "  - Bar: Polybar"
     echo "  - Compositor: Picom"
     echo "  - File Manager: PCManFM"
+    echo "  - Text Editor: L3afpad"
     echo ""
     echo "For Wayland window managers, run: bash install/223-wayland-wm.sh"
     echo ""
@@ -543,8 +594,8 @@ main() {
     log_info "  3. Or use startx (create ~/.xinitrc first)"
     log_info ""
     log_info "Configuration:"
-    log_info "  - WM configs are in: ~/.config/<wm-name>/"
-    log_info "  - Create/customize your dotfiles"
+    log_info "  - Default configs copied to: ~/.config/<wm-name>/"
+    log_info "  - Customize your configuration files as needed"
     log_info "  - Install additional apps: run 231-desktop-tools.sh"
     log_info ""
     log_warning "Window Managers require manual configuration!"

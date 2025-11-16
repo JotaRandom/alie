@@ -169,7 +169,7 @@ See the Semantic Numbering System section above for details.
 
 **Window Managers** (222/223):
 - **X11 Window Managers** (222): i3/i3-gaps, bspwm, Openbox, Awesome, Qtile, Xmonad, dwm
-- **Wayland Window Managers** (223): Sway, Hyprland, River, Niri, Labwc, Wlmaker
+- **Wayland Window Managers** (223): Sway, Hyprland, River, Niri, Labwc, Wlmaker (compositor)
 
 **Or Skip** - Continue without GUI
 
@@ -216,7 +216,7 @@ ALIE supports multiple shell environments with full configuration:
 | 9 | `220-desktop-select.sh` | Installed | root | **Interactive** Choose DE/WM or skip |
 | 10 | `221-desktop-environment.sh` | Installed | root | **Interactive** Desktop Environments (Cinnamon/GNOME/KDE/XFCE4) |
 | 11 | `222-window-manager.sh` | Installed | root | **Interactive** X11 Window Managers (i3/bspwm/Openbox/Awesome/Qtile/Xmonad/dwm) |
-| 12 | `223-wayland-wm.sh` | Installed | root | **Interactive** Wayland Window Managers (Sway/Hyprland/River/Niri/Labwc/Wlmaker) |
+| 12 | `223-wayland-wm.sh` | Installed | root | **Interactive** Wayland Window Managers (Sway/Hyprland/River/Niri/Labwc) + Wlmaker compositor |
 | 13 | `231-desktop-tools.sh` | Installed | root | Desktop applications (LibreOffice, GIMP, etc.) |
 
 ---
