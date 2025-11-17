@@ -337,9 +337,9 @@ case "$PART_CHOICE" in
         RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
         SUGGESTED_SWAP=$((RAM_GB + 2))
         
-        # For systems with >64GB RAM, cap swap at 32GB (modern recommendation)
+        # For systems with >64GB RAM, cap swap at 5GB (as requested)
         if [ "$RAM_GB" -gt 64 ]; then
-            SUGGESTED_SWAP=32
+            SUGGESTED_SWAP=5
         fi
         
         echo ""
@@ -347,7 +347,7 @@ case "$PART_CHOICE" in
         echo "  - RAM detected: ${RAM_GB}GB"
         echo "  - Suggested swap: ${SUGGESTED_SWAP}GB"
         echo "  - For hibernation: Add RAM size to swap"
-        echo "  - Minimum: 2GB, Maximum: 32GB (for modern systems)"
+        echo "  - Minimum: 128MB, Maximum: 5.125GB (for modern systems)"
         echo ""
         read -r -p "Swap size in GB (suggested: ${SUGGESTED_SWAP}GB): " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-$SUGGESTED_SWAP}
@@ -359,17 +359,17 @@ case "$PART_CHOICE" in
             exit 1
         fi
         
-        if [ "$SWAP_SIZE" -lt 2 ]; then
-            print_warning "Swap size ${SWAP_SIZE}GB is below recommended minimum of 2GB"
+        if [ "$SWAP_SIZE" -lt 1 ]; then
+            print_warning "Swap size ${SWAP_SIZE}GB is below recommended minimum of 128MB"
             read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_SWAP
             if [[ ! $CONFIRM_SMALL_SWAP =~ ^[Yy]$ ]]; then
                 exit 1
             fi
         fi
         
-        if [ "$SWAP_SIZE" -gt 64 ]; then
-            print_warning "Swap size of ${SWAP_SIZE}GB is unusually large"
-            print_info "Modern systems rarely need more than 32GB swap"
+        if [ "$SWAP_SIZE" -gt 5 ]; then
+            print_warning "Swap size of ${SWAP_SIZE}GB exceeds recommended maximum of 5.125GB"
+            print_info "Modern systems rarely need more than 5.125GB swap"
             read -r -p "Continue anyway? (y/N): " CONFIRM_LARGE_SWAP
             if [[ ! $CONFIRM_LARGE_SWAP =~ ^[Yy]$ ]]; then
                 exit 1
@@ -527,11 +527,31 @@ case "$PART_CHOICE" in
                 
                 # Check remaining space for /home
                 HOME_SIZE=$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))
+                if [ "$HOME_SIZE" -lt 8 ]; then
+                    print_warning "Home partition size ${HOME_SIZE}GB is smaller than a DVD (4.7GB)"
+                    print_info "This may be insufficient for user data, applications, and backups"
+                    read -r -p "Do you REALLY want such a small /home partition? (y/N): " CONFIRM_TINY_HOME
+                    if [[ ! $CONFIRM_TINY_HOME =~ ^[Yy]$ ]]; then
+                        exit 1
+                    fi
+                fi
                 if [ "$HOME_SIZE" -lt 10 ]; then
                     print_warning "Only ${HOME_SIZE}GB left for /home after root partition"
                     print_info "Consider smaller root partition or single partition layout"
                     read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_HOME
                     if [[ ! $CONFIRM_SMALL_HOME =~ ^[Yy]$ ]]; then
+                        exit 1
+                    fi
+                fi
+                
+                # Check for unused disk space
+                USED_SPACE=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + HOME_SIZE))
+                REMAINING_SPACE=$((DISK_SIZE_GB - USED_SPACE))
+                if [ "$REMAINING_SPACE" -gt 0 ]; then
+                    print_info "After partitioning, ${REMAINING_SPACE}GB will remain unallocated on the disk"
+                    print_info "This space can be used later for additional partitions or left as free space"
+                    read -r -p "Continue with unallocated space remaining? (y/N): " CONFIRM_UNUSED_SPACE
+                    if [[ ! $CONFIRM_UNUSED_SPACE =~ ^[Yy]$ ]]; then
                         exit 1
                     fi
                 fi
@@ -550,18 +570,24 @@ case "$PART_CHOICE" in
         echo "  Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         echo "  Boot mode: $BOOT_MODE"
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            echo "  EFI partition: 512MB (FAT32)"
+            echo "  EFI partition: 512MB (FAT32, ESP)"
         fi
         echo "  Swap partition: ${SWAP_SIZE}GB (Linux swap)"
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
             echo "  Root partition: remaining space ($ROOT_FS with @, @home, @var, @tmp, @.snapshots subvolumes)"
             echo "  Layout: / on @ subvolume, /home on @home subvolume, /var on @var, /tmp on @tmp, snapshots on @.snapshots"
+            echo "  Filesystem options: $MOUNT_OPTS"
+            echo "  Btrfs features: compression (zstd:3), checksums, copy-on-write, subvolumes"
         elif [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
             echo "  Root partition: ${ROOT_SIZE}GB ($ROOT_FS)"
-            echo "  Home partition: remaining space ($ROOT_FS)"
+            echo "  Home partition: ${HOME_SIZE}GB ($ROOT_FS)"
+            echo "  Filesystem options: $MOUNT_OPTS"
         else
             echo "  Root partition: remaining space ($ROOT_FS)"
+            echo "  Filesystem options: $MOUNT_OPTS"
         fi
+        echo "  Partition table: ${PARTITION_TABLE:-GPT}"
+        echo "  Boot configuration: $BOOT_MODE ${PARTITION_TABLE:-GPT}"
         echo ""
         print_warning "[WARNING] This will ERASE ALL DATA on $DISK_PATH!"
         read -r -p "Final confirmation - proceed with partitioning? (yes/no): " FINAL_CONFIRM
