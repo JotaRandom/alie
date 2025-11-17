@@ -469,11 +469,26 @@ case "$PART_CHOICE" in
                 echo "  - Disk size: ${DISK_SIZE_GB}GB"
                 echo "  - Reserved for EFI/swap: ${RESERVED_SPACE}GB"
                 echo "  - Available for root: ${AVAILABLE_FOR_ROOT}GB"
-                echo "  - Recommended root size: 30-50GB (includes /usr, /var, /opt)"
-                echo "  - Minimum: 25GB for basic installation"
+                
+                # Calculate suggested root size based on disk size (128GB for 512GB disk ratio)
+                SUGGESTED_ROOT=$((DISK_SIZE_GB * 128 / 512))
+                if [ "$SUGGESTED_ROOT" -lt 64 ]; then
+                    SUGGESTED_ROOT=64
+                fi
+                if [ "$SUGGESTED_ROOT" -gt "$AVAILABLE_FOR_ROOT" ]; then
+                    SUGGESTED_ROOT="$AVAILABLE_FOR_ROOT"
+                fi
+                
+                echo "  - Recommended root size: ${SUGGESTED_ROOT}GB (proportional to ${DISK_SIZE_GB}GB disk)"
+                echo "  - Minimum: 64GB for reliable system operation"
                 echo ""
                 
-                read -r -p "Size for / (root) in GB (recommended: 40GB): " ROOT_SIZE
+                read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
+                
+                if [ -z "$ROOT_SIZE" ]; then
+                    ROOT_SIZE="$SUGGESTED_ROOT"
+                    print_info "Using recommended size: ${ROOT_SIZE}GB"
+                fi
                 
                 if [ -z "$ROOT_SIZE" ]; then
                     print_error "Root size is required when creating separate /home"
@@ -488,9 +503,9 @@ case "$PART_CHOICE" in
                 fi
                 
                 # Check minimum size
-                if [ "$ROOT_SIZE" -lt 25 ]; then
+                if [ "$ROOT_SIZE" -lt 64 ]; then
                     print_error "Root partition too small: ${ROOT_SIZE}GB"
-                    print_info "Minimum recommended size is 25GB for ALIE with basic desktop"
+                    print_info "Minimum recommended size is 64GB for ALIE with separate /home"
                     exit 1
                 fi
                 
@@ -501,9 +516,9 @@ case "$PART_CHOICE" in
                 fi
                 
                 # Warn about small root
-                if [ "$ROOT_SIZE" -lt 30 ]; then
-                    print_warning "Root size ${ROOT_SIZE}GB is below recommended 30GB minimum"
-                    print_info "You may run out of space during package installation"
+                if [ "$ROOT_SIZE" -lt "$SUGGESTED_ROOT" ]; then
+                    print_warning "Root size ${ROOT_SIZE}GB is below recommended ${SUGGESTED_ROOT}GB for ${DISK_SIZE_GB}GB disk"
+                    print_info "You may run out of space during package installation or system updates"
                     read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_ROOT
                     if [[ ! $CONFIRM_SMALL_ROOT =~ ^[Yy]$ ]]; then
                         exit 1
@@ -539,8 +554,8 @@ case "$PART_CHOICE" in
         fi
         echo "  Swap partition: ${SWAP_SIZE}GB (Linux swap)"
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            echo "  Root partition: remaining space ($ROOT_FS with @ and @home subvolumes)"
-            echo "  Layout: / on @ subvolume, /home on @home subvolume"
+            echo "  Root partition: remaining space ($ROOT_FS with @, @home, @var, @tmp, @.snapshots subvolumes)"
+            echo "  Layout: / on @ subvolume, /home on @home subvolume, /var on @var, /tmp on @tmp, snapshots on @.snapshots"
         elif [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
             echo "  Root partition: ${ROOT_SIZE}GB ($ROOT_FS)"
             echo "  Home partition: remaining space ($ROOT_FS)"
@@ -568,11 +583,11 @@ case "$PART_CHOICE" in
         # Validate total space requirements before partitioning
         EFI_SIZE=1  # 1GB for EFI
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 25))  # Minimum 25GB for root with subvolumes
+            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 64))  # Minimum 64GB for root with subvolumes
         elif [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
             TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + 10))  # +10GB minimum for /home
         else
-            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 25))  # Minimum 25GB for single partition
+            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 64))  # Minimum 64GB for single partition
         fi
         
         if [ "$TOTAL_RESERVED" -gt "$DISK_SIZE_GB" ]; then
@@ -785,11 +800,17 @@ case "$PART_CHOICE" in
                     btrfs subvolume create /tmp/btrfs-mount/@
                     # Create home subvolume  
                     btrfs subvolume create /tmp/btrfs-mount/@home
+                    # Create var subvolume
+                    btrfs subvolume create /tmp/btrfs-mount/@var
+                    # Create tmp subvolume
+                    btrfs subvolume create /tmp/btrfs-mount/@tmp
+                    # Create snapshots subvolume
+                    btrfs subvolume create /tmp/btrfs-mount/@.snapshots
                     
                     # Unmount
                     umount /tmp/btrfs-mount
                     rmdir /tmp/btrfs-mount
-                    print_success "Btrfs subvolumes created (@ and @home)"
+                    print_success "Btrfs subvolumes created (@, @home, @var, @tmp, @.snapshots)"
                 fi
                 ;;
             xfs)
@@ -1143,12 +1164,38 @@ esac
 if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
     print_info "Mounting Btrfs root subvolume (@) with options: $MOUNT_OPTS"
     mount -o "$MOUNT_OPTS,subvol=@" "$ROOT_PARTITION" /mnt
+    MOUNTED_PARTITIONS+=("/mnt")
+    print_success "Root partition mounted"
+    
+    # Mount additional Btrfs subvolumes
+    print_info "Mounting additional Btrfs subvolumes..."
+    
+    # Create directories
+    mkdir -p /mnt/home /mnt/var /mnt/tmp /mnt/.snapshots
+    
+    # Mount @home
+    mount -o "$MOUNT_OPTS,subvol=@home" "$ROOT_PARTITION" /mnt/home
+    MOUNTED_PARTITIONS+=("/mnt/home")
+    
+    # Mount @var
+    mount -o "$MOUNT_OPTS,subvol=@var" "$ROOT_PARTITION" /mnt/var
+    MOUNTED_PARTITIONS+=("/mnt/var")
+    
+    # Mount @tmp
+    mount -o "$MOUNT_OPTS,subvol=@tmp" "$ROOT_PARTITION" /mnt/tmp
+    MOUNTED_PARTITIONS+=("/mnt/tmp")
+    
+    # Mount @.snapshots
+    mount -o "$MOUNT_OPTS,subvol=@.snapshots" "$ROOT_PARTITION" /mnt/.snapshots
+    MOUNTED_PARTITIONS+=("/mnt/.snapshots")
+    
+    print_success "All Btrfs subvolumes mounted"
 else
     print_info "Mounting root partition with options: $MOUNT_OPTS"
     mount -o "$MOUNT_OPTS" "$ROOT_PARTITION" /mnt
+    MOUNTED_PARTITIONS+=("/mnt")
+    print_success "Root partition mounted"
 fi
-MOUNTED_PARTITIONS+=("/mnt")
-print_success "Root partition mounted"
 
 # Activate swap (deactivate first if already active)
 if swapon --show | grep -q "$SWAP_PARTITION" 2>/dev/null; then
