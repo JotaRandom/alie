@@ -408,47 +408,71 @@ case "$PART_CHOICE" in
         
         print_success "Selected filesystem: $ROOT_FS"
         
-        # Now ask for partition scheme based on filesystem choice
-        echo ""
-        print_info "Partition scheme selection:"
-        echo ""
-        echo "Available options:"
-        echo "  ${CYAN}1)${NC} Single partition (/) - Simple, everything in root"
-        echo "     - Pros: Easy to manage, no space allocation worries"
-        echo "     - Cons: User data mixed with system, harder to reinstall"
-        echo "     - Recommended for: Beginners, small disks (<50GB)"
-        echo ""
-        echo "  ${CYAN}2)${NC} Separate /home - User data isolated"
-        echo "     - Pros: User data survives OS reinstalls, better organization"
-        echo "     - Cons: Fixed sizes, more complex partitioning"
-        echo "     - Recommended for: Most users, large disks (>100GB)"
-        echo ""
-        
-        if [ "$ROOT_FS" = "btrfs" ]; then
-            echo "  ${CYAN}3)${NC} Btrfs subvolumes - Advanced Btrfs features"
-            echo "     - Pros: Flexible subvolumes, snapshots, compression"
-            echo "     - Cons: Complex, requires Btrfs knowledge"
-            echo "     - Recommended for: Advanced users, power users"
-            echo ""
-        fi
-        
-        if [ "$ROOT_FS" = "btrfs" ]; then
-            read -r -p "Choose partition scheme [1-3] (default: 2): " SCHEME_CHOICE
+        # Check for small disks (<64GB) and force single partition layout
+        if [ "$DISK_SIZE_GB" -lt 64 ]; then
+            print_warning "Disk size ${DISK_SIZE_GB}GB is smaller than recommended minimum of 64GB"
+            print_info "For small disks, ALIE will use a single partition layout with limited swap"
+            print_info "Swap will be capped at 2GB maximum (minimum 128MB)"
+            read -r -p "Continue with single partition layout? (y/N): " CONFIRM_SMALL_DISK
+            if [[ ! $CONFIRM_SMALL_DISK =~ ^[Yy]$ ]]; then
+                print_info "Installation cancelled"
+                exit 1
+            fi
+            
+            # Force single partition scheme
+            PARTITION_SCHEME="single"
+            CREATE_HOME=false
+            ROOT_SIZE=""
+            print_info "Using single partition layout (/, limited swap)"
+            
+            # Adjust swap size to maximum 2GB
+            if [ "$SWAP_SIZE" -gt 2 ]; then
+                print_info "Reducing swap from ${SWAP_SIZE}GB to 2GB due to small disk"
+                SWAP_SIZE=2
+            fi
         else
-            read -r -p "Choose partition scheme [1-2] (default: 2): " SCHEME_CHOICE
+            # Now ask for partition scheme based on filesystem choice
+            echo ""
+            print_info "Partition scheme selection:"
+            echo ""
+            echo "Available options:"
+            echo "  ${CYAN}1)${NC} Single partition (/) - Simple, everything in root"
+            echo "     - Pros: Easy to manage, no space allocation worries"
+            echo "     - Cons: User data mixed with system, harder to reinstall"
+            echo "     - Recommended for: Beginners, small disks (<50GB)"
+            echo ""
+            echo "  ${CYAN}2)${NC} Separate /home - User data isolated"
+            echo "     - Pros: User data survives OS reinstalls, better organization"
+            echo "     - Cons: Fixed sizes, more complex partitioning"
+            echo "     - Recommended for: Most users, large disks (>100GB)"
+            echo ""
+            
+            if [ "$ROOT_FS" = "btrfs" ]; then
+                echo "  ${CYAN}3)${NC} Btrfs subvolumes - Advanced Btrfs features"
+                echo "     - Pros: Flexible subvolumes, snapshots, compression"
+                echo "     - Cons: Complex, requires Btrfs knowledge"
+                echo "     - Recommended for: Advanced users, power users"
+                echo ""
+            fi
+            
+            if [ "$ROOT_FS" = "btrfs" ]; then
+                read -r -p "Choose partition scheme [1-3] (default: 2): " SCHEME_CHOICE
+            else
+                read -r -p "Choose partition scheme [1-2] (default: 2): " SCHEME_CHOICE
+            fi
+            
+            case "$SCHEME_CHOICE" in
+                1) PARTITION_SCHEME="single" ;;
+                3) if [ "$ROOT_FS" = "btrfs" ]; then
+                       PARTITION_SCHEME="btrfs-subvolumes"
+                   else
+                       PARTITION_SCHEME="home"
+                   fi ;;
+                *) PARTITION_SCHEME="home" ;;
+            esac
+            
+            print_success "Selected partition scheme: $PARTITION_SCHEME"
         fi
-        
-        case "$SCHEME_CHOICE" in
-            1) PARTITION_SCHEME="single" ;;
-            3) if [ "$ROOT_FS" = "btrfs" ]; then
-                   PARTITION_SCHEME="btrfs-subvolumes"
-               else
-                   PARTITION_SCHEME="home"
-               fi ;;
-            *) PARTITION_SCHEME="home" ;;
-        esac
-        
-        print_success "Selected partition scheme: $PARTITION_SCHEME"
         
         # Configure partitioning based on scheme
         case "$PARTITION_SCHEME" in
@@ -485,15 +509,32 @@ case "$PART_CHOICE" in
                 
                 read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
                 
-                if [ -z "$ROOT_SIZE" ]; then
-                    ROOT_SIZE="$SUGGESTED_ROOT"
-                    print_info "Using recommended size: ${ROOT_SIZE}GB"
-                fi
+                # Handle invalid inputs with retry limit
+                retry_count=0
+                while [ "$retry_count" -lt 3 ]; do
+                    if [ -z "$ROOT_SIZE" ]; then
+                        ROOT_SIZE="$SUGGESTED_ROOT"
+                        print_info "Using recommended size: ${ROOT_SIZE}GB"
+                        break
+                    elif ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -eq 0 ]; then
+                        if [ "$ROOT_SIZE" -eq 0 ]; then
+                            print_warning "Size cannot be 0. Did you change your mind?"
+                        else
+                            print_error "Invalid size: $ROOT_SIZE. Must be a positive integer."
+                        fi
+                        retry_count=$((retry_count + 1))
+                        if [ "$retry_count" -lt 3 ]; then
+                            read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
+                        else
+                            print_error "Too many invalid attempts. Installation cancelled."
+                            exit 1
+                        fi
+                    else
+                        break
+                    fi
+                done
                 
-                if [ -z "$ROOT_SIZE" ]; then
-                    print_error "Root size is required when creating separate /home"
-                    exit 1
-                fi
+                done
                 
                 # Validate root size
                 if ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -lt 1 ]; then
@@ -504,9 +545,13 @@ case "$PART_CHOICE" in
                 
                 # Check minimum size
                 if [ "$ROOT_SIZE" -lt 64 ]; then
-                    print_error "Root partition too small: ${ROOT_SIZE}GB"
-                    print_info "Minimum recommended size is 64GB for ALIE with separate /home"
-                    exit 1
+                    print_warning "Root partition size ${ROOT_SIZE}GB is below the recommended minimum of 64GB"
+                    print_info "This may cause issues during system installation and updates"
+                    read -r -p "Do you still want to proceed with this small root partition? (y/N): " CONFIRM_SMALL_ROOT_MIN
+                    if [[ ! $CONFIRM_SMALL_ROOT_MIN =~ ^[Yy]$ ]]; then
+                        print_info "Installation cancelled due to small root partition"
+                        exit 1
+                    fi
                 fi
                 
                 # Check available space
