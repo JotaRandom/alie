@@ -367,7 +367,7 @@ case "$PART_CHOICE" in
             fi
         fi
         
-        if [ "$SWAP_SIZE" -gt 5 ]; then
+        if (( $(echo "$SWAP_SIZE > 5.125" | bc -l) )); then
             print_warning "Swap size of ${SWAP_SIZE}GB exceeds recommended maximum of 5.125GB"
             print_info "Modern systems rarely need more than 5.125GB swap"
             read -r -p "Continue anyway? (y/N): " CONFIRM_LARGE_SWAP
@@ -527,7 +527,7 @@ case "$PART_CHOICE" in
                 
                 # Check remaining space for /home
                 HOME_SIZE=$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))
-                if [ "$HOME_SIZE" -lt 8 ]; then
+                if (( $(echo "$HOME_SIZE < 8.5" | bc -l) )); then
                     print_warning "Home partition size ${HOME_SIZE}GB is smaller than a dual-layer DVD (8.5GB)"
                     print_info "This may be insufficient for user data, applications, and backups"
                     read -r -p "Do you REALLY want such a small /home partition? (y/N): " CONFIRM_TINY_HOME
