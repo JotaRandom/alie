@@ -600,6 +600,7 @@ case "$PART_CHOICE" in
                         exit 1
                     fi
                 fi
+                fi
                 ;;
             "btrfs-subvolumes")
                 CREATE_HOME=false

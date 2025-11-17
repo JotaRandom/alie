@@ -533,7 +533,8 @@ configure_user_shell() {
     # Get available shells using centralized function
     local available_shells
     available_shells=$(detect_available_shells)
-    local shell_array=($available_shells)
+    local shell_array
+    read -ra shell_array <<< "$available_shells"
     
     # If only bash is available, use it by default
     if [ ${#shell_array[@]} -eq 1 ]; then
