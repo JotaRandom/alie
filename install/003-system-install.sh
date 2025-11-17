@@ -150,11 +150,23 @@ PACKAGES=(
     linux
     linux-firmware
     networkmanager
-    grub
     vim
     sudo
     nano
 )
+
+# Add selected bootloader
+if [ "${BOOTLOADER:-grub}" = "systemd-boot" ]; then
+    # systemd-boot comes with systemd, no separate package needed
+    print_info "Using systemd-boot (included with systemd)"
+elif [ "${BOOTLOADER:-grub}" = "limine" ]; then
+    PACKAGES+=("limine")
+    print_info "Adding Limine bootloader"
+else
+    # Default to GRUB
+    PACKAGES+=("grub")
+    print_info "Adding GRUB bootloader"
+fi
 
 # Add microcode if detected
 if [ -n "${MICROCODE_PKG:-}" ]; then

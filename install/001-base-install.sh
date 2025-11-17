@@ -528,6 +528,54 @@ case "$PART_CHOICE" in
         
         print_success "Selected filesystem: $ROOT_FS"
         
+        # Bootloader selection
+        echo ""
+        print_info "Bootloader selection:"
+        echo ""
+        echo "  ${CYAN}1)${NC} GRUB (recommended for most users)"
+        echo "     - Mature, feature-rich bootloader"
+        echo "     - Supports both BIOS and UEFI"
+        echo "     - Advanced configuration options"
+        echo "     - Default choice for Linux distributions"
+        echo ""
+        
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            echo "  ${CYAN}2)${NC} systemd-boot (modern, simple)"
+            echo "     - Modern UEFI-only bootloader"
+            echo "     - Integrated with systemd"
+            echo "     - Simple configuration, fast boot"
+            echo "     - Requires UEFI, no BIOS support"
+            echo ""
+            echo "  ${CYAN}3)${NC} Limine (lightweight, fast)"
+            echo "     - Minimal, fast bootloader"
+            echo "     - Supports both BIOS and UEFI"
+            echo "     - Modern features, simple config"
+            echo "     - Good for advanced users"
+            echo ""
+            read -r -p "Choose bootloader [1-3] (default: 1): " BOOTLOADER_CHOICE
+            
+            case "$BOOTLOADER_CHOICE" in
+                2) BOOTLOADER="systemd-boot" ;;
+                3) BOOTLOADER="limine" ;;
+                *) BOOTLOADER="grub" ;;
+            esac
+        else
+            echo "  ${CYAN}2)${NC} Limine (lightweight, fast)"
+            echo "     - Minimal, fast bootloader"
+            echo "     - Supports both BIOS and UEFI"
+            echo "     - Modern features, simple config"
+            echo "     - Good for advanced users"
+            echo ""
+            read -r -p "Choose bootloader [1-2] (default: 1): " BOOTLOADER_CHOICE
+            
+            case "$BOOTLOADER_CHOICE" in
+                2) BOOTLOADER="limine" ;;
+                *) BOOTLOADER="grub" ;;
+            esac
+        fi
+        
+        print_success "Selected bootloader: $BOOTLOADER"
+        
         # Check for small disks (<64GB) and force single partition layout
         if [ "$DISK_SIZE_GB" -lt 64 ]; then
             print_warning "Disk size ${DISK_SIZE_GB}GB is smaller than recommended minimum of 64GB"

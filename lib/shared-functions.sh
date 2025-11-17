@@ -1442,6 +1442,306 @@ detect_system_info() {
     MICROCODE_INSTALLED="${MICROCODE_INSTALLED:-no}"
 }
 
+# Get UUID of a partition
+# Usage: get_partition_uuid "/dev/sda1"
+get_partition_uuid() {
+    local partition="$1"
+    if [ -z "$partition" ]; then
+        return 1
+    fi
+    
+    # Try blkid first (most reliable)
+    local uuid
+    uuid=$(blkid -s UUID -o value "$partition" 2>/dev/null)
+    if [ -n "$uuid" ]; then
+        echo "$uuid"
+        return 0
+    fi
+    
+    # Fallback to lsblk
+    uuid=$(lsblk -no UUID "$partition" 2>/dev/null | head -n1)
+    if [ -n "$uuid" ]; then
+        echo "$uuid"
+        return 0
+    fi
+    
+    return 1
+}
+
+# Get filesystem modules needed for mkinitcpio based on root filesystem
+# Usage: get_fs_modules "btrfs"
+get_fs_modules() {
+    local root_fs="$1"
+    
+    case "$root_fs" in
+        "btrfs")
+            echo "btrfs"
+            ;;
+        "ext4")
+            echo "ext4"
+            ;;
+        "xfs")
+            echo "xfs"
+            ;;
+        "zfs")
+            echo "zfs"
+            ;;
+        "f2fs")
+            echo "f2fs"
+            ;;
+        "nilfs2")
+            echo "nilfs2"
+            ;;
+        "jfs")
+            echo "jfs"
+            ;;
+        *)
+            echo "ext4"  # fallback
+            ;;
+    esac
+}
+
+# Configure dracut.conf with appropriate modules
+# Usage: configure_dracut "btrfs"
+configure_dracut() {
+    local root_fs="$1"
+    local dracut_conf="/etc/dracut.conf"
+    
+    if [ ! -f "$dracut_conf" ]; then
+        print_error "dracut.conf not found at $dracut_conf"
+        return 1
+    fi
+    
+    print_info "Configuring dracut.conf for $root_fs filesystem..."
+    
+    # Get required modules for the filesystem
+    local fs_modules
+    fs_modules=$(get_fs_modules "$root_fs")
+    
+    # Backup original file
+    cp "$dracut_conf" "${dracut_conf}.backup"
+    
+    # Add filesystem modules to dracut configuration
+    # Check if add_drivers is already configured
+    if grep -q "^add_drivers+=" "$dracut_conf"; then
+        # Check if module is already in add_drivers
+        if grep -q "^add_drivers+=\"$fs_modules" "$dracut_conf"; then
+            print_info "Module $fs_modules already configured in dracut.conf"
+        else
+            # Add module to existing add_drivers line
+            sed -i "s|^add_drivers+=\"|add_drivers+=\"$fs_modules |" "$dracut_conf"
+            print_success "Added $fs_modules module to dracut.conf"
+        fi
+    else
+        # Add new add_drivers line
+        echo "add_drivers+=\"$fs_modules\"" >> "$dracut_conf"
+        print_success "Added $fs_modules module to dracut.conf"
+    fi
+    
+    # Regenerate initramfs with dracut
+    print_info "Regenerating initramfs with dracut..."
+    if dracut --regenerate-all --force; then
+        print_success "Initramfs regenerated successfully with dracut"
+    else
+        print_error "Failed to regenerate initramfs with dracut"
+        return 1
+    fi
+}
+
+# Configure mkinitcpio.conf with appropriate modules
+# Usage: configure_mkinitcpio "btrfs"
+configure_mkinitcpio() {
+    local root_fs="$1"
+    local mkinitcpio_conf="/etc/mkinitcpio.conf"
+    
+    if [ ! -f "$mkinitcpio_conf" ]; then
+        print_error "mkinitcpio.conf not found at $mkinitcpio_conf"
+        return 1
+    fi
+    
+    print_info "Configuring mkinitcpio.conf for $root_fs filesystem..."
+    
+    # Get required modules for the filesystem
+    local fs_modules
+    fs_modules=$(get_fs_modules "$root_fs")
+    
+    # Backup original file
+    cp "$mkinitcpio_conf" "${mkinitcpio_conf}.backup"
+    
+    # Add filesystem modules to MODULES array if not already present
+    if ! grep -q "^MODULES=" "$mkinitcpio_conf"; then
+        print_error "MODULES line not found in mkinitcpio.conf"
+        return 1
+    fi
+    
+    # Check if module is already in MODULES
+    if grep -q "^MODULES=.*$fs_modules" "$mkinitcpio_conf"; then
+        print_info "Module $fs_modules already configured in mkinitcpio.conf"
+    else
+        # Add module to MODULES array
+        sed -i "s/^MODULES=(/MODULES=($fs_modules /" "$mkinitcpio_conf"
+        print_success "Added $fs_modules module to mkinitcpio.conf"
+    fi
+    
+    # Regenerate initramfs
+    print_info "Regenerating initramfs..."
+    if mkinitcpio -P; then
+        print_success "Initramfs regenerated successfully"
+    else
+        print_error "Failed to regenerate initramfs"
+        return 1
+    fi
+}
+
+# Configure GRUB_CMDLINE_LINUX_DEFAULT in /etc/default/grub
+# Usage: configure_grub_defaults "resume=UUID=xxx" "rootflags=subvol=@"
+configure_grub_defaults() {
+    local grub_default="/etc/default/grub"
+    
+    if [ ! -f "$grub_default" ]; then
+        print_error "GRUB default config not found at $grub_default"
+        return 1
+    fi
+    
+    print_info "Configuring GRUB default parameters..."
+    
+    # Backup original file
+    cp "$grub_default" "${grub_default}.backup"
+    
+    # Build the parameter string
+    local current_params=""
+    if grep -q "^GRUB_CMDLINE_LINUX_DEFAULT=" "$grub_default"; then
+        current_params=$(grep "^GRUB_CMDLINE_LINUX_DEFAULT=" "$grub_default" | sed 's/GRUB_CMDLINE_LINUX_DEFAULT="//;s/"$//')
+    fi
+    
+    # Combine existing and new parameters
+    local new_params="$current_params"
+    for param in "$@"; do
+        if [ -n "$param" ]; then
+            # Check if parameter is already present
+            if [[ "$new_params" != *"$param"* ]]; then
+                if [ -n "$new_params" ]; then
+                    new_params="$new_params $param"
+                else
+                    new_params="$param"
+                fi
+            fi
+        fi
+    done
+    
+    # Update GRUB_CMDLINE_LINUX_DEFAULT
+    if [ -n "$new_params" ]; then
+        sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$new_params\"|" "$grub_default"
+        print_success "Updated GRUB_CMDLINE_LINUX_DEFAULT: $new_params"
+    else
+        print_info "No GRUB parameters to update"
+    fi
+    
+    # Regenerate GRUB configuration
+    print_info "Regenerating GRUB configuration..."
+    if grub-mkconfig -o /boot/grub/grub.cfg; then
+        print_success "GRUB configuration regenerated successfully"
+    else
+        print_error "Failed to regenerate GRUB configuration"
+        return 1
+    fi
+}
+
+# Configure boot system for the installed filesystem and partitions
+# This should be called from within chroot (script 101)
+configure_boot_system() {
+    local root_fs="$ROOT_FS"
+    local partition_scheme="${PARTITION_SCHEME:-unknown}"
+    local bootloader="${BOOTLOADER:-grub}"
+    
+    print_info "Configuring boot system for $root_fs filesystem with $bootloader..."
+    
+    # Check if using dracut or mkinitcpio
+    local initramfs_generator="mkinitcpio"
+    if command -v dracut &>/dev/null && [ -f /etc/dracut.conf ]; then
+        initramfs_generator="dracut"
+        print_info "Detected dracut as initramfs generator"
+    else
+        print_info "Using mkinitcpio as initramfs generator"
+    fi
+    
+    # Configure initramfs with filesystem modules
+    if [ "$initramfs_generator" = "dracut" ]; then
+        if ! configure_dracut "$root_fs"; then
+            print_error "Failed to configure dracut"
+            return 1
+        fi
+    else
+        if ! configure_mkinitcpio "$root_fs"; then
+            print_error "Failed to configure mkinitcpio"
+            return 1
+        fi
+    fi
+    
+    # Configure bootloader-specific parameters
+    case "$bootloader" in
+        "grub")
+            # Prepare GRUB parameters
+            local grub_params=()
+            
+            # Add resume parameter for swap
+            if [ -n "$SWAP_PARTITION" ]; then
+                local swap_uuid
+                swap_uuid=$(get_partition_uuid "$SWAP_PARTITION")
+                if [ -n "$swap_uuid" ]; then
+                    grub_params+=("resume=UUID=$swap_uuid")
+                    print_info "Added resume parameter for swap: UUID=$swap_uuid"
+                else
+                    print_warning "Could not get UUID for swap partition $SWAP_PARTITION"
+                fi
+            fi
+            
+            # Add subvolume parameters for Btrfs
+            if [ "$root_fs" = "btrfs" ] && [ "$partition_scheme" = "btrfs-subvolumes" ]; then
+                grub_params+=("rootflags=subvol=@")
+                print_info "Added rootflags=subvol=@ for Btrfs root subvolume"
+            fi
+            
+            # Configure GRUB with the parameters
+            if [ ${#grub_params[@]} -gt 0 ]; then
+                configure_grub_defaults "${grub_params[@]}"
+            else
+                print_info "No additional GRUB parameters needed"
+            fi
+            ;;
+            
+        "systemd-boot"|"limine")
+            # For systemd-boot and Limine, kernel parameters are configured
+            # directly in their configuration files during installation
+            print_info "Bootloader $bootloader configured with kernel parameters during installation"
+            ;;
+            
+        *)
+            print_warning "Unknown bootloader $bootloader, using default GRUB configuration"
+            # Fallback to GRUB configuration
+            local grub_params=()
+            
+            if [ -n "$SWAP_PARTITION" ]; then
+                local swap_uuid
+                swap_uuid=$(get_partition_uuid "$SWAP_PARTITION")
+                if [ -n "$swap_uuid" ]; then
+                    grub_params+=("resume=UUID=$swap_uuid")
+                fi
+            fi
+            
+            if [ "$root_fs" = "btrfs" ] && [ "$partition_scheme" = "btrfs-subvolumes" ]; then
+                grub_params+=("rootflags=subvol=@")
+            fi
+            
+            if [ ${#grub_params[@]} -gt 0 ]; then
+                configure_grub_defaults "${grub_params[@]}"
+            fi
+            ;;
+    esac
+    
+    print_success "Boot system configuration completed"
+}
+
 # Save comprehensive system configuration
 save_system_config() {
     local config_file="${1:-/tmp/.alie-install-config}"
@@ -1456,6 +1756,7 @@ save_system_config() {
 # Boot Configuration
 BOOT_MODE="$BOOT_MODE"
 PARTITION_TABLE="$PARTITION_TABLE"
+BOOTLOADER="${BOOTLOADER:-grub}"
 
 # Partitions
 ROOT_PARTITION="$ROOT_PARTITION"
@@ -1466,6 +1767,7 @@ HOME_PARTITION="$HOME_PARTITION"
 
 # Filesystems
 ROOT_FS="$ROOT_FS"
+PARTITION_SCHEME="$PARTITION_SCHEME"
 
 # Hardware
 CPU_VENDOR="$CPU_VENDOR"

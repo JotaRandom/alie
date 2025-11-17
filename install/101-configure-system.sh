@@ -33,7 +33,7 @@ echo "  - Locale and keyboard layout"
 echo "  - Hostname and network"
 echo "  - Root password"
 echo "  - Package manager (pacman)"
-echo "  - Bootloader (GRUB)"
+echo "  - Bootloader (GRUB, systemd-boot, or Limine)"
 echo ""
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
@@ -339,9 +339,9 @@ else
 fi
 
 # ===================================
-# STEP 9: GRUB INSTALLATION
+# STEP 9: BOOTLOADER INSTALLATION
 # ===================================
-print_step "STEP 9: Installing Bootloader (GRUB)"
+print_step "STEP 9: Installing Bootloader (${BOOTLOADER:-grub})"
 
 # Verify microcode was installed in step 01
 if [ "$MICROCODE_INSTALLED" == "yes" ]; then
@@ -350,40 +350,174 @@ elif pacman -Q intel-ucode &>/dev/null || pacman -Q amd-ucode &>/dev/null; then
     print_success "Microcode already installed"
 else
     print_warning "Microcode not detected! It should have been installed in step 01"
-    print_warning "GRUB may not load microcode updates properly"
+    print_warning "Bootloader may not load microcode updates properly"
 fi
 
-print_info "Installing GRUB bootloader..."
-if [ "$BOOT_MODE" == "UEFI" ]; then
-    if grub-install --verbose --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB; then
-        print_success "GRUB installed successfully (UEFI mode)"
-    else
-        print_error "GRUB installation failed!"
-        exit 1
-    fi
-else
-    if grub-install --verbose --target=i386-pc "$GRUB_DISK"; then
-        print_success "GRUB installed successfully (BIOS mode) to $GRUB_DISK"
-    else
-        print_error "GRUB installation failed!"
-        exit 1
-    fi
-fi
+# Install and configure the selected bootloader
+case "${BOOTLOADER:-grub}" in
+    "grub")
+        print_info "Installing GRUB bootloader..."
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            if grub-install --verbose --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB; then
+                print_success "GRUB installed successfully (UEFI mode)"
+            else
+                print_error "GRUB installation failed!"
+                exit 1
+            fi
+        else
+            if grub-install --verbose --target=i386-pc "$GRUB_DISK"; then
+                print_success "GRUB installed successfully (BIOS mode) to $GRUB_DISK"
+            else
+                print_error "GRUB installation failed!"
+                exit 1
+            fi
+        fi
 
-print_info "Generating GRUB configuration..."
-if grub-mkconfig -o /boot/grub/grub.cfg; then
-    print_success "GRUB configuration generated"
-    
-    # Verify grub.cfg was created and has content
-    if [ -s /boot/grub/grub.cfg ]; then
-        print_success "GRUB configuration file verified"
-    else
-        print_error "GRUB configuration file is empty!"
+        print_info "Generating GRUB configuration..."
+        if grub-mkconfig -o /boot/grub/grub.cfg; then
+            print_success "GRUB configuration generated"
+            
+            # Verify grub.cfg was created and has content
+            if [ -s /boot/grub/grub.cfg ]; then
+                print_success "GRUB configuration file verified"
+            else
+                print_error "GRUB configuration file is empty!"
+                exit 1
+            fi
+        else
+            print_error "Failed to generate GRUB configuration!"
+            exit 1
+        fi
+        ;;
+        
+    "systemd-boot")
+        if [ "$BOOT_MODE" != "UEFI" ]; then
+            print_error "systemd-boot requires UEFI boot mode!"
+            print_info "Please select GRUB or Limine for BIOS systems"
+            exit 1
+        fi
+        
+        print_info "Installing systemd-boot..."
+        if bootctl install; then
+            print_success "systemd-boot installed successfully"
+        else
+            print_error "systemd-boot installation failed!"
+            exit 1
+        fi
+        
+        print_info "Configuring systemd-boot..."
+        
+        # Create loader configuration
+        cat > /boot/loader/loader.conf << EOF
+default  arch.conf
+timeout  4
+console-mode max
+editor   no
+EOF
+        
+        # Create boot entry
+        ROOT_UUID=$(get_partition_uuid "$ROOT_PARTITION")
+        if [ -n "$SWAP_PARTITION" ]; then
+            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
+            RESUME_PARAM="resume=UUID=$SWAP_UUID"
+        else
+            RESUME_PARAM=""
+        fi
+        
+        # Build kernel parameters
+        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw quiet $RESUME_PARAM"
+        
+        # Add microcode if available
+        if pacman -Q intel-ucode &>/dev/null; then
+            MICROCODE_PARAM="initrd  /intel-ucode.img"
+        elif pacman -Q amd-ucode &>/dev/null; then
+            MICROCODE_PARAM="initrd  /amd-ucode.img"
+        else
+            MICROCODE_PARAM=""
+        fi
+        
+        cat > /boot/loader/entries/arch.conf << EOF
+title   Arch Linux
+linux   /vmlinuz-linux
+$MICROCODE_PARAM
+initrd  /initramfs-linux.img
+options $KERNEL_PARAMS
+EOF
+        
+        print_success "systemd-boot configured"
+        ;;
+        
+    "limine")
+        print_info "Installing Limine bootloader..."
+        
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            if limine-install /boot; then
+                print_success "Limine installed successfully (UEFI mode)"
+            else
+                print_error "Limine installation failed!"
+                exit 1
+            fi
+        else
+            if limine-install "$GRUB_DISK"; then
+                print_success "Limine installed successfully (BIOS mode) to $GRUB_DISK"
+            else
+                print_error "Limine installation failed!"
+                exit 1
+            fi
+        fi
+        
+        print_info "Configuring Limine..."
+        
+        # Create Limine configuration
+        ROOT_UUID=$(get_partition_uuid "$ROOT_PARTITION")
+        if [ -n "$SWAP_PARTITION" ]; then
+            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
+            RESUME_PARAM="resume=UUID=$SWAP_UUID"
+        else
+            RESUME_PARAM=""
+        fi
+        
+        # Build kernel parameters
+        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw quiet $RESUME_PARAM"
+        
+        cat > /boot/limine.cfg << EOF
+TIMEOUT=4
+
+:Arch Linux
+    PROTOCOL=linux
+    KERNEL_PATH=boot:///vmlinuz-linux
+    MODULE_PATH=boot:///initramfs-linux.img
+    KERNEL_CMDLINE=$KERNEL_PARAMS
+EOF
+        
+        print_success "Limine configured"
+        ;;
+        
+    *)
+        print_error "Unknown bootloader: ${BOOTLOADER:-grub}"
+        print_info "Supported bootloaders: grub, systemd-boot, limine"
+        exit 1
+        ;;
+esac
+
+# ===================================
+# STEP 9b: CONFIGURE BOOT SYSTEM
+# ===================================
+print_step "STEP 9b: Configuring Boot System"
+
+print_info "Configuring initramfs and bootloader for $ROOT_FS filesystem..."
+
+# Configure mkinitcpio and GRUB with appropriate parameters
+if configure_boot_system; then
+    print_success "Boot system configured successfully"
+else
+    print_error "Failed to configure boot system!"
+    print_warning "The system may not boot correctly without proper initramfs configuration"
+    print_info "You may need to manually configure mkinitcpio.conf and regenerate initramfs"
+    read -r -p "Continue anyway? (y/N): " CONTINUE_BOOT_CONFIG
+    if [[ ! $CONTINUE_BOOT_CONFIG =~ ^[Yy]$ ]]; then
         exit 1
     fi
-else
-    print_error "Failed to generate GRUB configuration!"
-    exit 1
 fi
 
 # ===================================

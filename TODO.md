@@ -2,155 +2,95 @@
 
 ## 🚀 **High Priority Features**
 
+### 0. **Critical Boot Configuration** ✅ COMPLETED
+- [x] **Initramfs Modules**: Automatic addition of filesystem modules to mkinitcpio.conf/dracut.conf
+- [x] **Swap Resume**: Automatic configuration of resume=UUID parameter for hibernation
+- [x] **Btrfs Subvolumes**: Automatic configuration of rootflags=subvol=@ for Btrfs subvolumes
+- [x] **Boot Parameter Management**: Safe updating of GRUB_CMDLINE_LINUX_DEFAULT with proper backups
+- [x] **Initramfs Regeneration**: Automatic regeneration of initramfs after configuration changes
+
 ### 1. **Advanced Filesystem Support**
-- [ ] **ZFS Support**: Implement ZFS with native encryption, snapshots, and RAID-Z
+- [x] **Kernel selection**: Allow multiple kernel options (linux, linux-lts, linux-zen, linux-hardened)
+- [x] **Bootloader Flexibility**: Support for GRUB, systemd-boot, and Limine with automatic configurations
+- [x] **Initramfs Configuration**: Automatic mkinitcpio/dracut configuration with filesystem modules
+- [x] **Boot Parameters**: Automatic GRUB configuration with resume= and subvol= parameters
 - [ ] **LUKS Encryption**: Full disk encryption with LUKS2 for security
-- [ ] **F2FS Support**: Optimized filesystem for flash storage (SSDs, eMMC)
-- [ ] **NILFS2**: Continuous snapshot filesystem for data recovery
+- [x] **LVM Support**: Logical Volume Management for flexible storage
+- [ ] **ZFS Support**: Basic ZFS setup with encryption and snapshots
+- [ ] **Additional Filesystems**: F2FS and NILFS2 support for specific use cases
 
-### 2. **Cloud & Virtualization Integration**
-- [ ] **AWS/Azure/GCP Images**: Automated image building for cloud providers
-- [ ] **Proxmox/LXC Support**: Optimized installation for containers
-- [ ] **Docker Integration**: ALIE as Docker container for testing
-- [ ] **Vagrant Boxes**: Pre-built development environments
-
-### 3. **Advanced Partitioning Features**
-- [ ] **Dynamic Partitioning**: AI-assisted partition sizing based on use case
+### 2. **Partitioning Enhancements**
 - [ ] **RAID Configuration**: Software RAID setup (RAID 1, 5, 10)
-- [ ] **LVM Support**: Logical Volume Management for flexible storage
-- [ ] **Partition Recovery**: Tools to recover accidentally deleted partitions
+- [ ] **Advanced Btrfs Features**: More subvolume options and configurations
+- [ ] **Partition Recovery Tools**: Basic tools to help recover accidentally deleted partitions
 
 ## 🔧 **Technical Improvements**
 
-### 4. **Code Quality & Testing**
-- [ ] **Unit Tests**: Comprehensive test suite for all functions
-- [ ] **Integration Tests**: End-to-end installation testing
-- [ ] **CI/CD Pipeline**: Automated testing on GitHub Actions
-- [ ] **Code Coverage**: Track and improve test coverage metrics
+### 3. **Code Quality & Testing**
+- [ ] **Unit Tests**: Basic test suite for core functions
+- [ ] **Integration Tests**: Automated installation testing in VMs
+- [ ] **CI/CD Pipeline**: GitHub Actions for basic testing
+- [ ] **Shellcheck Compliance**: Maintain 100% shellcheck compliance
 
-### 5. **Performance Optimizations**
-- [ ] **Parallel Downloads**: Concurrent package downloads during installation
-- [ ] **Caching System**: Cache downloaded packages and configs
-- [ ] **Memory Optimization**: Reduce memory usage for low-RAM systems
-- [ ] **SSD Optimizations**: Enhanced performance for solid-state drives
-
-### 6. **Security Enhancements**
-- [ ] **SELinux/AppArmor**: Mandatory access control integration
-- [ ] **Firewall Configuration**: UFW/firewalld setup with sensible defaults
-- [ ] **SSH Hardening**: Automated SSH server security configuration
-- [ ] **Password Policies**: Enforce strong password requirements
+### 4. **Performance Optimizations**
+- [ ] **Parallel Package Downloads**: Concurrent package downloads during installation
+- [ ] **Package Caching**: Cache downloaded packages between runs
+- [ ] **Memory Optimization**: Reduce memory usage for systems with limited RAM
 
 ## 🎨 **User Experience Improvements**
 
-### 7. **Interface & Usability**
-- [ ] **TUI Interface**: Text-based user interface with dialogs
-- [ ] **Progress Bars**: Visual progress indicators for long operations
-- [ ] **Interactive Mode**: Step-by-step guided installation wizard
-- [ ] **Configuration Presets**: Pre-defined configurations for common use cases
+### 5. **Interface & Usability**
+- [ ] **TUI Interface**: Text-based user interface using dialog or similar
+- [ ] **Progress Indicators**: Better progress display for long operations
+- [ ] **Configuration Validation**: Pre-flight checks before installation
+- [ ] **Error Recovery**: Better error handling and recovery options
 
-### 8. **Localization & Accessibility**
-- [ ] **Multi-language Support**: Spanish, French, German, etc.
-- [ ] **Screen Reader Support**: Accessibility for visually impaired users
-- [ ] **Color Customization**: User-configurable color schemes
-- [ ] **Keyboard Navigation**: Full keyboard-only operation
+### 6. **Localization**
+- [ ] **Spanish Translation**: Complete Spanish localization
+- [ ] **Additional Languages**: French, German, Portuguese support
 
-## 📦 **Package Management Enhancements**
+## 📦 **Package Management**
 
-### 9. **Package Ecosystem**
-- [ ] **AUR Integration**: Automated AUR package installation
-- [ ] **Flatpak/Snap Support**: Universal package format integration
-- [ ] **Custom Repositories**: Support for private/custom package repos
-- [ ] **Package Verification**: GPG signature verification for packages
+### 7. **Package Ecosystem**
+- [ ] **AUR Integration**: Enhanced AUR package support and security
+- [ ] **Custom Repositories**: Support for additional/custom package repositories
+- [ ] **Package Groups**: Pre-defined package collections for common setups
 
-### 10. **Software Selection**
-- [ ] **Desktop Environment Chooser**: KDE, GNOME, XFCE, etc. with previews
-- [ ] **Application Bundles**: Pre-defined software collections
-- [ ] **Gaming Optimization**: Steam, Lutris, Wine configuration
-- [ ] **Development Tools**: IDEs, compilers, version control setup
+### 8. **Software Selection**
+- [ ] **Desktop Environment Options**: Better DE selection with package recommendations
+- [ ] **Development Tools**: Enhanced developer tool installation
+- [ ] **Gaming Setup**: Basic gaming-related package installation
 
 ## 🖥️ **Hardware Support**
 
-### 11. **Device Drivers**
-- [ ] **NVIDIA/AMD Graphics**: Automated GPU driver installation
-- [ ] **WiFi/BT Firmware**: Broadcom, Realtek, Intel wireless support
-- [ ] **Printer Support**: CUPS configuration and driver installation
-- [ ] **Touchpad Configuration**: Advanced touchpad settings
+### 9. **Device Drivers**
+- [ ] **GPU Driver Detection**: Automated NVIDIA/AMD driver installation
+- [ ] **WiFi/BT Firmware**: Enhanced wireless hardware support
+- [ ] **Printer Setup**: Basic CUPS configuration
 
-### 12. **Specialized Hardware**
-- [ ] **Raspberry Pi Support**: ARM architecture optimizations
-- [ ] **Laptop Power Management**: TLP, powertop configuration
-- [ ] **Multi-monitor Setup**: Xorg/display configuration
-- [ ] **Tablet Mode**: 2-in-1 device optimizations
+## 🌐 **Network & System Configuration**
 
-## 🌐 **Network & Connectivity**
+### 10. **Network Setup**
+- [ ] **Advanced Network Config**: Static IP, DNS, proxy settings
+- [ ] **Firewall Setup**: Basic UFW configuration
+- [ ] **SSH Configuration**: Automated SSH server setup with security hardening
 
-### 13. **Network Configuration**
-- [ ] **VPN Setup**: OpenVPN, WireGuard, IKEv2 configuration
-- [ ] **Proxy Configuration**: System-wide proxy settings
-- [ ] **DNS Configuration**: Custom DNS servers (Cloudflare, Quad9)
-- [ ] **Network Bonding**: Link aggregation and failover
+### 11. **System Services**
+- [ ] **Time Synchronization**: NTP/chrony configuration
+- [ ] **Logging Setup**: Basic system logging configuration
+- [ ] **Backup Integration**: Timeshift or similar backup tool setup
 
-### 14. **Remote Access**
-- [ ] **SSH Server Setup**: Automated SSH server configuration
-- [ ] **VNC/RDP**: Remote desktop access configuration
-- [ ] **Tailscale/ZeroTier**: Mesh networking integration
-- [ ] **Remote Management**: Web-based admin interface
+## 📚 **Documentation & Maintenance**
 
-## 🔄 **Maintenance & Updates**
-
-### 15. **System Maintenance**
-- [ ] **Automated Updates**: Unattended upgrade system
-- [ ] **Backup Solutions**: Timeshift, restic, borgbackup integration
-- [ ] **System Monitoring**: Prometheus/Node Exporter setup
-- [ ] **Log Management**: Centralized logging with journald/r.syslog
-
-### 16. **Recovery Tools**
-- [ ] **System Rescue**: Bootable recovery environment
-- [ ] **Data Recovery**: File carving and undelete tools
-- [ ] **Filesystem Repair**: Automated fsck and repair utilities
-- [ ] **Rollback System**: System state snapshots and restoration
-
-## 📚 **Documentation & Education**
-
-### 17. **Documentation**
-- [ ] **Video Tutorials**: Installation walkthrough videos
-- [ ] **Interactive Guide**: Web-based configuration helper
+### 12. **Documentation**
+- [ ] **Installation Guide**: Step-by-step installation documentation
 - [ ] **Troubleshooting Guide**: Common issues and solutions
-- [ ] **API Documentation**: For advanced users and developers
+- [ ] **Configuration Examples**: Sample configuration files and use cases
 
-### 18. **Community Features**
-- [ ] **Configuration Sharing**: User-submitted config templates
-- [ ] **Issue Tracker Integration**: GitHub issues automation
-- [ ] **User Forums**: Community discussion platform
-- [ ] **Contributing Guide**: Developer onboarding documentation
-
-## 🚀 **Advanced Features**
-
-### 19. **AI/ML Integration**
-- [ ] **Smart Configuration**: AI-assisted system configuration
-- [ ] **Usage Analytics**: Anonymous usage statistics for improvements
-- [ ] **Automated Troubleshooting**: AI-powered issue diagnosis
-- [ ] **Performance Tuning**: ML-based system optimization
-
-### 20. **Enterprise Features**
-- [ ] **LDAP/AD Integration**: Directory service authentication
-- [ ] **Compliance Tools**: Security hardening for enterprise
-- [ ] **Audit Logging**: Comprehensive system activity logging
-- [ ] **Multi-user Setup**: Shared system configuration management
-
-## 🔮 **Future Vision**
-
-### 21. **Next-Generation Features**
-- [ ] **Immutable Systems**: OSTree/rpm-ostree integration
-- [ ] **Container Orchestration**: Kubernetes/microk8s setup
-- [ ] **Edge Computing**: IoT and edge device support
-- [ ] **AI Assistant**: Voice-controlled installation and configuration
-
-### 22. **Cross-Platform Support**
-- [ ] **Windows Subsystem**: WSL2 optimized installation
-- [ ] **macOS Support**: Intel/Apple Silicon compatibility
-- [ ] **BSD Variants**: FreeBSD, OpenBSD, NetBSD support
-- [ ] **Mobile Linux**: PostmarketOS, Ubuntu Touch integration
+### 13. **Maintenance Tools**
+- [ ] **Update Automation**: Basic unattended update setup
+- [ ] **System Monitoring**: Basic monitoring tools installation
+- [ ] **Recovery Options**: Better system recovery and repair tools
 
 ---
 
@@ -158,24 +98,22 @@
 
 | Priority | Category | Estimated Effort | Impact |
 |----------|----------|------------------|---------|
-| 🔥 Critical | Security & Stability | High | High |
-| ⚡ High | Core Features | Medium-High | High |
-| 🔄 Medium | UX Improvements | Medium | Medium |
-| 🌱 Low | Advanced Features | High | Low-Medium |
-| 🎯 Future | Vision Features | Very High | Variable |
+| 🔥 Critical | Core Installation | Medium | High |
+| ⚡ High | User Experience | Medium-High | High |
+| 🔄 Medium | Advanced Features | High | Medium |
+| 🌱 Low | Nice-to-haves | High | Low |
 
 ## 🤝 **Contributing**
 
 Want to contribute? Check the [Contributing Guide](CONTRIBUTING.md) and pick an item from this TODO list!
 
 **Legend:**
-- 🔥 Critical: Security, stability, or core functionality
+- 🔥 Critical: Core installation functionality and stability
 - ⚡ High: Important user-facing features
 - 🔄 Medium: Quality of life improvements
 - 🌱 Low: Nice-to-have features
-- 🎯 Future: Long-term vision items
 
 ---
 
-*Last updated: November 17, 2025*</content>
+*Last updated: November 2024 (Boot configuration improvements)*</content>
 <parameter name="filePath">c:\Users\Usuario\source\repos\ALIE\TODO.md
