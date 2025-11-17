@@ -528,7 +528,7 @@ case "$PART_CHOICE" in
                 # Check remaining space for /home
                 HOME_SIZE=$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))
                 if [ "$HOME_SIZE" -lt 8 ]; then
-                    print_warning "Home partition size ${HOME_SIZE}GB is smaller than a DVD (4.7GB)"
+                    print_warning "Home partition size ${HOME_SIZE}GB is smaller than a dual-layer DVD (8.5GB)"
                     print_info "This may be insufficient for user data, applications, and backups"
                     read -r -p "Do you REALLY want such a small /home partition? (y/N): " CONFIRM_TINY_HOME
                     if [[ ! $CONFIRM_TINY_HOME =~ ^[Yy]$ ]]; then
