@@ -229,6 +229,126 @@ echo "  - Architecture: $(uname -m)"
 # ===================================
 print_step "STEP 3: Disk Partitioning & Formatting"
 
+# Function to configure home partition scheme
+configure_home_partitioning() {
+    CREATE_HOME=true
+    # Calculate available space after EFI/swap
+    EFI_SIZE=1  # 1GB for EFI
+    RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE + 5))  # +5GB buffer
+    AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
+    
+    echo ""
+    print_info "Root partition sizing for separate /home:"
+    echo "  - Disk size: ${DISK_SIZE_GB}GB"
+    echo "  - Reserved for EFI/swap: ${RESERVED_SPACE}GB"
+    echo "  - Available for root: ${AVAILABLE_FOR_ROOT}GB"
+    
+    # Calculate suggested root size based on disk size (128GB for 512GB disk ratio)
+    SUGGESTED_ROOT=$((DISK_SIZE_GB * 128 / 512))
+    if [ "$SUGGESTED_ROOT" -lt 64 ]; then
+        SUGGESTED_ROOT=64
+    fi
+    if [ "$SUGGESTED_ROOT" -gt "$AVAILABLE_FOR_ROOT" ]; then
+        SUGGESTED_ROOT="$AVAILABLE_FOR_ROOT"
+    fi
+    
+    echo "  - Recommended root size: ${SUGGESTED_ROOT}GB (proportional to ${DISK_SIZE_GB}GB disk)"
+    echo "  - Minimum: 64GB for reliable system operation"
+    echo ""
+    
+    read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
+    
+    # Handle invalid inputs with retry limit
+    retry_count=0
+    while [ "$retry_count" -lt 3 ]; do
+        if [ -z "$ROOT_SIZE" ]; then
+            ROOT_SIZE="$SUGGESTED_ROOT"
+            print_info "Using recommended size: ${ROOT_SIZE}GB"
+            break
+        elif ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -eq 0 ]; then
+            if [ "$ROOT_SIZE" -eq 0 ]; then
+                print_warning "Size cannot be 0. Did you change your mind?"
+            else
+                print_error "Invalid size: $ROOT_SIZE. Must be a positive integer."
+            fi
+            retry_count=$((retry_count + 1))
+            if [ "$retry_count" -lt 3 ]; then
+                read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
+            else
+                print_error "Too many invalid attempts. Installation cancelled."
+                exit 1
+            fi
+        else
+            break
+        fi
+    done
+    
+    # Validate root size
+    if ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -lt 1 ]; then
+        print_error "Invalid root size: $ROOT_SIZE"
+        print_info "Root size must be a positive integer (GB)"
+        exit 1
+    fi
+    
+    # Check minimum size
+    if [ "$ROOT_SIZE" -lt 64 ]; then
+        print_warning "Root partition size ${ROOT_SIZE}GB is below the recommended minimum of 64GB"
+        print_info "This may cause issues during system installation and updates"
+        read -r -p "Do you still want to proceed with this small root partition? (y/N): " CONFIRM_SMALL_ROOT_MIN
+        if [[ ! $CONFIRM_SMALL_ROOT_MIN =~ ^[Yy]$ ]]; then
+            print_info "Installation cancelled due to small root partition"
+            exit 1
+        fi
+    fi
+    
+    # Check available space
+    if [ "$ROOT_SIZE" -gt "$AVAILABLE_FOR_ROOT" ]; then
+        print_error "Root size ${ROOT_SIZE}GB exceeds available space ${AVAILABLE_FOR_ROOT}GB"
+        exit 1
+    fi
+    
+    # Warn about small root
+    if [ "$ROOT_SIZE" -lt "$SUGGESTED_ROOT" ]; then
+        print_warning "Root size ${ROOT_SIZE}GB is below recommended ${SUGGESTED_ROOT}GB for ${DISK_SIZE_GB}GB disk"
+        print_info "You may run out of space during package installation or system updates"
+        read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_ROOT
+        if [[ ! $CONFIRM_SMALL_ROOT =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    
+    # Check remaining space for /home
+    HOME_SIZE=$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))
+    if (( $(echo "$HOME_SIZE < 8.5" | bc -l) )); then
+        print_warning "Home partition size ${HOME_SIZE}GB is smaller than a dual-layer DVD (8.5GB)"
+        print_info "This may be insufficient for user data, applications, and backups"
+        read -r -p "Do you REALLY want such a small /home partition? (y/N): " CONFIRM_TINY_HOME
+        if [[ ! $CONFIRM_TINY_HOME =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    if [ "$HOME_SIZE" -lt 10 ]; then
+        print_warning "Only ${HOME_SIZE}GB left for /home after root partition"
+        print_info "Consider smaller root partition or single partition layout"
+        read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_HOME
+        if [[ ! $CONFIRM_SMALL_HOME =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    
+    # Check for unused disk space
+    USED_SPACE=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + HOME_SIZE))
+    REMAINING_SPACE=$((DISK_SIZE_GB - USED_SPACE))
+    if [ "$REMAINING_SPACE" -gt 0 ]; then
+        print_info "After partitioning, ${REMAINING_SPACE}GB will remain unallocated on the disk"
+        print_info "This space can be used later for additional partitions or left as free space"
+        read -r -p "Continue with unallocated space remaining? (y/N): " CONFIRM_UNUSED_SPACE
+        if [[ ! $CONFIRM_UNUSED_SPACE =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+}
+
 print_info "Available disks:"
 lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
 echo ""
@@ -482,125 +602,7 @@ case "$PART_CHOICE" in
                 print_info "Using single partition layout (/, swap, EFI)"
                 ;;
             "home")
-                CREATE_HOME=true
-                # Calculate available space after EFI/swap
-                EFI_SIZE=1  # 1GB for EFI
-                RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE + 5))  # +5GB buffer
-                AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
-                
-                echo ""
-                print_info "Root partition sizing for separate /home:"
-                echo "  - Disk size: ${DISK_SIZE_GB}GB"
-                echo "  - Reserved for EFI/swap: ${RESERVED_SPACE}GB"
-                echo "  - Available for root: ${AVAILABLE_FOR_ROOT}GB"
-                
-                # Calculate suggested root size based on disk size (128GB for 512GB disk ratio)
-                SUGGESTED_ROOT=$((DISK_SIZE_GB * 128 / 512))
-                if [ "$SUGGESTED_ROOT" -lt 64 ]; then
-                    SUGGESTED_ROOT=64
-                fi
-                if [ "$SUGGESTED_ROOT" -gt "$AVAILABLE_FOR_ROOT" ]; then
-                    SUGGESTED_ROOT="$AVAILABLE_FOR_ROOT"
-                fi
-                
-                echo "  - Recommended root size: ${SUGGESTED_ROOT}GB (proportional to ${DISK_SIZE_GB}GB disk)"
-                echo "  - Minimum: 64GB for reliable system operation"
-                echo ""
-                
-                read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
-                
-                # Handle invalid inputs with retry limit
-                retry_count=0
-                while [ "$retry_count" -lt 3 ]; do
-                    if [ -z "$ROOT_SIZE" ]; then
-                        ROOT_SIZE="$SUGGESTED_ROOT"
-                        print_info "Using recommended size: ${ROOT_SIZE}GB"
-                        break
-                    elif ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -eq 0 ]; then
-                        if [ "$ROOT_SIZE" -eq 0 ]; then
-                            print_warning "Size cannot be 0. Did you change your mind?"
-                        else
-                            print_error "Invalid size: $ROOT_SIZE. Must be a positive integer."
-                        fi
-                        retry_count=$((retry_count + 1))
-                        if [ "$retry_count" -lt 3 ]; then
-                            read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
-                        else
-                            print_error "Too many invalid attempts. Installation cancelled."
-                            exit 1
-                        fi
-                    else
-                        break
-                    fi
-                done
-                
-                done
-                
-                # Validate root size
-                if ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -lt 1 ]; then
-                    print_error "Invalid root size: $ROOT_SIZE"
-                    print_info "Root size must be a positive integer (GB)"
-                    exit 1
-                fi
-                
-                # Check minimum size
-                if [ "$ROOT_SIZE" -lt 64 ]; then
-                    print_warning "Root partition size ${ROOT_SIZE}GB is below the recommended minimum of 64GB"
-                    print_info "This may cause issues during system installation and updates"
-                    read -r -p "Do you still want to proceed with this small root partition? (y/N): " CONFIRM_SMALL_ROOT_MIN
-                    if [[ ! $CONFIRM_SMALL_ROOT_MIN =~ ^[Yy]$ ]]; then
-                        print_info "Installation cancelled due to small root partition"
-                        exit 1
-                    fi
-                fi
-                
-                # Check available space
-                if [ "$ROOT_SIZE" -gt "$AVAILABLE_FOR_ROOT" ]; then
-                    print_error "Root size ${ROOT_SIZE}GB exceeds available space ${AVAILABLE_FOR_ROOT}GB"
-                    exit 1
-                fi
-                
-                # Warn about small root
-                if [ "$ROOT_SIZE" -lt "$SUGGESTED_ROOT" ]; then
-                    print_warning "Root size ${ROOT_SIZE}GB is below recommended ${SUGGESTED_ROOT}GB for ${DISK_SIZE_GB}GB disk"
-                    print_info "You may run out of space during package installation or system updates"
-                    read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_ROOT
-                    if [[ ! $CONFIRM_SMALL_ROOT =~ ^[Yy]$ ]]; then
-                        exit 1
-                    fi
-                fi
-                
-                # Check remaining space for /home
-                HOME_SIZE=$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))
-                if (( $(echo "$HOME_SIZE < 8.5" | bc -l) )); then
-                    print_warning "Home partition size ${HOME_SIZE}GB is smaller than a dual-layer DVD (8.5GB)"
-                    print_info "This may be insufficient for user data, applications, and backups"
-                    read -r -p "Do you REALLY want such a small /home partition? (y/N): " CONFIRM_TINY_HOME
-                    if [[ ! $CONFIRM_TINY_HOME =~ ^[Yy]$ ]]; then
-                        exit 1
-                    fi
-                fi
-                if [ "$HOME_SIZE" -lt 10 ]; then
-                    print_warning "Only ${HOME_SIZE}GB left for /home after root partition"
-                    print_info "Consider smaller root partition or single partition layout"
-                    read -r -p "Continue anyway? (y/N): " CONFIRM_SMALL_HOME
-                    if [[ ! $CONFIRM_SMALL_HOME =~ ^[Yy]$ ]]; then
-                        exit 1
-                    fi
-                fi
-                
-                # Check for unused disk space
-                USED_SPACE=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + HOME_SIZE))
-                REMAINING_SPACE=$((DISK_SIZE_GB - USED_SPACE))
-                if [ "$REMAINING_SPACE" -gt 0 ]; then
-                    print_info "After partitioning, ${REMAINING_SPACE}GB will remain unallocated on the disk"
-                    print_info "This space can be used later for additional partitions or left as free space"
-                    read -r -p "Continue with unallocated space remaining? (y/N): " CONFIRM_UNUSED_SPACE
-                    if [[ ! $CONFIRM_UNUSED_SPACE =~ ^[Yy]$ ]]; then
-                        exit 1
-                    fi
-                fi
-                fi
+                configure_home_partitioning
                 ;;
             "btrfs-subvolumes")
                 CREATE_HOME=false
