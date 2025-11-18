@@ -35,7 +35,7 @@ cleanup() {
     if [ $exit_code -ne 0 ]; then
         echo ""
         print_error "Installation failed with exit code: $exit_code"
-        print_error "Error occurred at line: ${BASH_LINENO[0]} in function: ${FUNCNAME[1]}"
+        print_error "Error occurred at line: ${BASH_LINENO[1]} in function: ${FUNCNAME[1]}"
         print_info "Cleaning up..."
         
         # Unmount partitions in reverse order
