@@ -507,12 +507,14 @@ case "$PART_CHOICE" in
         echo ""
         
         # Check for existing partitions and warn about data
-        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}[0-9]")
+        # Escape special regex characters in disk name
+        ESCAPED_DISK_NAME=$(printf '%s\n' "$DISK_NAME" | sed 's/[.^$*+?()[{\\|]/\\&/g')
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${ESCAPED_DISK_NAME}[0-9]")
         if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
             print_warning "[WARNING] This disk has $EXISTING_PARTITIONS existing partition(s)!"
             print_warning "All data on these partitions will be PERMANENTLY LOST!"
             echo ""
-            lsblk "$DISK_PATH" | grep "^${DISK_NAME}[0-9]"
+            lsblk "$DISK_PATH" | grep "^${ESCAPED_DISK_NAME}[0-9]"
             echo ""
         fi
         
@@ -919,7 +921,7 @@ case "$PART_CHOICE" in
         
         # Verify partitions were created
         print_info "Verifying partition creation..."
-        PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}[0-9]")
+        PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${ESCAPED_DISK_NAME}[0-9]")
         if [ "$PARTITION_COUNT" -eq 0 ]; then
             print_error "No partitions were created on $DISK_PATH"
             print_info "Current disk layout:"
