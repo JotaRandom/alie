@@ -222,6 +222,7 @@ print_info "System Information:"
 echo "  - CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
 echo "  - RAM: $(free -h | awk '/^Mem:/ {print $2}')"
 echo "  - Architecture: $(uname -m)"
+sleep 5
 
 # ===================================
 # STEP 3: DISK PARTITIONING
@@ -276,6 +277,7 @@ validate_parted() {
     
     print_success "Parted validation passed"
 }
+configure_home_partitioning() {
     CREATE_HOME=true
     # Calculate available space after EFI/swap
     EFI_SIZE=1  # 1GB for EFI
@@ -422,7 +424,7 @@ case "$PART_CHOICE" in
         echo "   - Check SIZE and MODEL to identify your target disk"
         echo "   - ROTA=1 means HDD (rotational), ROTA=0 means SSD"
         echo ""
-        read -r -p "Enter disk to use (e.g., sda, nvme0n1, vda): " DISK_NAME
+        read -r -p "Enter disk to use (e.g., sda or /dev/sda, nvme0n1 or /dev/nvme0n1, vda or /dev/vda): " DISK_NAME
         
         # Enhanced disk name sanitization and validation
         DISK_NAME="${DISK_NAME#/dev/}"  # Remove /dev/ prefix if present
@@ -438,8 +440,8 @@ case "$PART_CHOICE" in
         # Validate disk name format (more restrictive)
         if ! [[ "$DISK_NAME" =~ ^(sd[a-z]|nvme[0-9]+n[0-9]+|vd[a-z]|hd[a-z]|mmcblk[0-9]+)$ ]]; then
             print_error "Invalid disk name format: $DISK_NAME"
-            print_info "Expected formats: sda, sdb, nvme0n1, vda, hda, mmcblk0, etc."
-            print_info "Make sure you're not including /dev/ prefix"
+            print_info "Accepted formats: sda, /dev/sda, nvme0n1, /dev/nvme0n1, vda, hda, mmcblk0, etc."
+            print_info "You can include /dev/ prefix or not - both formats work"
             print_info "Available disks:"
             lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
             exit 1
@@ -1123,7 +1125,7 @@ case "$PART_CHOICE" in
         echo ""
         lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
         echo ""
-        read -r -p "Enter disk to partition (e.g., sda, nvme0n1): " DISK_NAME
+        read -r -p "Enter disk to partition (e.g., sda or /dev/sda, nvme0n1 or /dev/nvme0n1): " DISK_NAME
         
         if [ -z "$DISK_NAME" ]; then
             print_error "No disk specified"
