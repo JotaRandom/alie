@@ -186,7 +186,7 @@ else
 fi
 
 # Set EFI_SIZE based on boot mode and partition table
-if [ "$BOOT_MODE" == "UEFI" ] || ([ "$BOOT_MODE" == "BIOS" ] && [ "${PARTITION_TABLE:-GPT}" == "GPT" ]); then
+if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "${PARTITION_TABLE:-GPT}" == "GPT" ]; }; then
     EFI_SIZE=1
 else
     EFI_SIZE=0
@@ -944,7 +944,7 @@ case "$PART_CHOICE" in
         echo "  Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         echo "  Boot mode: $BOOT_MODE"
         echo "  Bootloader: $BOOTLOADER"
-        if [ "$BOOT_MODE" == "UEFI" ] || ([ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]); then
+        if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; }; then
             echo "  EFI partition: 1GB (FAT32)"
         elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
             echo "  BIOS boot partition: 8MB (BIOS boot)"
@@ -1159,25 +1159,23 @@ case "$PART_CHOICE" in
         
         # Verify partitions were created
         print_info "Verifying partition creation..."
-        # Detect partition naming pattern (sda1 vs nvme0n1p1)
-        if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            PARTITION_PATTERN="${DISK_NAME}p[0-9]"
-        else
-            PARTITION_PATTERN="${DISK_NAME}[0-9]"
-        fi
 
         # Wait for partitions to be detected (retry up to 10 times)
         PARTITION_COUNT=0
         for i in {1..10}; do
-            lsblk_output=$(lsblk -n -o NAME 2>/dev/null) && PARTITION_COUNT=$(echo "$lsblk_output" | grep -c "^${PARTITION_PATTERN}") || PARTITION_COUNT=0
-            if [ "$PARTITION_COUNT" -gt 0 ]; then
+            if lsblk_output=$(lsblk -n -r -p -o NAME 2>/dev/null); then
+                PARTITION_COUNT=$(echo "$lsblk_output" | grep "^${DISK_PATH}" | grep -c -E '[0-9]$')
+            else
+                PARTITION_COUNT=0
+            fi
+            if (( PARTITION_COUNT > 0 )); then
                 break
             fi
             print_info "Waiting for partitions to be detected (attempt $i/10)..."
             sleep 1
         done
 
-        if [ "$PARTITION_COUNT" -eq 0 ]; then
+        if (( PARTITION_COUNT == 0 )); then
             print_error "No partitions were created on $DISK_PATH after 10 attempts"
             print_info "Current disk layout:"
             lsblk "$DISK_PATH"
@@ -1279,7 +1277,7 @@ case "$PART_CHOICE" in
         fi
         
         # Show root partition size before formatting
-        ROOT_PART_SIZE_GB=$(lsblk -b -o SIZE "$ROOT_PARTITION" 2>/dev/null | tail -1 | awk '{print int($1/1024/1024/1024)}' || echo "0")
+        ROOT_PART_SIZE_GB=$(lsblk -b -o SIZE "$ROOT_PARTITION" 2>/dev/null | tail -1 | awk '{print int($1/1024/1024/1024)}' 2>/dev/null | tr -d '\n' || echo "0")
         print_info "Root partition size: ${ROOT_PART_SIZE_GB}GB"
         
         print_info "Formatting root partition as $ROOT_FS..."
@@ -1666,7 +1664,7 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
 fi
 echo "  - Root partition: $ROOT_PARTITION"
 echo "  - Swap partition: $SWAP_PARTITION"
-if [ "$BOOT_MODE" == "UEFI" ] || ([ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]); then
+if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; }; then
     echo "  - EFI partition: $EFI_PARTITION"
 fi
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
