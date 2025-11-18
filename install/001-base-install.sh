@@ -268,8 +268,8 @@ validate_parted() {
     parted_version=$(parted --version 2>/dev/null | head -n1)
     print_info "Parted version: $parted_version"
     
-    # Test basic parted functionality with a safe command
-    if ! parted -s /dev/null version &>/dev/null; then
+    # Test basic parted functionality with help command (safe, doesn't require device)
+    if ! parted --help >/dev/null 2>&1; then
         print_error "parted basic functionality test failed"
         print_info "There may be an issue with parted installation"
         exit 1
