@@ -986,6 +986,16 @@ case "$PART_CHOICE" in
         echo ""
         print_warning "[WARNING] This will ERASE ALL DATA on $DISK_PATH!"
         echo ""
+        
+        # Calculate total reserved space for validation
+        EFI_SIZE=1  # 1GB for EFI
+        if [ "$PARTITION_SCHEME" = "home" ]; then
+            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + HOME_SIZE))
+        else
+            # For single and btrfs-subvolumes, root uses remaining space
+            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE))
+        fi
+        
         echo "Space requirements check:"
         echo "  - Total required: ${TOTAL_RESERVED}GB"
         echo "  - Disk available: ${DISK_SIZE_GB}GB"
