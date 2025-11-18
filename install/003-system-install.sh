@@ -65,6 +65,7 @@ fi
 if ! check_progress "01-partitions-ready"; then
     print_warning "001-base-install.sh progress marker not found"
     print_info "This script expects partitions to be ready"
+    smart_clear
     read -r -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
     if [[ ! $CONTINUE_ANYWAY =~ ^[Yy]$ ]]; then
         exit 1
@@ -214,6 +215,7 @@ if [ "$AVAILABLE_SPACE_MB" -lt 2048 ]; then
     exit 1
 elif [ "$AVAILABLE_SPACE_MB" -lt 5120 ]; then
     print_warning "Low disk space: ${AVAILABLE_SPACE_MB}MB. Installation may fail if packages are large."
+    smart_clear
     read -r -p "Continue anyway? (y/N): " CONTINUE_LOW_SPACE
     if [[ ! $CONTINUE_LOW_SPACE =~ ^[Yy]$ ]]; then
         exit 1
@@ -238,6 +240,7 @@ if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
     echo "  - Insufficient disk space"
     echo "  - Package signing errors"
     echo ""
+    smart_clear
     read -r -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
     
     if [[ ! $RETRY_PACSTRAP =~ ^[Nn]$ ]]; then

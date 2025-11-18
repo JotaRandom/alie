@@ -113,6 +113,7 @@ show_information() {
     echo ""
     
     printf '%s' "${YELLOW}Press Enter to return to menu...${NC}"
+    smart_clear
     read -r -p ""
 }
 
@@ -477,6 +478,7 @@ configure_graphics_drivers() {
         echo "  2) nvidia-lts (LTS kernel driver)"
         echo "  3) nouveau (open source, basic functionality)"
         
+        smart_clear
         read -r -p "Choose driver [1-3] (default: 1): " nvidia_choice
         nvidia_choice=${nvidia_choice:-1}
         
@@ -705,6 +707,7 @@ install_xorg_custom() {
             [iI])
                 if [ ${#categories[@]} -eq 0 ]; then
                     print_warning "No categories selected."
+                    smart_clear
                     read -r -p "Press Enter to continue..."
                 else
                     break
@@ -715,6 +718,7 @@ install_xorg_custom() {
                 ;;
             *)
                 print_warning "Invalid option."
+                smart_clear
                 read -r -p "Press Enter to continue..."
                 ;;
         esac

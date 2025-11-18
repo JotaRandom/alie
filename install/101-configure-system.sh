@@ -64,6 +64,7 @@ echo ""
 print_info "Hostname Configuration"
 echo "The hostname identifies your computer on a network"
 echo "Example: arch-desktop, my-laptop, workstation"
+smart_clear
 read -r -p "Enter hostname: " HOSTNAME
 
 # Validate inputs
@@ -94,6 +95,7 @@ echo "  - Europe/Paris         (Central Europe)"
 echo "  - Asia/Tokyo           (Japan)"
 echo ""
 print_info "For a complete list, check: /usr/share/zoneinfo/"
+smart_clear
 read -r -p "Enter timezone (e.g., America/New_York): " TIMEZONE
 
 if [ -z "$TIMEZONE" ]; then
@@ -134,6 +136,7 @@ echo "  - es_MX.UTF-8  (Spanish - Mexico)"
 echo "  - de_DE.UTF-8  (German - Germany)"
 echo "  - fr_FR.UTF-8  (French - France)"
 echo ""
+smart_clear
 read -r -p "Enter locale (default: en_US.UTF-8): " LOCALE
 LOCALE=${LOCALE:-en_US.UTF-8}
 
@@ -170,6 +173,7 @@ echo "  - fr-latin1    (French)"
 echo "  - la-latin1    (Latin American)"
 echo ""
 print_info "For all layouts: localectl list-keymaps"
+smart_clear
 read -r -p "Enter keyboard layout (default: us): " KEYMAP
 KEYMAP=${KEYMAP:-us}
 
@@ -198,6 +202,7 @@ else
         print_success "Detected AMD CPU"
     else
         print_error "Could not auto-detect CPU vendor"
+        smart_clear
         read -r -p "Enter CPU vendor (intel/amd): " CPU_VENDOR
         
         if [ "$CPU_VENDOR" != "intel" ] && [ "$CPU_VENDOR" != "amd" ]; then
@@ -226,15 +231,18 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
         # Extract disk from root partition (e.g., /dev/sda3 -> /dev/sda)
         GRUB_DISK="${ROOT_PARTITION%%[0-9]*}"
         print_info "Auto-detected GRUB disk from installation: $GRUB_DISK"
+        smart_clear
         read -r -p "Use this disk for GRUB? (Y/n): " CONFIRM_DISK
         
         if [[ $CONFIRM_DISK =~ ^[Nn]$ ]]; then
+            smart_clear
             read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
         fi
     else
         print_info "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE | grep disk
         echo ""
+        smart_clear
         read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
     fi
     
@@ -517,6 +525,7 @@ else
     print_error "Failed to configure boot system!"
     print_warning "The system may not boot correctly without proper initramfs configuration"
     print_info "You may need to manually configure mkinitcpio.conf and regenerate initramfs"
+    smart_clear
     read -r -p "Continue anyway? (y/N): " CONTINUE_BOOT_CONFIG
     if [[ ! $CONTINUE_BOOT_CONFIG =~ ^[Yy]$ ]]; then
         exit 1
@@ -542,6 +551,7 @@ echo "     - Mature and widely tested"
 echo "     - Good compatibility with older applications"
 echo ""
 
+smart_clear
 read -r -p "Select audio server [1-2]: " AUDIO_SERVER
 
 case "$AUDIO_SERVER" in
@@ -605,6 +615,7 @@ echo ""
 echo "  ${CYAN}5)${NC} Skip (install later if needed)"
 echo ""
 
+smart_clear
 read -r -p "Select option [1-5]: " GST_OPTION
 
 case "$GST_OPTION" in

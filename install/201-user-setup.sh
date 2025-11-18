@@ -64,6 +64,7 @@ configure_privilege_escalation() {
     echo ""
     print_info "Note: For maximum compatibility, sudo will be installed alongside other tools"
     
+    smart_clear
     read -r -p "Choose primary privilege escalation tool [1-4] (default: 1): " priv_choice
     priv_choice=${priv_choice:-1}
     
@@ -443,6 +444,7 @@ create_desktop_user() {
     echo ""
     
     while true; do
+        smart_clear
         read -r -p "Enter username for desktop user: " USERNAME
         
         # Sanitize username
@@ -564,6 +566,7 @@ configure_user_shell() {
     echo ""
     
     # Ask user to select shell
+    smart_clear
     read -r -p "Select default shell for $username [1-${#shell_array[@]}] (default: 1/bash): " shell_choice
     shell_choice=${shell_choice:-1}
     
@@ -774,6 +777,7 @@ echo "  [OK] Essential system tools for desktop use"
 echo "  [OK] User environment and directories"
 echo "  [OK] Basic system services"
 echo ""
+smart_clear
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # Validate environment

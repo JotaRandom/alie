@@ -316,6 +316,7 @@ get_user_selection() {
             [iI])
                 if [ ${#selected_categories[@]} -eq 0 ]; then
                     print_warning "No categories selected. Please select at least one category."
+                    smart_clear
                     read -r -p "Press Enter to continue..."
                 else
                     echo "${selected_categories[@]}"
@@ -328,6 +329,7 @@ get_user_selection() {
                 ;;
             *)
                 print_warning "Invalid option. Please try again."
+                smart_clear
                 read -r -p "Press Enter to continue..."
                 ;;
         esac

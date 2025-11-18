@@ -79,6 +79,7 @@ choose_aur_helper() {
         echo "2) Install additional helper"
         echo "3) Reinstall existing helper"
         echo
+        smart_clear
         read -r -p "Choose option [1-3] (default: 1): " choice
         choice=${choice:-1}
         
@@ -104,6 +105,7 @@ choose_aur_helper() {
     echo "1) YAY   - Go-based, most popular, great compatibility"
     echo "2) PARU  - Rust-based, faster, modern features"
     echo
+    smart_clear
     read -r -p "Choose AUR helper [1-2] (default: 1): " helper_choice
     helper_choice=${helper_choice:-1}
     
@@ -478,6 +480,7 @@ echo "  [OK] YAY (Go) - Popular and stable"
 echo "  [OK] PARU (Rust) - Fast and modern"
 echo "  [OK] Automatic configuration and setup"
 echo ""
+smart_clear
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # Validate environment
@@ -544,6 +547,7 @@ fi
 use_binary=false
 if [ "$selected_helper" = "yay" ]; then
     echo
+    smart_clear
     read -r -p "Install yay from binary package? (faster compilation) [Y/n]: " binary_choice
     if [[ ! $binary_choice =~ ^[Nn]$ ]]; then
         use_binary=true
@@ -559,6 +563,7 @@ echo "  [OK] Build packages with debug symbols (-debug packages)"
 echo "  [OK] Useful for development and troubleshooting"
 echo "  [WARNING] Increases build time and disk usage"
 echo
+smart_clear
 read -r -p "Enable debug packages? [y/N]: " enable_debug
 enable_debug=${enable_debug:-n}
 enable_debug=${enable_debug,,}  # lowercase

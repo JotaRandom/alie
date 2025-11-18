@@ -351,9 +351,7 @@ configure_home_partitioning() {
 }
 
 print_info "Available disks:"
-lsblk -d -o NAME,SIZE,MODEL -n | grep disk | while read -r name size model; do
-    echo "  $name ($model ${size}B totales)"
-done
+lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
 echo ""
 
 echo "Partitioning options:"
@@ -373,9 +371,7 @@ case "$PART_CHOICE" in
         
         # Show available disks with more details
         echo "Available disks:"
-        lsblk -d -o NAME,SIZE,MODEL -n | grep disk | while read -r name size model; do
-            echo "  $name ($model ${size}B totales)"
-        done
+        lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
         echo ""
         echo "[WARNING] Make sure you select the CORRECT disk!"
         echo "   - Check SIZE and MODEL to identify your target disk"
