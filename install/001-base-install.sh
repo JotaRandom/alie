@@ -34,7 +34,7 @@ cleanup() {
     
     if [ $exit_code -ne 0 ]; then
         echo ""
-        print_warning "Installation interrupted or failed!"
+        print_warning "Installation cancelled or failed!"
         print_info "Cleaning up..."
         
         # Unmount partitions in reverse order
@@ -96,6 +96,7 @@ if [ "$NETWORK_OK" = false ]; then
     echo "  2) WiFi - configure wireless"
     echo "  3) Skip - I'll configure manually"
     echo "  4) Exit installer"
+    smart_clear
     read -r -p "Choose option [1-4]: " NET_CHOICE
     
     case "$NET_CHOICE" in
@@ -350,14 +351,18 @@ configure_home_partitioning() {
 }
 
 print_info "Available disks:"
-lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
+lsblk -d -o NAME,SIZE,MODEL -n | grep disk | while read -r name size model; do
+    echo "  $name ($model ${size}B totales)"
+done
 echo ""
 
 echo "Partitioning options:"
 echo "  1) Automatic partitioning (DESTRUCTIVE - erases entire disk)"
 echo "  2) Manual partitioning (I'll use cfdisk/fdisk/parted)"
 echo "  3) Use existing partitions (already partitioned)"
-read -r -p "Choose option [1-3]: " PART_CHOICE
+echo "  4) Cancel and exit"
+smart_clear
+read -r -p "Choose option [1-4]: " PART_CHOICE
 
 case "$PART_CHOICE" in
     1)
@@ -368,12 +373,15 @@ case "$PART_CHOICE" in
         
         # Show available disks with more details
         echo "Available disks:"
-        lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
+        lsblk -d -o NAME,SIZE,MODEL -n | grep disk | while read -r name size model; do
+            echo "  $name ($model ${size}B totales)"
+        done
         echo ""
         echo "[WARNING] Make sure you select the CORRECT disk!"
         echo "   - Check SIZE and MODEL to identify your target disk"
         echo "   - ROTA=1 means HDD (rotational), ROTA=0 means SSD"
         echo ""
+        smart_clear
         read -r -p "Enter disk to use (e.g., sda, nvme0n1, vda): " DISK_NAME
         
         # Enhanced disk name sanitization and validation
@@ -469,6 +477,7 @@ case "$PART_CHOICE" in
         echo "  - For hibernation: Add RAM size to swap"
         echo "  - Minimum: 128MB, Maximum: 5.125GB (for modern systems)"
         echo ""
+        smart_clear
         read -r -p "Swap size in GB (suggested: ${SUGGESTED_SWAP}GB): " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-$SUGGESTED_SWAP}
         
@@ -518,6 +527,7 @@ case "$PART_CHOICE" in
         echo "     - Good for media servers, databases"
         echo "     - Cannot shrink, limited repair tools"
         echo ""
+        smart_clear
         read -r -p "Choose filesystem [1-3] (default: 1): " FS_CHOICE
         
         case "$FS_CHOICE" in
@@ -552,6 +562,7 @@ case "$PART_CHOICE" in
             echo "     - Modern features, simple config"
             echo "     - Good for advanced users"
             echo ""
+            smart_clear
             read -r -p "Choose bootloader [1-3] (default: 1): " BOOTLOADER_CHOICE
             
             case "$BOOTLOADER_CHOICE" in
@@ -566,6 +577,7 @@ case "$PART_CHOICE" in
             echo "     - Modern features, simple config"
             echo "     - Good for advanced users"
             echo ""
+            smart_clear
             read -r -p "Choose bootloader [1-2] (default: 1): " BOOTLOADER_CHOICE
             
             case "$BOOTLOADER_CHOICE" in
@@ -624,8 +636,10 @@ case "$PART_CHOICE" in
             fi
             
             if [ "$ROOT_FS" = "btrfs" ]; then
+                smart_clear
                 read -r -p "Choose partition scheme [1-3] (default: 2): " SCHEME_CHOICE
             else
+                smart_clear
                 read -r -p "Choose partition scheme [1-2] (default: 2): " SCHEME_CHOICE
             fi
             
@@ -686,6 +700,7 @@ case "$PART_CHOICE" in
         echo "  Boot configuration: $BOOT_MODE ${PARTITION_TABLE:-GPT}"
         echo ""
         print_warning "[WARNING] This will ERASE ALL DATA on $DISK_PATH!"
+        smart_clear
         read -r -p "Final confirmation - proceed with partitioning? (yes/no): " FINAL_CONFIRM
         
         if [[ ! "$FINAL_CONFIRM" =~ ^(yes|y)$ ]]; then
@@ -767,6 +782,7 @@ case "$PART_CHOICE" in
             echo "Partition table type:"
             echo "  1) MBR (msdos) - Traditional, max 2TB"
             echo "  2) GPT - Modern, better for large disks"
+            smart_clear
             read -r -p "Choose [1-2] (default: 2): " PT_CHOICE
             
             if [ "$PT_CHOICE" == "1" ]; then
@@ -1002,6 +1018,7 @@ case "$PART_CHOICE" in
         echo "  1) cfdisk (recommended, user-friendly)"
         echo "  2) fdisk (traditional)"
         echo "  3) parted (advanced)"
+        smart_clear
         read -r -p "Choose tool [1-3]: " TOOL_CHOICE
         
         case "$TOOL_CHOICE" in
@@ -1020,6 +1037,7 @@ case "$PART_CHOICE" in
         lsblk "$DISK_PATH"
         echo ""
         
+        smart_clear
         read -r -p "Do you want to format the partitions now? (Y/n): " FORMAT_NOW
         
         if [[ ! $FORMAT_NOW =~ ^[Nn]$ ]]; then
@@ -1114,6 +1132,11 @@ case "$PART_CHOICE" in
         AUTO_PARTITIONED=false
         ;;
         
+    4)
+        print_info "Installation cancelled by user"
+        exit 0
+        ;;
+        
     *)
         print_error "Invalid option"
         exit 1
@@ -1131,12 +1154,14 @@ if [ "$AUTO_PARTITIONED" != true ]; then
     lsblk
     echo ""
     
+    smart_clear
     read -r -p "Enter the root partition (e.g., /dev/sda3): " ROOT_PARTITION
     read -r -p "Enter the swap partition (e.g., /dev/sda2): " SWAP_PARTITION
     
     if [ "$BOOT_MODE" == "UEFI" ]; then
         read -r -p "Enter the EFI partition (e.g., /dev/sda1): " EFI_PARTITION
     else
+        smart_clear
         read -r -p "Are you using GPT partition table? (y/N): " USING_GPT
         if [[ $USING_GPT =~ ^[Yy]$ ]]; then
             PARTITION_TABLE="GPT"
@@ -1146,6 +1171,7 @@ if [ "$AUTO_PARTITIONED" != true ]; then
         fi
     fi
     
+    smart_clear
     read -r -p "Do you have a separate /home partition? (y/N): " HAS_HOME
     if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
         read -r -p "Enter the /home partition (e.g., /dev/sda4): " HOME_PARTITION
@@ -1226,6 +1252,7 @@ fi
 echo ""
 
 print_warning "This will install Arch Linux with the above configuration"
+smart_clear
 read -r -p "Continue with installation? (y/N): " CONFIRM
 
 if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
