@@ -505,7 +505,10 @@ case "$PART_CHOICE" in
         print_info "Current disk layout:"
         lsblk "$DISK_PATH"
         echo ""
-        
+
+        # Escape special regex characters in disk name (moved here, before partition detection)
+        ESCAPED_DISK_NAME=$(printf '%s\n' "$DISK_NAME" | sed 's/[.^$*+?()[{\\|]/\\&/g')
+
         # Check for existing partitions and warn about data
         # Detect partition naming pattern (sda1 vs nvme0n1p1)
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
@@ -1399,12 +1402,13 @@ show_alie_banner
 print_step "STEP 7: Mounting Partitions"
 
 print_info "Preparing mount points..."
-if mountpoint -q /mnt/boot 2>/dev/null; then
-    umount /mnt/boot
-fi
-
+# Unmount in reverse order: /home first, then /boot, then root
 if mountpoint -q /mnt/home 2>/dev/null; then
     umount /mnt/home
+fi
+
+if mountpoint -q /mnt/boot 2>/dev/null; then
+    umount /mnt/boot
 fi
 
 if mountpoint -q /mnt 2>/dev/null; then
