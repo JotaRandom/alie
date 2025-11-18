@@ -206,6 +206,9 @@ show_manual_menu() {
 show_alie_banner
 show_warning_banner
 
+# Set up signal handling for graceful exit
+trap 'echo ""; print_warning "Installation cancelled by user (Ctrl+C)"; exit 130' INT
+
 # Detect environment
 ENV=$(detect_environment)
 print_step "Environment Detection"
@@ -264,14 +267,20 @@ case "$ENV" in
         else
             echo "Available actions:"
             echo "  1) Install base system (001-base-install.sh)"
-            echo "  2) Exit"
+            echo "  2) Manual script selection (choose any step)"
+            echo "  3) Exit"
             echo ""
-            read -r -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-3]: " choice
             
-            if [ "$choice" = "2" ]; then
-                print_info "Exiting..."
-                exit 0
-            fi
+            case "$choice" in
+                2)
+                    show_manual_menu
+                    ;;
+                3)
+                    print_info "Exiting..."
+                    exit 0
+                    ;;
+            esac
         fi
         
         # Run base installation

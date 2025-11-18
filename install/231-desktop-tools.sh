@@ -8,6 +8,9 @@
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
+# Add signal handling for graceful interruption
+trap 'echo ""; print_warning "Desktop tools installation cancelled by user (Ctrl+C)"; exit 130' INT
+
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/shared-functions.sh

@@ -1096,9 +1096,12 @@ case "$PART_CHOICE" in
                     esac
                 fi
             fi
+            
+            # Mark as auto-partitioned to skip re-asking for partitions
+            AUTO_PARTITIONED=true
+        else
+            AUTO_PARTITIONED=false
         fi
-        
-        AUTO_PARTITIONED=false
         ;;
         
     3)

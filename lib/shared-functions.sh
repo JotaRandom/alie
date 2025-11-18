@@ -304,8 +304,19 @@ require_desktop_user() {
 # BANNER FUNCTIONS
 # =============================================================================
 
-# Display ALIE main banner
-show_alie_banner() {
+# Display section header with ALIE banner
+print_section_header() {
+    local section_name="$1"
+    local section_desc="$2"
+    
+    show_alie_banner
+    echo ""
+    print_step "$section_name"
+    if [ -n "$section_desc" ]; then
+        print_info "$section_desc"
+        echo ""
+    fi
+}
     smart_clear
     echo -e "${MAGENTA}"
     
