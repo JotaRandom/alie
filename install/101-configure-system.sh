@@ -61,10 +61,10 @@ print_step "STEP 2: System Configuration"
 
 # Hostname
 echo ""
+smart_clear
 print_info "Hostname Configuration"
 echo "The hostname identifies your computer on a network"
 echo "Example: arch-desktop, my-laptop, workstation"
-smart_clear
 read -r -p "Enter hostname: " HOSTNAME
 
 # Validate inputs
@@ -83,6 +83,7 @@ print_success "Hostname: $HOSTNAME"
 
 # Timezone
 echo ""
+smart_clear
 print_info "Timezone Configuration"
 echo "Common timezones:"
 echo "  - America/New_York     (US Eastern)"
@@ -95,7 +96,6 @@ echo "  - Europe/Paris         (Central Europe)"
 echo "  - Asia/Tokyo           (Japan)"
 echo ""
 print_info "For a complete list, check: /usr/share/zoneinfo/"
-smart_clear
 read -r -p "Enter timezone (e.g., America/New_York): " TIMEZONE
 
 if [ -z "$TIMEZONE" ]; then
@@ -127,6 +127,7 @@ print_success "Timezone: $TIMEZONE"
 
 # Locale
 echo ""
+smart_clear
 print_info "Locale Configuration"
 echo "Common locales:"
 echo "  - en_US.UTF-8  (English - United States)"
@@ -136,7 +137,6 @@ echo "  - es_MX.UTF-8  (Spanish - Mexico)"
 echo "  - de_DE.UTF-8  (German - Germany)"
 echo "  - fr_FR.UTF-8  (French - France)"
 echo ""
-smart_clear
 read -r -p "Enter locale (default: en_US.UTF-8): " LOCALE
 LOCALE=${LOCALE:-en_US.UTF-8}
 
@@ -163,6 +163,7 @@ print_success "Locale: $LOCALE"
 
 # Keyboard layout
 echo ""
+smart_clear
 print_info "Keyboard Layout Configuration"
 echo "Common layouts:"
 echo "  - us           (US English)"
@@ -173,7 +174,6 @@ echo "  - fr-latin1    (French)"
 echo "  - la-latin1    (Latin American)"
 echo ""
 print_info "For all layouts: localectl list-keymaps"
-smart_clear
 read -r -p "Enter keyboard layout (default: us): " KEYMAP
 KEYMAP=${KEYMAP:-us}
 
@@ -230,8 +230,8 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
     if [ -n "$ROOT_PARTITION" ]; then
         # Extract disk from root partition (e.g., /dev/sda3 -> /dev/sda)
         GRUB_DISK="${ROOT_PARTITION%%[0-9]*}"
-        print_info "Auto-detected GRUB disk from installation: $GRUB_DISK"
         smart_clear
+        print_info "Auto-detected GRUB disk from installation: $GRUB_DISK"
         read -r -p "Use this disk for GRUB? (Y/n): " CONFIRM_DISK
         
         if [[ $CONFIRM_DISK =~ ^[Nn]$ ]]; then
@@ -524,8 +524,8 @@ if configure_boot_system; then
 else
     print_error "Failed to configure boot system!"
     print_warning "The system may not boot correctly without proper initramfs configuration"
-    print_info "You may need to manually configure mkinitcpio.conf and regenerate initramfs"
     smart_clear
+    print_info "You may need to manually configure mkinitcpio.conf and regenerate initramfs"
     read -r -p "Continue anyway? (y/N): " CONTINUE_BOOT_CONFIG
     if [[ ! $CONTINUE_BOOT_CONFIG =~ ^[Yy]$ ]]; then
         exit 1

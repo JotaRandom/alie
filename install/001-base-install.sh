@@ -90,13 +90,13 @@ else
 fi
 
 if [ "$NETWORK_OK" = false ]; then
+    smart_clear
     echo ""
     echo "Network configuration options:"
     echo "  1) Ethernet (cable) - automatic DHCP"
     echo "  2) WiFi - configure wireless"
     echo "  3) Skip - I'll configure manually"
     echo "  4) Exit installer"
-    smart_clear
     read -r -p "Choose option [1-4]: " NET_CHOICE
     
     case "$NET_CHOICE" in
@@ -359,7 +359,6 @@ echo "  1) Automatic partitioning (DESTRUCTIVE - erases entire disk)"
 echo "  2) Manual partitioning (I'll use cfdisk/fdisk/parted)"
 echo "  3) Use existing partitions (already partitioned)"
 echo "  4) Cancel and exit"
-smart_clear
 read -r -p "Choose option [1-4]: " PART_CHOICE
 
 case "$PART_CHOICE" in
@@ -370,6 +369,7 @@ case "$PART_CHOICE" in
         echo ""
         
         # Show available disks with more details
+        smart_clear
         echo "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
         echo ""
@@ -377,7 +377,6 @@ case "$PART_CHOICE" in
         echo "   - Check SIZE and MODEL to identify your target disk"
         echo "   - ROTA=1 means HDD (rotational), ROTA=0 means SSD"
         echo ""
-        smart_clear
         read -r -p "Enter disk to use (e.g., sda, nvme0n1, vda): " DISK_NAME
         
         # Enhanced disk name sanitization and validation
@@ -774,11 +773,11 @@ case "$PART_CHOICE" in
             
         else
             # BIOS partitioning - ask for table type
+            smart_clear
             echo ""
             echo "Partition table type:"
             echo "  1) MBR (msdos) - Traditional, max 2TB"
             echo "  2) GPT - Modern, better for large disks"
-            smart_clear
             read -r -p "Choose [1-2] (default: 2): " PT_CHOICE
             
             if [ "$PT_CHOICE" == "1" ]; then
@@ -1010,11 +1009,11 @@ case "$PART_CHOICE" in
         echo "  - Home partition: Remaining space (optional)"
         echo ""
         
+        smart_clear
         echo "Available tools:"
         echo "  1) cfdisk (recommended, user-friendly)"
         echo "  2) fdisk (traditional)"
         echo "  3) parted (advanced)"
-        smart_clear
         read -r -p "Choose tool [1-3]: " TOOL_CHOICE
         
         case "$TOOL_CHOICE" in
@@ -1078,6 +1077,7 @@ case "$PART_CHOICE" in
             
             read -r -p "Enter root partition: " ROOT_PARTITION
             if [ -n "$ROOT_PARTITION" ] && [ -b "$ROOT_PARTITION" ]; then
+                smart_clear
                 echo "Choose filesystem:"
                 echo "  1) ext4"
                 echo "  2) btrfs"

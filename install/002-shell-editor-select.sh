@@ -112,11 +112,11 @@ print_info "Base editors (nano and vim) are always installed."
 echo ""
 
 # Nano configuration
+smart_clear
 echo "Configure nano with syntax highlighting?"
 echo "  1) Yes - install nano-syntax-highlighting package"
 echo "  2) No - use default nano configuration"
 echo ""
-smart_clear
 read -r -p "Choice [1-2] (default: 1): " nano_choice
 nano_choice=${nano_choice:-1}
 
@@ -132,11 +132,11 @@ fi
 echo ""
 
 # Vim configuration
+smart_clear
 echo "Configure vim with enhanced settings?"
 echo "  1) Yes - install vim with recommended plugins support"
 echo "  2) No - use default vim configuration"
 echo ""
-smart_clear
 read -r -p "Choice [1-2] (default: 1): " vim_choice
 vim_choice=${vim_choice:-1}
 
@@ -151,6 +151,7 @@ fi
 echo ""
 
 # Additional editors
+smart_clear
 print_info "Additional text editors (optional):"
 echo ""
 echo "  1) neovim - Modern Vim fork (recommended)"
@@ -161,7 +162,6 @@ echo ""
 echo "  0) None - stick with nano and vim only"
 echo ""
 
-smart_clear
 read -r -a editor_choices -p "Select additional editors (space-separated, e.g., '1 3', or 0 for none): "
 
 if [ "${#editor_choices[@]}" -gt 0 ] && [ "${editor_choices[0]}" != "0" ]; then
