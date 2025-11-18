@@ -222,7 +222,7 @@ print_info "System Information:"
 echo "  - CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
 echo "  - RAM: $(free -h | awk '/^Mem:/ {print $2}')"
 echo "  - Architecture: $(uname -m)"
-sleep 5
+sleep 2
 
 # ===================================
 # STEP 3: DISK PARTITIONING
@@ -277,8 +277,9 @@ validate_parted() {
     
     print_success "Parted validation passed"
 }
+
 configure_home_partitioning() {
-    CREATE_HOME=true
+    CREATE_HOME=y
     # Calculate available space after EFI/swap
     EFI_SIZE=1  # 1GB for EFI
     RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE + 5))  # +5GB buffer
@@ -1511,7 +1512,7 @@ if [ "$BOOT_MODE" == "UEFI" ]; then
 fi
 
 # Mount home if separate (with same optimizations)
-if [[ $HAS_HOME =~ ^[Yy]$ ]] || [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+if [ "$PARTITION_SCHEME" = "home" ] || [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ] || [[ ${HAS_HOME:-n} =~ ^[Yy]$ ]]; then
     mkdir -p /mnt/home
     
     if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
