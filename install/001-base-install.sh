@@ -973,6 +973,39 @@ case "$PART_CHOICE" in
         # Format partitions
         print_info "Formatting partitions..."
         
+        # Detect partition naming (sda1 vs nvme0n1p1)
+        if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
+            PART_PREFIX="${DISK_PATH}p"
+        else
+            PART_PREFIX="${DISK_PATH}"
+        fi
+        
+        # Define partition variables based on boot mode
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            EFI_PARTITION="${PART_PREFIX}1"
+            SWAP_PARTITION="${PART_PREFIX}2"
+            ROOT_PARTITION="${PART_PREFIX}3"
+            if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
+                HOME_PARTITION="${PART_PREFIX}4"
+            fi
+        else
+            if [ "$PARTITION_TABLE" == "GPT" ]; then
+                BIOS_BOOT_PARTITION="${PART_PREFIX}1"
+                SWAP_PARTITION="${PART_PREFIX}2"
+                ROOT_PARTITION="${PART_PREFIX}3"
+                if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
+                    HOME_PARTITION="${PART_PREFIX}4"
+                fi
+            else
+                # MBR
+                SWAP_PARTITION="${PART_PREFIX}1"
+                ROOT_PARTITION="${PART_PREFIX}2"
+                if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
+                    HOME_PARTITION="${PART_PREFIX}3"
+                fi
+            fi
+        fi
+        
         # Ensure partitions are unmounted before formatting
         print_info "Ensuring partitions are not mounted..."
         
@@ -1006,57 +1039,6 @@ case "$PART_CHOICE" in
                 }
             fi
         done
-        
-        if [ "$BOOT_MODE" == "UEFI" ]; then
-            EFI_PARTITION="${PART_PREFIX}1"
-            SWAP_PARTITION="${PART_PREFIX}2"
-            ROOT_PARTITION="${PART_PREFIX}3"
-            
-            # Validate partitions exist before formatting
-            for part in "$EFI_PARTITION" "$SWAP_PARTITION" "$ROOT_PARTITION"; do
-                if [ ! -b "$part" ]; then
-                    print_error "Partition $part does not exist"
-                    print_info "Partitioning may have failed. Check disk and try again."
-                    exit 1
-                fi
-            done
-            
-            print_info "Formatting EFI partition as FAT32..."
-            print_warning "This will erase any existing bootloaders on this partition!"
-            run_critical_command "mkfs.fat -F32 -n 'EFI' '$EFI_PARTITION'" "Format EFI partition" || exit 1
-            
-            if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-                HOME_PARTITION="${PART_PREFIX}4"
-                if [ ! -b "$HOME_PARTITION" ]; then
-                    print_error "Home partition $HOME_PARTITION does not exist"
-                    exit 1
-                fi
-            fi
-        else
-            if [ "$PARTITION_TABLE" == "GPT" ]; then
-                BIOS_BOOT_PARTITION="${PART_PREFIX}1"
-                SWAP_PARTITION="${PART_PREFIX}2"
-                ROOT_PARTITION="${PART_PREFIX}3"
-                if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-                    HOME_PARTITION="${PART_PREFIX}4"
-                fi
-            else
-                # MBR
-                SWAP_PARTITION="${PART_PREFIX}1"
-                ROOT_PARTITION="${PART_PREFIX}2"
-                if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-                    HOME_PARTITION="${PART_PREFIX}3"
-                fi
-            fi
-            
-            # Validate partitions exist
-            for part in "$SWAP_PARTITION" "$ROOT_PARTITION" ${HOME_PARTITION:-} ${BIOS_BOOT_PARTITION:-}; do
-                if [ ! -b "$part" ]; then
-                    print_error "Partition $part does not exist"
-                    exit 1
-                fi
-            done
-        fi
         
         print_info "Setting up swap..."
         run_critical_command "mkswap '$SWAP_PARTITION'" "Create swap" || exit 1
