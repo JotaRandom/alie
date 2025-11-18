@@ -75,7 +75,7 @@ Manually select which installation step to execute.
 ├── check-permissions.sh       # Permission verification script (Linux/Unix)
 ├── check-permissions.ps1      # Permission verification script (Windows)
 ├── install/                    # Installation scripts (sequential numbering)
-│   ├── 001-base-install.sh     # Disk partitioning (Live USB, root only)
+│   ├── 001-base-install.sh     # Disk partitioning and base system setup
 │   ├── 002-shell-editor-select.sh # Shell/editor selection (bash/zsh/fish/nushell + nano/vim) (OPTIONAL)
 │   ├── 003-system-install.sh   # Base system install (pacstrap)
 │   ├── 101-configure-system.sh # System configuration (chroot, root only)
@@ -276,6 +276,68 @@ See [LICENSE](LICENSE) file for details.
 - **Arch Linux** - The base distribution
 - **Linux Mint** - Desktop environment and package inspiration
 - **Community** - Bug reports, suggestions, and contributions
+
+---
+
+## 🔧 Troubleshooting
+
+### Disk Partitioning Issues
+
+If the installer fails with "initialization canceled or failed" after selecting a disk:
+
+**1. Check Disk Basics**
+```bash
+# Verify disk exists and is accessible
+lsblk -d /dev/sda  # Replace sda with your disk
+
+# Check if disk is in use
+mount | grep /dev/sda
+swapon --show | grep /dev/sda
+```
+
+**2. Test parted Commands Manually**
+```bash
+# Test basic parted functionality
+sudo parted -s /dev/sda print
+
+# Test partition table creation (dry run)
+sudo parted -s /dev/sda mklabel gpt --dry-run
+```
+
+**3. Common Issues**
+
+- **Disk not found**: Make sure you're using the correct disk name (sda, nvme0n1, etc.)
+- **Permission denied**: Run installer as root
+- **Disk in use**: Unmount any mounted partitions first
+- **Virtual machine**: Some VMs need special disk configurations
+- **USB drive**: Some USB drives don't support all partitioning schemes
+
+**4. Alternative: Manual Partitioning**
+If automatic partitioning fails, choose option 2 in the installer for manual partitioning with cfdisk/fdisk.
+
+### Permission Issues
+
+If scripts don't have execute permissions after cloning:
+
+**Automatic Fix:**
+```bash
+./check-permissions.sh  # Linux/Unix
+.\check-permissions.ps1  # Windows
+```
+
+**Manual Fix:**
+```bash
+chmod +x *.sh install/*.sh lib/*.sh
+```
+
+### Network Issues
+
+If internet connection fails during installation:
+
+1. Check cable connection (Ethernet)
+2. Run `wifi-menu` for wireless setup
+3. Verify DNS: `ping 8.8.8.8`
+4. Check firewall settings
 
 ---
 

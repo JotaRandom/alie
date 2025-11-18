@@ -34,7 +34,8 @@ cleanup() {
     
     if [ $exit_code -ne 0 ]; then
         echo ""
-        print_warning "Installation cancelled or failed!"
+        print_error "Installation failed with exit code: $exit_code"
+        print_error "Error occurred at line: ${BASH_LINENO[0]} in function: ${FUNCNAME[1]}"
         print_info "Cleaning up..."
         
         # Unmount partitions in reverse order
@@ -42,7 +43,7 @@ cleanup() {
             local mount_point="${MOUNTED_PARTITIONS[i]}"
             if mountpoint -q "$mount_point" 2>/dev/null; then
                 print_info "Unmounting $mount_point..."
-                umount "$mount_point" 2>/dev/null || true
+                umount "$mount_point" 2>/dev/null || umount -l "$mount_point" 2>/dev/null || true
             fi
         done
         
@@ -53,6 +54,7 @@ cleanup() {
         fi
         
         print_info "Cleanup complete"
+        print_warning "Check the error messages above for details"
     fi
 }
 
@@ -228,8 +230,52 @@ smart_clear
 show_alie_banner
 print_step "STEP 3: Disk Partitioning & Formatting"
 
-# Function to configure home partition scheme
-configure_home_partitioning() {
+# Function to run critical commands with detailed error reporting
+run_critical_command() {
+    local command="$1"
+    local description="$2"
+    
+    print_info "Executing: $description"
+    print_info "Command: $command"
+    
+    # Run the command and capture both stdout and stderr
+    if eval "$command" 2>&1; then
+        print_success "$description completed successfully"
+        return 0
+    else
+        local exit_code=$?
+        print_error "$description failed with exit code: $exit_code"
+        print_error "Command that failed: $command"
+        print_error "This usually indicates a problem with disk access or parted"
+        return $exit_code
+    fi
+}
+
+# Function to validate parted availability and basic functionality
+validate_parted() {
+    print_info "Validating parted installation and functionality..."
+    
+    # Check if parted is installed
+    if ! command -v parted &>/dev/null; then
+        print_error "parted is not installed"
+        print_info "Install parted with: pacman -S parted"
+        exit 1
+    fi
+    
+    # Check parted version
+    local parted_version
+    parted_version=$(parted --version 2>/dev/null | head -n1)
+    print_info "Parted version: $parted_version"
+    
+    # Test basic parted functionality with a safe command
+    if ! parted -s /dev/null version &>/dev/null; then
+        print_error "parted basic functionality test failed"
+        print_info "There may be an issue with parted installation"
+        exit 1
+    fi
+    
+    print_success "Parted validation passed"
+}
     CREATE_HOME=true
     # Calculate available space after EFI/swap
     EFI_SIZE=1  # 1GB for EFI
@@ -365,6 +411,9 @@ case "$PART_CHOICE" in
         print_warning "This operation is IRREVERSIBLE and will destroy ALL data on the selected disk!"
         echo ""
         
+        # Validate parted before proceeding
+        validate_parted
+        
         # Show available disks with more details
         echo "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
@@ -379,6 +428,8 @@ case "$PART_CHOICE" in
         DISK_NAME="${DISK_NAME#/dev/}"  # Remove /dev/ prefix if present
         DISK_NAME="$(echo "$DISK_NAME" | tr -d '[:space:]')"  # Remove whitespace
         
+        print_info "Selected disk: $DISK_NAME"
+        
         if [ -z "$DISK_NAME" ]; then
             print_error "No disk specified"
             exit 1
@@ -388,10 +439,14 @@ case "$PART_CHOICE" in
         if ! [[ "$DISK_NAME" =~ ^(sd[a-z]|nvme[0-9]+n[0-9]+|vd[a-z]|hd[a-z]|mmcblk[0-9]+)$ ]]; then
             print_error "Invalid disk name format: $DISK_NAME"
             print_info "Expected formats: sda, sdb, nvme0n1, vda, hda, mmcblk0, etc."
+            print_info "Make sure you're not including /dev/ prefix"
+            print_info "Available disks:"
+            lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
             exit 1
         fi
         
         DISK_PATH="/dev/$DISK_NAME"
+        print_info "Full disk path: $DISK_PATH"
         
         # CRITICAL: Validate disk exists and is not system disk
         if [ ! -b "$DISK_PATH" ]; then
@@ -400,6 +455,15 @@ case "$PART_CHOICE" in
             lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
             exit 1
         fi
+        
+        # Check if disk is readable
+        if ! dd if="$DISK_PATH" of=/dev/null bs=512 count=1 2>/dev/null; then
+            print_error "Cannot read from disk $DISK_PATH"
+            print_info "The disk may be faulty or not properly connected"
+            exit 1
+        fi
+        
+        print_success "Disk $DISK_PATH exists and is accessible"
         
         # Check if disk is currently mounted or in use
         if mount | grep -q "^$DISK_PATH" || swapon --show | grep -q "^$DISK_PATH"; then
@@ -411,21 +475,57 @@ case "$PART_CHOICE" in
         fi
         
         # Check if this is the system disk (where we're running from)
+        # More robust detection for various scenarios
         ROOT_DISK=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//' | sed 's/p*$//')
+        
+        # Also check /boot if it's a separate mount
+        BOOT_DISK=""
+        if mountpoint -q /boot && [ "$(findmnt -n -o SOURCE /boot)" != "$(findmnt -n -o SOURCE /)" ]; then
+            BOOT_DISK=$(findmnt -n -o SOURCE /boot | sed 's/[0-9]*$//' | sed 's/p*$//')
+        fi
+        
+        # Check if we're running from a live USB (common in Arch Linux install)
+        LIVE_DISK=""
+        if [ -d /run/archiso ] || grep -q "archiso" /proc/cmdline 2>/dev/null; then
+            # Try to detect the live USB disk
+            for disk in /dev/sd[a-z] /dev/nvme[0-9]n[0-9] /dev/vd[a-z] /dev/hd[a-z] /dev/mmcblk[0-9]; do
+                if [ -b "$disk" ] && blkid "$disk" | grep -q "archiso"; then
+                    LIVE_DISK="$disk"
+                    break
+                fi
+            done
+        fi
+        
         if [ "$DISK_PATH" = "$ROOT_DISK" ]; then
-            print_error "Cannot partition the disk where Arch Linux is currently running!"
-            print_info "This would destroy the live system. Choose a different disk."
+            print_error "Cannot partition the disk where the current system is running!"
+            print_info "This would destroy the running system. Choose a different disk."
+            print_info "System is running from: $ROOT_DISK"
+            exit 1
+        fi
+        
+        if [ -n "$BOOT_DISK" ] && [ "$DISK_PATH" = "$BOOT_DISK" ]; then
+            print_error "Cannot partition the disk containing /boot!"
+            print_info "Boot partition is on: $BOOT_DISK"
+            exit 1
+        fi
+        
+        if [ -n "$LIVE_DISK" ] && [ "$DISK_PATH" = "$LIVE_DISK" ]; then
+            print_error "Cannot partition the live USB disk!"
+            print_info "Arch Linux live system is running from: $LIVE_DISK"
             exit 1
         fi
         
         # Get disk size in GB for validation
+        print_info "Getting disk size information..."
         DISK_SIZE_GB=$(lsblk -b -d -o SIZE "$DISK_PATH" | tail -1 | awk '{print int($1/1024/1024/1024)}')
+        print_info "Disk size: ${DISK_SIZE_GB}GB"
         
         if [ "$DISK_SIZE_GB" -lt 20 ]; then
             print_error "Disk too small: ${DISK_SIZE_GB}GB"
             print_info "Minimum recommended size is 20GB for a basic Arch Linux installation"
             exit 1
         fi
+        print_success "Disk size validation passed"
         
         # Show current layout and data warning
         echo ""
@@ -715,11 +815,16 @@ case "$PART_CHOICE" in
             TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 64))  # Minimum 64GB for single partition
         fi
         
+        print_info "Space requirements check:"
+        print_info "  - Total required: ${TOTAL_RESERVED}GB"
+        print_info "  - Disk available: ${DISK_SIZE_GB}GB"
+        
         if [ "$TOTAL_RESERVED" -gt "$DISK_SIZE_GB" ]; then
             print_error "Insufficient disk space!"
             print_info "Required: ${TOTAL_RESERVED}GB, Available: ${DISK_SIZE_GB}GB"
             exit 1
         fi
+        print_success "Space requirements validation passed"
         
         # Unmount if mounted
         umount -R /mnt 2>/dev/null || true
@@ -735,33 +840,33 @@ case "$PART_CHOICE" in
             print_error "Disk $DISK_PATH became unavailable after wipe!"
             exit 1
         fi
+        print_success "Disk wipe completed successfully"
         
         if [ "$BOOT_MODE" == "UEFI" ]; then
             # UEFI partitioning (GPT)
             print_info "Creating GPT partition table for UEFI..."
-            
-            parted -s "$DISK_PATH" mklabel gpt
+            run_critical_command "parted -s \"$DISK_PATH\" mklabel gpt" "Create GPT partition table" || exit 1
             
             # EFI partition (512MB)
-            parted -s "$DISK_PATH" mkpart primary fat32 1MiB 513MiB
-            parted -s "$DISK_PATH" set 1 esp on
+            run_critical_command "parted -s \"$DISK_PATH\" mkpart primary fat32 1MiB 513MiB" "Create EFI partition" || exit 1
+            run_critical_command "parted -s \"$DISK_PATH\" set 1 esp on" "Set EFI partition ESP flag" || exit 1
             
             # Swap partition
             SWAP_START=513
             SWAP_END=$((SWAP_START + SWAP_SIZE * 1024))
-            parted -s "$DISK_PATH" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB
+            run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB" "Create swap partition" || exit 1
             
             if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
                 # Root partition
                 ROOT_START=$SWAP_END
                 ROOT_END=$((ROOT_START + ROOT_SIZE * 1024))
-                parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB" "Create root partition" || exit 1
                 
                 # Home partition (rest of disk)
-                parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%" "Create home partition" || exit 1
             else
                 # Root partition (rest of disk)
-                parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%" "Create root partition" || exit 1
             fi
             
         else
@@ -776,56 +881,61 @@ case "$PART_CHOICE" in
             if [ "$PT_CHOICE" == "1" ]; then
                 PARTITION_TABLE="MBR"
                 print_info "Creating MBR partition table..."
-                parted -s "$DISK_PATH" mklabel msdos
+                run_critical_command "parted -s \"$DISK_PATH\" mklabel msdos" "Create MBR partition table" || exit 1
                 
                 # Swap
-                parted -s "$DISK_PATH" mkpart primary linux-swap 1MiB $((SWAP_SIZE * 1024))MiB
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap 1MiB $((SWAP_SIZE * 1024))MiB" "Create swap partition" || exit 1
                 
                 if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
                     # Root
                     ROOT_START=$((SWAP_SIZE * 1024))
                     ROOT_END=$((ROOT_START + ROOT_SIZE * 1024))
-                    parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB" "Create root partition" || exit 1
                     
                     # Home
-                    parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%" "Create home partition" || exit 1
                 else
                     # Root (rest)
-                    parted -s "$DISK_PATH" mkpart primary $ROOT_FS $((SWAP_SIZE * 1024))MiB 100%
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS $((SWAP_SIZE * 1024))MiB 100%" "Create root partition" || exit 1
                 fi
                 
             else
                 PARTITION_TABLE="GPT"
                 print_info "Creating GPT partition table for BIOS..."
-                parted -s "$DISK_PATH" mklabel gpt
+                run_critical_command "parted -s \"$DISK_PATH\" mklabel gpt" "Create GPT partition table" || exit 1
                 
                 # BIOS boot partition (1MB)
-                parted -s "$DISK_PATH" mkpart primary 1MiB 2MiB
-                parted -s "$DISK_PATH" set 1 bios_grub on
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary 1MiB 2MiB" "Create BIOS boot partition" || exit 1
+                run_critical_command "parted -s \"$DISK_PATH\" set 1 bios_grub on" "Set BIOS boot flag" || exit 1
                 
                 # Swap
                 SWAP_START=2
                 SWAP_END=$((SWAP_START + SWAP_SIZE * 1024))
-                parted -s "$DISK_PATH" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB" "Create swap partition" || exit 1
                 
                 if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
                     # Root
                     ROOT_START=$SWAP_END
                     ROOT_END=$((ROOT_START + ROOT_SIZE * 1024))
-                    parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB" "Create root partition" || exit 1
                     
                     # Home
-                    parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%" "Create home partition" || exit 1
                 else
                     # Root (rest)
-                    parted -s "$DISK_PATH" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%" "Create root partition" || exit 1
                 fi
             fi
         fi
         
         # Wait for kernel to update partition table
         print_info "Updating partition table..."
-        partprobe "$DISK_PATH" 2>/dev/null || true
+        run_critical_command "partprobe \"$DISK_PATH\"" "Update kernel partition table" || {
+            print_warning "partprobe failed, trying alternative methods..."
+            partx -u "$DISK_PATH" 2>/dev/null || true
+            udevadm trigger 2>/dev/null || true
+            sleep 2
+        }
         
         # Detect partition naming (sda1 vs nvme0n1p1)
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
@@ -833,6 +943,17 @@ case "$PART_CHOICE" in
         else
             PART_PREFIX="${DISK_PATH}"
         fi
+        
+        # Verify partitions were created
+        print_info "Verifying partition creation..."
+        PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}[0-9]")
+        if [ "$PARTITION_COUNT" -eq 0 ]; then
+            print_error "No partitions were created on $DISK_PATH"
+            print_info "Current disk layout:"
+            lsblk "$DISK_PATH"
+            exit 1
+        fi
+        print_success "Created $PARTITION_COUNT partition(s) successfully"
         
         # Wait for partitions to appear in /dev
         print_info "Waiting for partitions to be recognized..."
@@ -852,16 +973,21 @@ case "$PART_CHOICE" in
         # Ensure partitions are unmounted before formatting
         print_info "Ensuring partitions are not mounted..."
         for part in "${PART_PREFIX}"*; do
-            if mountpoint -q "$part" 2>/dev/null || mount | grep -q "$part"; then
+            if [ -b "$part" ] && (mountpoint -q "$part" 2>/dev/null || mount | grep -q "^$part"); then
                 print_warning "Partition $part is mounted, unmounting..."
-                umount "$part" 2>/dev/null || umount -l "$part" 2>/dev/null || true
+                umount "$part" 2>/dev/null || umount -l "$part" 2>/dev/null || {
+                    print_error "Failed to unmount $part"
+                    exit 1
+                }
             fi
         done
         
         # Disable any active swap on these partitions
         if swapon --show | grep -q "${DISK_PATH}"; then
             print_info "Deactivating swap on disk..."
-            swapoff -a 2>/dev/null || true
+            swapoff -a 2>/dev/null || {
+                print_warning "Some swap partitions could not be deactivated"
+            }
         fi
         
         if [ "$BOOT_MODE" == "UEFI" ]; then
@@ -869,12 +995,25 @@ case "$PART_CHOICE" in
             SWAP_PARTITION="${PART_PREFIX}2"
             ROOT_PARTITION="${PART_PREFIX}3"
             
+            # Validate partitions exist before formatting
+            for part in "$EFI_PARTITION" "$SWAP_PARTITION" "$ROOT_PARTITION"; do
+                if [ ! -b "$part" ]; then
+                    print_error "Partition $part does not exist"
+                    print_info "Partitioning may have failed. Check disk and try again."
+                    exit 1
+                fi
+            done
+            
             print_info "Formatting EFI partition as FAT32..."
             print_warning "This will erase any existing bootloaders on this partition!"
-            mkfs.fat -F32 -n "EFI" "$EFI_PARTITION"
+            run_critical_command "mkfs.fat -F32 -n 'EFI' '$EFI_PARTITION'" "Format EFI partition" || exit 1
             
             if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
                 HOME_PARTITION="${PART_PREFIX}4"
+                if [ ! -b "$HOME_PARTITION" ]; then
+                    print_error "Home partition $HOME_PARTITION does not exist"
+                    exit 1
+                fi
             fi
         else
             if [ "$PARTITION_TABLE" == "GPT" ]; then
@@ -892,10 +1031,18 @@ case "$PART_CHOICE" in
                     HOME_PARTITION="${PART_PREFIX}3"
                 fi
             fi
+            
+            # Validate partitions exist
+            for part in "$SWAP_PARTITION" "$ROOT_PARTITION" ${HOME_PARTITION:-} ${BIOS_BOOT_PARTITION:-}; do
+                if [ ! -b "$part" ]; then
+                    print_error "Partition $part does not exist"
+                    exit 1
+                fi
+            done
         fi
         
         print_info "Setting up swap..."
-        mkswap "$SWAP_PARTITION"
+        run_critical_command "mkswap '$SWAP_PARTITION'" "Create swap" || exit 1
         
         print_info "Formatting root partition as $ROOT_FS..."
         case "$ROOT_FS" in
