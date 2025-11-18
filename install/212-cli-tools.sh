@@ -927,12 +927,7 @@ main() {
 }
 
 # Trap cleanup on exit
-cleanup() {
-    if [ $? -ne 0 ]; then
-        print_error "CLI tools installation failed!"
-    fi
-}
-trap cleanup EXIT
+setup_cleanup_trap
 
 # Run main function
 main "$@"

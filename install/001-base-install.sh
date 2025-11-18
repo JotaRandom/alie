@@ -29,37 +29,7 @@ MOUNTED_PARTITIONS=()
 SWAP_ACTIVE=""
 
 # Cleanup function for Ctrl+C or errors
-cleanup() {
-    local exit_code=$?
-    
-    if [ $exit_code -ne 0 ]; then
-        echo ""
-        print_error "Installation failed with exit code: $exit_code"
-        print_error "Error occurred at line: ${BASH_LINENO[1]} in function: ${FUNCNAME[1]}"
-        print_info "Cleaning up..."
-        
-        # Unmount partitions in reverse order
-        for ((i=${#MOUNTED_PARTITIONS[@]}-1; i>=0; i--)); do
-            local mount_point="${MOUNTED_PARTITIONS[i]}"
-            if mountpoint -q "$mount_point" 2>/dev/null; then
-                print_info "Unmounting $mount_point..."
-                umount "$mount_point" 2>/dev/null || umount -l "$mount_point" 2>/dev/null || true
-            fi
-        done
-        
-        # Deactivate swap
-        if [ -n "$SWAP_ACTIVE" ] && swapon --show | grep -q "$SWAP_ACTIVE" 2>/dev/null; then
-            print_info "Deactivating swap..."
-            swapoff "$SWAP_ACTIVE" 2>/dev/null || true
-        fi
-        
-        print_info "Cleanup complete"
-        print_warning "Check the error messages above for details"
-    fi
-}
-
-# Set trap for cleanup
-trap cleanup EXIT INT TERM
+setup_cleanup_trap
 
 # Verify running as root
 require_root

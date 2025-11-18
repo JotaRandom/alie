@@ -12,7 +12,7 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Add signal handling for graceful interruption
-trap 'echo ""; print_warning "Desktop environment installation cancelled by user (Ctrl+C)"; exit 130' INT
+setup_cleanup_trap
 
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

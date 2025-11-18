@@ -34,12 +34,7 @@ SCRIPT_DESC="Choose and install Xorg, Wayland, or both display servers with grap
 print_section_header "$SCRIPT_NAME" "$SCRIPT_DESC"
 
 # Trap cleanup on exit
-cleanup() {
-    if [ $? -ne 0 ]; then
-        print_error "Display server installation failed!"
-    fi
-}
-trap cleanup EXIT
+setup_cleanup_trap
 
 # ============================================================================
 # INTERACTIVE MENU FUNCTIONS

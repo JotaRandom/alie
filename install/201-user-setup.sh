@@ -45,12 +45,7 @@ SCRIPT_DESC="Creates desktop user, configures sudo/privileges, and installs basi
 print_section_header "$SCRIPT_NAME" "$SCRIPT_DESC"
 
 # Trap cleanup on exit
-cleanup() {
-    if [ $? -ne 0 ]; then
-        print_error "User setup failed!"
-    fi
-}
-trap cleanup EXIT
+setup_cleanup_trap
 
 # Privilege escalation detection and configuration function
 configure_privilege_escalation() {

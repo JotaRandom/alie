@@ -9,7 +9,7 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Add signal handling for graceful interruption
-trap 'echo ""; print_warning "Configuration cancelled by user (Ctrl+C)"; exit 130' INT
+setup_cleanup_trap
 
 # Determine script directory (works regardless of how script is called)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -28,26 +28,7 @@ fi
 source "$LIB_DIR/shared-functions.sh"
 
 # Trap cleanup on exit
-AUR_BUILD_DIR=""
-SELECTED_HELPER=""
-cleanup() {
-    local exit_code=$?
-    
-    if [ $exit_code -ne 0 ]; then
-        if [ -n "$SELECTED_HELPER" ]; then
-            print_error "$SELECTED_HELPER installation failed!"
-        else
-            print_error "AUR helper installation failed!"
-        fi
-        
-        # Clean up build directory if it exists
-        if [ -n "$AUR_BUILD_DIR" ] && [ -d "$AUR_BUILD_DIR" ]; then
-            print_info "Cleaning up temporary files..."
-            rm -rf "$AUR_BUILD_DIR" 2>/dev/null || true
-        fi
-    fi
-}
-trap cleanup EXIT
+setup_cleanup_trap
 
 # Function to detect installed AUR helpers
 detect_aur_helpers() {

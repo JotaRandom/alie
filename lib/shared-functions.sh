@@ -1051,32 +1051,6 @@ is_display_manager_installed() {
     esac
 }
 
-# If sourced, don't execute anything
-# If run directly, show info
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    show_alie_banner
-    echo -e "${CYAN}This is a library file meant to be sourced by other scripts.${NC}"
-    echo ""
-    echo -e "${YELLOW}Usage in your script:${NC}"
-    echo -e "  ${GREEN}source \"\$(dirname \"\$0\")/shared-functions.sh\"${NC}"
-    echo ""
-    echo -e "${YELLOW}Available functions:${NC}"
-    echo "  [+] Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
-    echo "  [+] print_info, print_success, print_warning, print_error, print_step"
-    echo "  [+] retry_command, wait_for_operation"
-    echo "  [+] verify_chroot, require_root, require_non_root"
-    echo "  [+] show_alie_banner, show_warning_banner"
-    echo "  [+] load_install_info, save_install_info"
-    echo "  [+] check_internet, wait_for_internet"
-    echo "  [+] is_mounted, safe_unmount"
-    echo "  [+] install_packages, update_package_db"
-    echo "  [+] get_aur_helper, aur_install, aur_update, aur_search"
-    echo "  [+] aur_debug_enabled, show_aur_config"
-    echo "  [+] detect_boot_mode, detect_cpu_vendor, get_microcode_package"
-    echo "  [+] detect_system_info, save_system_config, load_system_config"
-    echo ""
-fi
-
 # =============================================================================
 # AUR HELPER UNIVERSAL FUNCTIONS
 # =============================================================================
@@ -1965,3 +1939,91 @@ print_privilege_info() {
         print_info "sudo compatibility wrapper: present"
     fi
 }
+
+# =============================================================================
+# CLEANUP AND TRAP FUNCTIONS
+# =============================================================================
+
+# Setup cleanup trap for error handling
+# Usage: setup_cleanup_trap
+# This function sets up traps for proper cleanup on script exit/error
+setup_cleanup_trap() {
+    # Function to handle cleanup on exit/error
+    cleanup() {
+        local exit_code=$?
+        local line_number=${BASH_LINENO[1]:-${BASH_LINENO[0]}}  # Use caller line number
+        
+        # Only show cleanup message if there was an error
+        if [ $exit_code -ne 0 ]; then
+            echo "" >&2
+            print_error "Script failed with exit code: $exit_code"
+            print_error "Error occurred at line: $line_number"
+            print_error "Function: ${FUNCNAME[1]:-main}"
+            print_error "File: ${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
+            echo "" >&2
+            
+            # Show last few commands if available
+            if [ -n "${BASH_COMMAND:-}" ]; then
+                print_error "Last command: $BASH_COMMAND"
+            fi
+            
+            # Cleanup mounted partitions
+            if [ -n "${MOUNTED_PARTITIONS:-}" ]; then
+                print_info "Cleaning up mounted partitions..."
+                for mount_point in "${MOUNTED_PARTITIONS[@]}"; do
+                    if mountpoint -q "$mount_point" 2>/dev/null; then
+                        print_info "Unmounting $mount_point..."
+                        umount "$mount_point" 2>/dev/null || umount -l "$mount_point" 2>/dev/null || true
+                    fi
+                done
+            fi
+            
+            # Cleanup active swap
+            if [ -n "${SWAP_ACTIVE:-}" ]; then
+                print_info "Deactivating swap..."
+                swapoff "$SWAP_ACTIVE" 2>/dev/null || true
+            fi
+            
+            # Cleanup AUR build directory if set
+            if [ -n "${AUR_BUILD_DIR:-}" ] && [ -d "$AUR_BUILD_DIR" ]; then
+                print_info "Cleaning up AUR build directory..."
+                rm -rf "$AUR_BUILD_DIR" 2>/dev/null || true
+            fi
+            
+            print_warning "Cleanup complete"
+            print_warning "Check the error messages above for details"
+        fi
+    }
+    
+    # Set trap for cleanup - separate INT from EXIT/TERM for better responsiveness
+    trap cleanup EXIT TERM
+    trap 'cleanup; exit 1' INT
+}
+
+# If sourced, don't execute anything
+# If run directly, show info
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    show_alie_banner
+    echo -e "${CYAN}This is a library file meant to be sourced by other scripts.${NC}"
+    echo ""
+    echo -e "${YELLOW}Usage in your script:${NC}"
+    echo -e "  ${GREEN}source \"\$(dirname \"\$0\")/shared-functions.sh\"${NC}"
+    echo ""
+    echo -e "${YELLOW}Available functions:${NC}"
+    echo "  [+] Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
+    echo "  [+] print_info, print_success, print_warning, print_error, print_step"
+    echo "  [+] retry_command, wait_for_operation"
+    echo "  [+] verify_chroot, require_root, require_non_root"
+    echo "  [+] show_alie_banner, show_warning_banner"
+    echo "  [+] load_install_info, save_install_info"
+    echo "  [+] check_internet, wait_for_internet"
+    echo "  [+] is_mounted, safe_unmount"
+    echo "  [+] install_packages, update_package_db"
+    echo "  [+] get_aur_helper, aur_install, aur_update, aur_search"
+    echo "  [+] aur_debug_enabled, show_aur_config"
+    echo "  [+] detect_boot_mode, detect_cpu_vendor, get_microcode_package"
+    echo "  [+] detect_system_info, save_system_config, load_system_config"
+    echo "  [+] get_privilege_tool, run_privileged, run_privileged_retry, has_privilege_access, print_privilege_info"
+    echo "  [+] setup_cleanup_trap"
+    echo ""
+fi
