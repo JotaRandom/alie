@@ -237,11 +237,11 @@ select_keymap() {
     for keymap_info in "${common_keymaps[@]}"; do
         local keymap_code="${keymap_info%%:*}"
         local keymap_desc="${keymap_info#*:}"
-        printf "  ${CYAN}%2d)${NC} %s (%s)\n" "$i" "$keymap_code" "$keymap_desc"
+        printf "  %s%2d)%s %s (%s)\n" "$CYAN" "$i" "$NC" "$keymap_code" "$keymap_desc"
         ((i++))
     done
     echo ""
-    echo "  ${CYAN}99)${NC} Other (enter manually)"
+    printf "  %s99)%s Other (enter manually)\n" "$CYAN" "$NC"
     echo ""
     
     local choice
@@ -510,10 +510,10 @@ print_info "Available disks:"
 lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
 echo ""
 echo "Partitioning options:"
-echo "  ${CYAN}1)${NC} Automatic partitioning (DESTRUCTIVE - erases entire disk)"
-echo "  ${CYAN}2)${NC} Manual partitioning (I'll use cfdisk/fdisk/parted)"
-echo "  ${CYAN}3)${NC} Use existing partitions (already partitioned)"
-echo "  ${CYAN}4)${NC} Cancel and exit"
+printf "  %s1)%s Automatic partitioning (DESTRUCTIVE - erases entire disk)\n" "$CYAN" "$NC"
+printf "  %s2)%s Manual partitioning (I'll use cfdisk/fdisk/parted)\n" "$CYAN" "$NC"
+printf "  %s3)%s Use existing partitions (already partitioned)\n" "$CYAN" "$NC"
+printf "  %s4)%s Cancel and exit\n" "$CYAN" "$NC"
 read -r -p "Choose option [1-4]: " PART_CHOICE
 
 case "$PART_CHOICE" in
@@ -711,19 +711,19 @@ case "$PART_CHOICE" in
         echo ""
         print_info "Filesystem selection for root partition:"
         echo ""
-        echo "  ${CYAN}1)${NC} ext4 (recommended for most users)"
+        printf "  %s1)%s ext4 (recommended for most users)\n" "$CYAN" "$NC"
         echo "     - Mature, stable, widely supported"
         echo "     - Good performance, journaling, proven reliability"
         echo "     - Easy to resize, repair, and maintain"
         echo "     - Default choice for Linux distributions"
         echo ""
-        echo "  ${CYAN}2)${NC} btrfs (advanced users, modern features)"
+        printf "  %s2)%s btrfs (advanced users, modern features)\n" "$CYAN" "$NC"
         echo "     - Snapshots, compression, subvolumes, RAID"
         echo "     - Built-in checksums, self-healing (RAID1/10)"
         echo "     - Dynamic resizing, efficient storage"
         echo "     - Higher learning curve, potential stability issues"
         echo ""
-        echo "  ${CYAN}3)${NC} xfs (high-performance, large files)"
+        printf "  %s3)%s xfs (high-performance, large files)\n" "$CYAN" "$NC"
         echo "     - Excellent performance with large files"
         echo "     - Dynamic inode allocation, project quotas"
         echo "     - Good for media servers, databases"
@@ -743,7 +743,7 @@ case "$PART_CHOICE" in
         echo ""
         print_info "Bootloader selection:"
         echo ""
-        echo "  ${CYAN}1)${NC} GRUB (recommended for most users)"
+        printf "  %s1)%s GRUB (recommended for most users)\n" "$CYAN" "$NC"
         echo "     - Mature, feature-rich bootloader"
         echo "     - Supports both BIOS and UEFI"
         echo "     - Advanced configuration options"
@@ -751,13 +751,13 @@ case "$PART_CHOICE" in
         echo ""
         
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            echo "  ${CYAN}2)${NC} systemd-boot (modern, simple)"
+            printf "  %s2)%s systemd-boot (modern, simple)\n" "$CYAN" "$NC"
             echo "     - Modern UEFI-only bootloader"
             echo "     - Integrated with systemd"
             echo "     - Simple configuration, fast boot"
             echo "     - Requires UEFI, no BIOS support"
             echo ""
-            echo "  ${CYAN}3)${NC} Limine (lightweight, fast)"
+            printf "  %s3)%s Limine (lightweight, fast)\n" "$CYAN" "$NC"
             echo "     - Minimal, fast bootloader"
             echo "     - Supports both BIOS and UEFI"
             echo "     - Modern features, simple config"
@@ -771,7 +771,7 @@ case "$PART_CHOICE" in
                 *) BOOTLOADER="grub" ;;
             esac
         else
-            echo "  ${CYAN}2)${NC} Limine (lightweight, fast)"
+            printf "  %s2)%s Limine (lightweight, fast)\n" "$CYAN" "$NC"
             echo "     - Minimal, fast bootloader"
             echo "     - Supports both BIOS and UEFI"
             echo "     - Modern features, simple config"
@@ -815,19 +815,19 @@ case "$PART_CHOICE" in
             print_info "Partition scheme selection:"
             echo ""
             echo "Available options:"
-            echo "  ${CYAN}1)${NC} Single partition (/) - Simple, everything in root"
+            printf "  %s1)%s Single partition (/) - Simple, everything in root\n" "$CYAN" "$NC"
             echo "     - Pros: Easy to manage, no space allocation worries"
             echo "     - Cons: User data mixed with system, harder to reinstall"
             echo "     - Recommended for: Beginners, small disks (<50GB)"
             echo ""
-            echo "  ${CYAN}2)${NC} Separate /home - User data isolated"
+            printf "  %s2)%s Separate /home - User data isolated\n" "$CYAN" "$NC"
             echo "     - Pros: User data survives OS reinstalls, better organization"
             echo "     - Cons: Fixed sizes, more complex partitioning"
             echo "     - Recommended for: Most users, large disks (>100GB)"
             echo ""
             
             if [ "$ROOT_FS" = "btrfs" ]; then
-                echo "  ${CYAN}3)${NC} Btrfs subvolumes - Advanced Btrfs features"
+                printf "  %s3)%s Btrfs subvolumes - Advanced Btrfs features\n" "$CYAN" "$NC"
                 echo "     - Pros: Flexible subvolumes, snapshots, compression"
                 echo "     - Cons: Complex, requires Btrfs knowledge"
                 echo "     - Recommended for: Advanced users, power users"
@@ -858,8 +858,8 @@ case "$PART_CHOICE" in
             echo ""
             print_info "Partition table type:"
             echo ""
-            echo "  ${CYAN}1)${NC} MBR (msdos) - Traditional, max 2TB"
-            echo "  ${CYAN}2)${NC} GPT - Modern, better for large disks"
+            printf "  %s1)%s MBR (msdos) - Traditional, max 2TB\n" "$CYAN" "$NC"
+            printf "  %s2)%s GPT - Modern, better for large disks\n" "$CYAN" "$NC"
             echo ""
             read -r -p "Choose [1-2] (default: 2): " PT_CHOICE
             
@@ -895,6 +895,7 @@ case "$PART_CHOICE" in
         print_info "[PLAN] Partitioning Plan:"
         echo "  Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         echo "  Boot mode: $BOOT_MODE"
+        echo "  Bootloader: $BOOTLOADER"
         if [ "$BOOT_MODE" == "UEFI" ]; then
             echo "  EFI partition: 512MB (FAT32, ESP)"
         fi
@@ -917,58 +918,40 @@ case "$PART_CHOICE" in
         esac
         
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            printf "  Root partition: remaining space (\033[1m%s\033[0m with @, @home, @var, @tmp, @.snapshots subvolumes)\n" "$ROOT_FS"
+            printf "  Root partition: remaining space (%s%s%s with @, @home, @var, @tmp, @.snapshots subvolumes)\n" "\033[1m" "$ROOT_FS" "\033[0m"
             echo "  Layout: / on @ subvolume, /home on @home subvolume, /var on @var, /tmp on @tmp, snapshots on @.snapshots"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
             echo "  Btrfs features: compression (zstd:3), checksums, copy-on-write, subvolumes"
         elif [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-            printf "  Root partition: %sGB (\033[1m%s\033[0m)\n" "$ROOT_SIZE" "$ROOT_FS"
-            printf "  Home partition: %sGB (\033[1m%s\033[0m)\n" "$HOME_SIZE" "$ROOT_FS"
+            printf "  Root partition: %sGB (%s%s%s)\n" "$ROOT_SIZE" "\033[1m" "$ROOT_FS" "\033[0m"
+            printf "  Home partition: %sGB (%s%s%s)\n" "$HOME_SIZE" "\033[1m" "$ROOT_FS" "\033[0m"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         else
-            printf "  Root partition: remaining space (\033[1m%s\033[0m)\n" "$ROOT_FS"
+            printf "  Root partition: remaining space (%s%s%s)\n" "\033[1m" "$ROOT_FS" "\033[0m"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         fi
         echo "  Partition table: ${PARTITION_TABLE:-GPT}"
         echo "  Boot configuration: $BOOT_MODE ${PARTITION_TABLE:-GPT}"
         echo ""
         print_warning "[WARNING] This will ERASE ALL DATA on $DISK_PATH!"
-        read -r -p "Final confirmation - proceed with partitioning? (yes/no): " FINAL_CONFIRM
-        
-        if [[ ! "$FINAL_CONFIRM" =~ ^(yes|y)$ ]]; then
-            print_error "Partitioning cancelled by user"
-            exit 1
-        fi
-        
-        # Re-validate disk exists before proceeding (double-check)
-        if [ ! -b "$DISK_PATH" ]; then
-            print_error "Disk $DISK_PATH disappeared! It may have been disconnected."
-            exit 1
-        fi
-        
-        # Perform partitioning with enhanced safety checks
-        print_info "Creating partition table and partitions..."
-        
-        # Validate total space requirements before partitioning
-        EFI_SIZE=1  # 1GB for EFI
-        if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 64))  # Minimum 64GB for root with subvolumes
-        elif [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + 10))  # +10GB minimum for /home
-        else
-            TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + 64))  # Minimum 64GB for single partition
-        fi
-        
-        print_info "Space requirements check:"
-        print_info "  - Total required: ${TOTAL_RESERVED}GB"
-        print_info "  - Disk available: ${DISK_SIZE_GB}GB"
-        
+        echo ""
+        echo "Space requirements check:"
+        echo "  - Total required: ${TOTAL_RESERVED}GB"
+        echo "  - Disk available: ${DISK_SIZE_GB}GB"
+        echo ""
         if [ "$TOTAL_RESERVED" -gt "$DISK_SIZE_GB" ]; then
             print_error "Insufficient disk space!"
             print_info "Required: ${TOTAL_RESERVED}GB, Available: ${DISK_SIZE_GB}GB"
             exit 1
         fi
         print_success "Space requirements validation passed"
+        echo ""
+        read -r -p "Type 'YES' in uppercase to confirm partitioning: " FINAL_CONFIRM
+        
+        if [ "$FINAL_CONFIRM" != "YES" ]; then
+            print_error "Partitioning cancelled - confirmation failed"
+            exit 1
+        fi
         
         # Unmount if mounted
         umount -R /mnt 2>/dev/null || true
@@ -977,20 +960,20 @@ case "$PART_CHOICE" in
         # Check for existing partitions after confirmation (before wipe)
         # Detect existing partitions more robustly
         # Count only partition entries, not the disk itself
-        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}[0-9]")
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_NAME}[0-9]" || echo "0")
         
         # Additional check: also count partitions with p suffix for NVMe/MMC
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}p[0-9]")))
+            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_NAME}p[0-9]" || echo "0")))
         fi
         
         # Verify with fdisk/parted as backup
         if [ "$EXISTING_PARTITIONS" -eq 0 ]; then
             # Try alternative detection methods
             if command -v fdisk >/dev/null 2>&1; then
-                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}p\{0,1\}[0-9]")
+                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}p\{0,1\}[0-9]" || echo "0")
             elif command -v parted >/dev/null 2>&1; then
-                EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]")
+                EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]" || echo "0")
             fi
         fi        # Show final warning with actual partition count
         if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
@@ -1317,9 +1300,9 @@ case "$PART_CHOICE" in
         
         smart_clear
         echo "Available tools:"
-        echo "  ${CYAN}1)${NC} cfdisk (recommended, user-friendly)"
-        echo "  ${CYAN}2)${NC} fdisk (traditional)"
-        echo "  ${CYAN}3)${NC} parted (advanced)"
+        printf "  %s1)%s cfdisk (recommended, user-friendly)\n" "$CYAN" "$NC"
+        printf "  %s2)%s fdisk (traditional)\n" "$CYAN" "$NC"
+        printf "  %s3)%s parted (advanced)\n" "$CYAN" "$NC"
         read -r -p "Choose tool [1-3]: " TOOL_CHOICE
         
         case "$TOOL_CHOICE" in
@@ -1411,9 +1394,9 @@ case "$PART_CHOICE" in
                 
                 smart_clear
                 echo "Choose filesystem:"
-                echo "  ${CYAN}1)${NC} ext4"
-                echo "  ${CYAN}2)${NC} btrfs"
-                echo "  ${CYAN}3)${NC} xfs"
+                printf "  %s1)%s ext4\n" "$CYAN" "$NC"
+                printf "  %s2)%s btrfs\n" "$CYAN" "$NC"
+                printf "  %s3)%s xfs\n" "$CYAN" "$NC"
                 read -r -p "Choose [1-3]: " FS_CHOICE
                 
                 case "$FS_CHOICE" in
