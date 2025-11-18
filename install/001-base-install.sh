@@ -413,7 +413,16 @@ configure_home_partitioning() {
     echo "  - Minimum: 64GB for reliable system operation"
     echo ""
     
-    read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
+    read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB) or 'FULL' for all available space: " ROOT_SIZE
+    
+    # Handle FULL option first
+    if [ "$ROOT_SIZE" = "FULL" ] || [ "$ROOT_SIZE" = "full" ]; then
+        ROOT_SIZE="$AVAILABLE_FOR_ROOT"
+        CREATE_HOME=false
+        print_info "Using all available space for root: ${ROOT_SIZE}GB"
+        print_info "Skipping separate /home partition"
+        return
+    fi
     
     # Handle invalid inputs with retry limit
     retry_count=0
@@ -430,7 +439,15 @@ configure_home_partitioning() {
             fi
             retry_count=$((retry_count + 1))
             if [ "$retry_count" -lt 3 ]; then
-                read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB): " ROOT_SIZE
+                read -r -p "Size for / (root) in GB (recommended: ${SUGGESTED_ROOT}GB) or 'FULL' for all available space: " ROOT_SIZE
+                # Check again for FULL
+                if [ "$ROOT_SIZE" = "FULL" ] || [ "$ROOT_SIZE" = "full" ]; then
+                    ROOT_SIZE="$AVAILABLE_FOR_ROOT"
+                    CREATE_HOME=false
+                    print_info "Using all available space for root: ${ROOT_SIZE}GB"
+                    print_info "Skipping separate /home partition"
+                    return
+                fi
             else
                 print_error "Too many invalid attempts. Installation cancelled."
                 exit 1
@@ -491,6 +508,27 @@ configure_home_partitioning() {
         if [[ ! $CONFIRM_SMALL_HOME =~ ^[Yy]$ ]]; then
             exit 1
         fi
+    fi
+    
+    # Allow user to adjust /home size
+    echo "  - Calculated /home size: ${HOME_SIZE}GB"
+    read -r -p "Accept calculated /home size or enter new size in GB (or 'FULL' to confirm): " HOME_SIZE_INPUT
+    
+    if [ -z "$HOME_SIZE_INPUT" ] || [ "$HOME_SIZE_INPUT" = "FULL" ] || [ "$HOME_SIZE_INPUT" = "full" ]; then
+        print_info "Using calculated /home size: ${HOME_SIZE}GB"
+    else
+        HOME_SIZE="$HOME_SIZE_INPUT"
+        # Validate new size
+        if ! [[ "$HOME_SIZE" =~ ^[0-9]+$ ]] || [ "$HOME_SIZE" -lt 1 ]; then
+            print_error "Invalid /home size: $HOME_SIZE"
+            print_info "/home size must be a positive integer (GB)"
+            exit 1
+        fi
+        if [ "$HOME_SIZE" -gt "$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))" ]; then
+            print_error "/home size ${HOME_SIZE}GB exceeds available space"
+            exit 1
+        fi
+        print_info "Using custom /home size: ${HOME_SIZE}GB"
     fi
     
     # Check for unused disk space
@@ -885,8 +923,13 @@ case "$PART_CHOICE" in
             "btrfs-subvolumes")
                 CREATE_HOME=false
                 ROOT_SIZE=""
+                # Calculate available space for root
+                EFI_SIZE=1  # 1GB for EFI
+                RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE))
+                AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
                 print_info "Using Btrfs subvolumes (/, /home as subvolumes, swap, EFI)"
                 print_info "Note: /home will be a Btrfs subvolume, not a separate partition"
+                print_info "Root partition will use all available space: ${AVAILABLE_FOR_ROOT}GB"
                 ;;
         esac
         
@@ -898,6 +941,8 @@ case "$PART_CHOICE" in
         echo "  Bootloader: $BOOTLOADER"
         if [ "$BOOT_MODE" == "UEFI" ]; then
             echo "  EFI partition: 512MB (FAT32, ESP)"
+        elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
+            echo "  BIOS boot partition: 8MB (BIOS boot)"
         fi
         echo "  Swap partition: ${SWAP_SIZE}GB (Linux swap)"
         
@@ -918,7 +963,10 @@ case "$PART_CHOICE" in
         esac
         
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            printf "  Root partition: remaining space (%s%s%s with @, @home, @var, @tmp, @.snapshots subvolumes)\n" "\033[1m" "$ROOT_FS" "\033[0m"
+            EFI_SIZE=1
+            RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE))
+            AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
+            printf "  Root partition: %sGB remaining space (%s%s%s with @, @home, @var, @tmp, @.snapshots subvolumes)\n" "$AVAILABLE_FOR_ROOT" "\033[1m" "$ROOT_FS" "\033[0m"
             echo "  Layout: / on @ subvolume, /home on @home subvolume, /var on @var, /tmp on @tmp, snapshots on @.snapshots"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
             echo "  Btrfs features: compression (zstd:3), checksums, copy-on-write, subvolumes"
@@ -927,7 +975,10 @@ case "$PART_CHOICE" in
             printf "  Home partition: %sGB (%s%s%s)\n" "$HOME_SIZE" "\033[1m" "$ROOT_FS" "\033[0m"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         else
-            printf "  Root partition: remaining space (%s%s%s)\n" "\033[1m" "$ROOT_FS" "\033[0m"
+            EFI_SIZE=1
+            RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE))
+            AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
+            printf "  Root partition: %sGB remaining space (%s%s%s)\n" "$AVAILABLE_FOR_ROOT" "\033[1m" "$ROOT_FS" "\033[0m"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         fi
         echo "  Partition table: ${PARTITION_TABLE:-GPT}"
@@ -1050,12 +1101,12 @@ case "$PART_CHOICE" in
                 print_info "Creating GPT partition table for BIOS..."
                 run_critical_command "parted -s \"$DISK_PATH\" mklabel gpt" "Create GPT partition table" || exit 1
                 
-                # BIOS boot partition (1MB)
-                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary 1MiB 2MiB" "Create BIOS boot partition" || exit 1
+                # BIOS boot partition (8MB)
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary 1MiB 9MiB" "Create BIOS boot partition" || exit 1
                 run_critical_command "parted -s \"$DISK_PATH\" set 1 bios_grub on" "Set BIOS boot flag" || exit 1
                 
                 # Swap
-                SWAP_START=2
+                SWAP_START=9
                 SWAP_END=$((SWAP_START + SWAP_SIZE * 1024))
                 run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB" "Create swap partition" || exit 1
                 
@@ -1193,6 +1244,10 @@ case "$PART_CHOICE" in
         print_info "Setting up swap..."
         run_critical_command "mkswap '$SWAP_PARTITION'" "Create swap" || exit 1
         
+        # Show root partition size before formatting
+        ROOT_PART_SIZE_GB=$(lsblk -b -o SIZE "$ROOT_PARTITION" | tail -1 | awk '{print int($1/1024/1024/1024)}')
+        print_info "Root partition size: ${ROOT_PART_SIZE_GB}GB"
+        
         print_info "Formatting root partition as $ROOT_FS..."
         case "$ROOT_FS" in
             ext4)
@@ -1210,6 +1265,12 @@ case "$PART_CHOICE" in
                 # -m: metadata profile (dup for single device)
                 # -d: data profile (single for single device)
                 mkfs.btrfs -f -L "ArchRoot" -m dup -d single "$ROOT_PARTITION"
+                
+                # Show available space after formatting
+                print_info "Btrfs filesystem created. Available space:"
+                btrfs filesystem df "$ROOT_PARTITION" 2>/dev/null | grep -E "(Data|Metadata|System)" | while read -r line; do
+                    echo "  $line"
+                done || print_info "Available space: ~${ROOT_PART_SIZE_GB}GB (after metadata allocation)"
                 
                 # Create subvolumes if using Btrfs subvolumes scheme
                 if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
