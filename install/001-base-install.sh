@@ -1617,7 +1617,7 @@ if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ -z "$BIOS_
     exit 1
 fi
 
-if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ -z "$HOME_PARTITION" ]; then
+if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ "$PARTITION_SCHEME" != "btrfs-subvolumes" ] && [ -z "$HOME_PARTITION" ]; then
     print_error "/home partition path is required"
     exit 1
 fi
@@ -1642,7 +1642,7 @@ if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ ! -b "$BIO
     exit 1
 fi
 
-if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ ! -b "$HOME_PARTITION" ]; then
+if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ "$PARTITION_SCHEME" != "btrfs-subvolumes" ] && [ ! -b "$HOME_PARTITION" ]; then
     print_error "$HOME_PARTITION is not a valid block device"
     exit 1
 fi
