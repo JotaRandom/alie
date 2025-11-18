@@ -1146,7 +1146,8 @@ case "$PART_CHOICE" in
             print_warning "partprobe failed, trying alternative methods..."
             partx -u "$DISK_PATH" 2>/dev/null || true
             udevadm trigger 2>/dev/null || true
-            sleep 2
+            udevadm settle 2>/dev/null || true
+            sleep 3
         }
         
         # Detect partition naming (sda1 vs nvme0n1p1)
@@ -1168,7 +1169,7 @@ case "$PART_CHOICE" in
         # Wait for partitions to be detected (retry up to 10 times)
         PARTITION_COUNT=0
         for i in {1..10}; do
-            lsblk_output=$(lsblk -n -o NAME "$DISK_PATH" 2>/dev/null) && PARTITION_COUNT=$(echo "$lsblk_output" | grep -c "^${PARTITION_PATTERN}") || PARTITION_COUNT=0
+            lsblk_output=$(lsblk -n -o NAME 2>/dev/null) && PARTITION_COUNT=$(echo "$lsblk_output" | grep -c "^${PARTITION_PATTERN}") || PARTITION_COUNT=0
             if [ "$PARTITION_COUNT" -gt 0 ]; then
                 break
             fi
