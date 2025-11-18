@@ -645,34 +645,6 @@ case "$PART_CHOICE" in
         lsblk "$DISK_PATH"
         echo ""
 
-        # Escape special regex characters in disk name (moved here, before partition detection)
-        # Check for existing partitions and warn about data
-        # Detect existing partitions more robustly
-        # Count only partition entries, not the disk itself
-        EXISTING_PARTITIONS=$(lsblk -n -o NAME,TYPE "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}")
-
-        # Additional check: also count partitions with p suffix for NVMe/MMC
-        if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME,TYPE "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}p")))
-        fi
-
-        # Verify with fdisk/parted as backup
-        if [ "$EXISTING_PARTITIONS" -eq 0 ]; then
-            # Try alternative detection methods
-            if command -v fdisk >/dev/null 2>&1; then
-                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}p\{0,1\}[0-9]")
-            elif command -v parted >/dev/null 2>&1; then
-                EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]")
-            fi
-        fi
-        if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
-            print_warning "[WARNING] This disk has $EXISTING_PARTITIONS existing partition(s)!"
-            print_warning "All data on these partitions will be PERMANENTLY LOST!"
-            echo ""
-            lsblk "$DISK_PATH" | grep "^${DISK_NAME}"
-            echo ""
-        fi
-        
         print_error "[DANGER] FINAL WARNING: This will DESTROY ALL DATA on $DISK_PATH!"
         print_info "Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         read -r -p "Type 'DESTROY-ALL-DATA' to confirm: " CONFIRM_WIPE
@@ -965,6 +937,35 @@ case "$PART_CHOICE" in
         # Unmount if mounted
         umount -R /mnt 2>/dev/null || true
         swapoff -a 2>/dev/null || true
+        
+        # Check for existing partitions after confirmation (before wipe)
+        # Detect existing partitions more robustly
+        # Count only partition entries, not the disk itself
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}")
+        
+        # Additional check: also count partitions with p suffix for NVMe/MMC
+        if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
+            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}p")))
+        fi
+        
+        # Verify with fdisk/parted as backup
+        if [ "$EXISTING_PARTITIONS" -eq 0 ]; then
+            # Try alternative detection methods
+            if command -v fdisk >/dev/null 2>&1; then
+                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}p\{0,1\}[0-9]")
+            elif command -v parted >/dev/null 2>&1; then
+                EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]")
+            fi
+        fi
+        
+        # Show final warning with actual partition count
+        if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
+            print_warning "[FINAL WARNING] Detected $EXISTING_PARTITIONS existing partition(s) on $DISK_PATH!"
+            print_warning "These partitions will be PERMANENTLY DESTROYED!"
+            echo ""
+            lsblk "$DISK_PATH" | grep "^${DISK_NAME}"
+            echo ""
+        fi
         
         # Wipe disk with verification
         print_info "Wiping existing partition signatures..."
