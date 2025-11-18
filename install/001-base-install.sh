@@ -26,7 +26,6 @@ source "$LIB_DIR/shared-functions.sh"
 
 # Global variables for cleanup
 MOUNTED_PARTITIONS=()
-SWAP_ACTIVE=""
 
 # Cleanup function for Ctrl+C or errors
 setup_cleanup_trap
@@ -193,6 +192,146 @@ echo "  - CPU: $(lscpu | grep "Model name" | cut -d: -f2 | xargs)"
 echo "  - RAM: $(free -h | awk '/^Mem:/ {print $2}')"
 echo "  - Architecture: $(uname -m)"
 sleep 2
+
+# ===================================
+# STEP 2.5: KEYBOARD LAYOUT
+# ===================================
+smart_clear
+show_alie_banner
+print_step "STEP 2.5: Keyboard Layout"
+
+select_keymap() {
+    print_info "The KEYMAP variable defines the console keyboard layout."
+    print_info "Keymaps are located in /usr/share/kbd/keymaps/"
+    echo ""
+    
+    # Common keymaps for selection
+    local common_keymaps=(
+        "us:English (US)"
+        "es:Spanish (Spain)"
+        "fr:French"
+        "de:German"
+        "it:Italian"
+        "pt:Portuguese"
+        "ru:Russian"
+        "br:Portuguese (Brazil)"
+        "la-latin1:Latin American"
+        "uk:United Kingdom"
+        "be:Belgian"
+        "dk:Danish"
+        "no:Norwegian"
+        "se:Swedish"
+        "fi:Finnish"
+        "pl:Polish"
+        "cz:Czech"
+        "hu:Hungarian"
+        "tr:Turkish"
+        "gr:Greek"
+        "il:Hebrew"
+        "jp:Japanese"
+        "kr:Korean"
+    )
+    
+    echo "Common keyboard layouts:"
+    local i=1
+    for keymap_info in "${common_keymaps[@]}"; do
+        local keymap_code="${keymap_info%%:*}"
+        local keymap_desc="${keymap_info#*:}"
+        printf "  ${CYAN}%2d)${NC} %s (%s)\n" "$i" "$keymap_code" "$keymap_desc"
+        ((i++))
+    done
+    echo ""
+    echo "  ${CYAN}99)${NC} Other (enter manually)"
+    echo ""
+    
+    local choice
+    read -r -p "Choose keyboard layout [1-$((${#common_keymaps[@]}+1))] (default: 1): " choice
+    
+    if [ -z "$choice" ]; then
+        choice=1
+    fi
+    
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#common_keymaps[@]}" ]; then
+        KEYMAP="${common_keymaps[$((choice-1))]}"
+        KEYMAP="${KEYMAP%%:*}"
+    elif [ "$choice" = "99" ]; then
+        # Manual entry
+        echo ""
+        print_info "Available keymaps (showing first 20):"
+        local available_keymaps
+        mapfile -t available_keymaps < <(find /usr/share/kbd/keymaps/ -type f -name "*.map.gz" -printf "%P\n" | sed 's|.map.gz$||' | sort | head -20)
+        
+        for i in "${!available_keymaps[@]}"; do
+            printf "  %s\n" "${available_keymaps[$i]}"
+        done
+        echo "  ... (and more)"
+        echo ""
+        
+        while true; do
+            read -r -p "Enter keymap name (e.g., us, es, fr): " KEYMAP
+            if [ -n "$KEYMAP" ] && [ -f "/usr/share/kbd/keymaps/${KEYMAP}.map.gz" ]; then
+                break
+            else
+                print_error "Keymap '$KEYMAP' not found. Please try again."
+            fi
+        done
+    else
+        print_error "Invalid choice. Using default (us)"
+        KEYMAP="us"
+    fi
+    
+    # Load the keymap
+    print_info "Loading keymap: $KEYMAP"
+    if loadkeys "$KEYMAP" 2>/dev/null; then
+        print_success "Keyboard layout set to: $KEYMAP"
+    else
+        print_error "Failed to load keymap '$KEYMAP'"
+        echo ""
+        echo "Options:"
+        echo "  1) Try a different keymap"
+        echo "  2) Continue with default (us) keymap"
+        echo "  3) Cancel installation"
+        echo ""
+        read -r -p "Choose option [1-3]: " KEYMAP_CHOICE
+        
+        case "$KEYMAP_CHOICE" in
+            1)
+                print_info "Returning to keymap selection..."
+                select_keymap
+                return  # Exit this call since select_keymap will call itself again
+                ;;
+            2)
+                print_warning "Using default keymap 'us'"
+                KEYMAP="us"
+                if loadkeys "$KEYMAP" 2>/dev/null; then
+                    print_success "Keyboard layout set to: $KEYMAP"
+                else
+                    print_error "Even default keymap 'us' failed to load!"
+                    print_info "This is unusual and may indicate system issues"
+                    read -r -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
+                    if [[ ! $CONTINUE_ANYWAY =~ ^[Yy]$ ]]; then
+                        print_info "Installation cancelled"
+                        exit 1
+                    fi
+                fi
+                ;;
+            3)
+                print_info "Installation cancelled by user"
+                exit 1
+                ;;
+            *)
+                print_error "Invalid choice. Using default (us)"
+                KEYMAP="us"
+                ;;
+        esac
+    fi
+}
+
+# Select keyboard layout
+select_keymap
+
+# Save installation info including keyboard layout
+save_install_info "/tmp/.alie-install-info" KEYMAP
 
 # ===================================
 # STEP 3: DISK PARTITIONING
@@ -1480,7 +1619,6 @@ if swapon --show | grep -q "$SWAP_PARTITION" 2>/dev/null; then
 fi
 print_info "Activating swap partition..."
 swapon "$SWAP_PARTITION"
-SWAP_ACTIVE="$SWAP_PARTITION"
 print_success "Swap activated"
 
 # Mount EFI if UEFI
@@ -1550,7 +1688,8 @@ save_system_config "/tmp/.alie-install-config"
 if mountpoint -q /mnt 2>/dev/null; then
     mkdir -p /mnt/root
     save_system_config "/mnt/root/.alie-install-config"
-    print_info "Configuration also saved to /mnt/root/.alie-install-config"
+    save_install_info "/mnt/root/.alie-install-info" KEYMAP
+    print_info "Configuration also saved to /mnt/root/.alie-install-config and /mnt/root/.alie-install-info"
 fi
 
 # ===================================
