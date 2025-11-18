@@ -648,19 +648,19 @@ case "$PART_CHOICE" in
         # Escape special regex characters in disk name (moved here, before partition detection)
         # Check for existing partitions and warn about data
         # Detect existing partitions more robustly
-        # Use lsblk to list all partitions on the disk and count them
-        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}")
+        # Count only partition entries, not the disk itself
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME,TYPE "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}")
 
         # Additional check: also count partitions with p suffix for NVMe/MMC
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}p")))
+            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME,TYPE "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}p")))
         fi
 
         # Verify with fdisk/parted as backup
         if [ "$EXISTING_PARTITIONS" -eq 0 ]; then
             # Try alternative detection methods
             if command -v fdisk >/dev/null 2>&1; then
-                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}")
+                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}p\{0,1\}[0-9]")
             elif command -v parted >/dev/null 2>&1; then
                 EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]")
             fi
@@ -673,7 +673,7 @@ case "$PART_CHOICE" in
             echo ""
         fi
         
-        print_warning "[DANGER] FINAL WARNING: This will DESTROY ALL DATA on $DISK_PATH!"
+        print_error "[DANGER] FINAL WARNING: This will DESTROY ALL DATA on $DISK_PATH!"
         print_info "Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         read -r -p "Type 'DESTROY-ALL-DATA' to confirm: " CONFIRM_WIPE
         
@@ -681,16 +681,26 @@ case "$PART_CHOICE" in
             print_error "Partitioning cancelled - confirmation failed"
             exit 1
         fi
-        
+
+        # Show progress screen after confirmation
+        smart_clear
+        show_alie_banner
+        print_step "STEP 3: Configuration"
+        print_info "✓ Disk confirmed: $DISK_PATH (${DISK_SIZE_GB}GB)"
+        print_info "✓ Data destruction confirmed"
+        echo ""
+        print_info "Now configuring your Arch Linux installation..."
+        echo ""
+
         # Ask for swap size FIRST (needed for space calculations)
         RAM_GB=$(free -g | awk '/^Mem:/ {print $2}')
         SUGGESTED_SWAP=$((RAM_GB + 2))
-        
+
         # For systems with >64GB RAM, cap swap at 5GB (as requested)
         if [ "$RAM_GB" -gt 64 ]; then
             SUGGESTED_SWAP=5
         fi
-        
+
         echo ""
         print_info "Swap partition sizing:"
         echo "  - RAM detected: ${RAM_GB}GB"
@@ -698,7 +708,6 @@ case "$PART_CHOICE" in
         echo "  - For hibernation: Add RAM size to swap"
         echo "  - Minimum: 128MB, Maximum: 5.125GB (for modern systems)"
         echo ""
-        smart_clear
         read -r -p "Swap size in GB (suggested: ${SUGGESTED_SWAP}GB): " SWAP_SIZE
         SWAP_SIZE=${SWAP_SIZE:-$SUGGESTED_SWAP}
         
@@ -748,7 +757,6 @@ case "$PART_CHOICE" in
         echo "     - Good for media servers, databases"
         echo "     - Cannot shrink, limited repair tools"
         echo ""
-        smart_clear
         read -r -p "Choose filesystem [1-3] (default: 1): " FS_CHOICE
         
         case "$FS_CHOICE" in
@@ -783,7 +791,6 @@ case "$PART_CHOICE" in
             echo "     - Modern features, simple config"
             echo "     - Good for advanced users"
             echo ""
-            smart_clear
             read -r -p "Choose bootloader [1-3] (default: 1): " BOOTLOADER_CHOICE
             
             case "$BOOTLOADER_CHOICE" in
@@ -798,7 +805,6 @@ case "$PART_CHOICE" in
             echo "     - Modern features, simple config"
             echo "     - Good for advanced users"
             echo ""
-            smart_clear
             read -r -p "Choose bootloader [1-2] (default: 1): " BOOTLOADER_CHOICE
             
             case "$BOOTLOADER_CHOICE" in
