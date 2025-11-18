@@ -1662,14 +1662,14 @@ echo "  - Boot mode: $BOOT_MODE"
 if [ "$BOOT_MODE" == "BIOS" ]; then
     echo "  - Partition table: ${PARTITION_TABLE:-Not specified}"
 fi
-echo "  - Root partition: $ROOT_PARTITION"
-echo "  - Swap partition: $SWAP_PARTITION"
-if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; }; then
-    echo "  - EFI partition: $EFI_PARTITION"
-fi
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
     echo "  - BIOS boot partition: $BIOS_BOOT_PARTITION"
 fi
+if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; }; then
+    echo "  - EFI partition: $EFI_PARTITION"
+fi
+echo "  - Root partition: $ROOT_PARTITION"
+echo "  - Swap partition: $SWAP_PARTITION"
 if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
     if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
         echo "  - Home: (Btrfs subvolume)"
@@ -1800,13 +1800,13 @@ if [ "$BOOT_MODE" == "UEFI" ]; then
 fi
 
 # Mount home if separate (with same optimizations)
-if [ "$PARTITION_SCHEME" = "home" ] || [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ] || [[ ${HAS_HOME:-n} =~ ^[Yy]$ ]]; then
+if [ "$PARTITION_SCHEME" = "home" ] || [[ ${HAS_HOME:-n} =~ ^[Yy]$ && "$PARTITION_SCHEME" != "btrfs-subvolumes" ]]; then
     mkdir -p /mnt/home
     
     if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
         # Mount Btrfs @home subvolume
-        print_info "Mounting Btrfs /home subvolume (@home) with options: $HOME_OPTS"
-        mount -o "$HOME_OPTS,subvol=@home" "$ROOT_PARTITION" /mnt/home
+        print_info "Mounting Btrfs /home subvolume (@home) with options: $MOUNT_OPTS"
+        mount -o "$MOUNT_OPTS,subvol=@home" "$ROOT_PARTITION" /mnt/home
     else
         # Mount separate /home partition
         HOME_FS=$(blkid -o value -s TYPE "$HOME_PARTITION" 2>/dev/null || echo "$ROOT_FS")
