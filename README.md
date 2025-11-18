@@ -40,25 +40,6 @@
 - Internet connection
 - At least 20GB free disk space
 
-### Post-Clone Setup (Linux Systems)
-
-**Important**: If you're working on Linux, shell scripts need execute permissions to run.
-
-After cloning the repository, run the setup script to ensure all `.sh` files have execute permissions:
-
-```bash
-cd ALIE
-bash setup.sh
-```
-
-**Note**: If `bash setup.sh` doesn't work, the setup.sh script itself may also lack execute permissions. In that case, use:
-
-```bash
-chmod +x setup.sh && ./setup.sh
-```
-
-This script automatically finds and sets execute permissions on all shell scripts in the project.
-
 ### Installation
 
 **1. Download the installer**
