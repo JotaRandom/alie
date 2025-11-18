@@ -5,6 +5,11 @@
 # This is critical for Linux/Unix execution environments
 *.sh text eol=lf
 
+# CRITICAL: All .sh files MUST have execute permissions (100755)
+# This ensures cross-platform compatibility when developing on Windows
+# and deploying on Linux/Unix systems
+*.sh filter=chmod+x
+
 # Markdown files can use system defaults but prefer LF for consistency
 *.md text eol=lf
 

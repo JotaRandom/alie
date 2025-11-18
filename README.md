@@ -72,6 +72,8 @@ Manually select which installation step to execute.
 
 ```
 ├── alie.sh                     # Master installer (entry point)
+├── check-permissions.sh       # Permission verification script (Linux/Unix)
+├── check-permissions.ps1      # Permission verification script (Windows)
 ├── install/                    # Installation scripts (sequential numbering)
 │   ├── 001-base-install.sh     # Disk partitioning (Live USB, root only)
 │   ├── 002-shell-editor-select.sh # Shell/editor selection (bash/zsh/fish/nushell + nano/vim) (OPTIONAL)
@@ -126,7 +128,36 @@ See the Semantic Numbering System section above for details.
 
 ---
 
-## 🔧 Features
+## 🔒 Permission Protection System
+
+**All shell scripts in this repository are protected to maintain execute permissions across platforms.**
+
+### Automatic Protection
+- **Pre-commit hook**: Automatically prevents commits if any `.sh` file lacks execute permissions
+- **Git attributes**: Documents that `.sh` files must have execute permissions
+- **Cross-platform scripts**: `check-permissions.sh` (Linux/Unix) and `check-permissions.ps1` (Windows)
+
+### Manual Verification
+If you suspect permission issues, run the appropriate script:
+
+**Linux/Unix:**
+```bash
+./check-permissions.sh
+```
+
+**Windows:**
+```powershell
+.\check-permissions.ps1
+```
+
+These scripts will automatically detect and fix any permission issues.
+
+### Why This Matters
+- **Cross-platform development**: Windows development, Linux deployment
+- **Zero manual intervention**: Clone and run immediately
+- **Prevention over cure**: Automatic checks prevent accidental permission loss
+
+---
 
 - ✅ **Fully automated** - Auto-detects environment and resumes installation
 - ✅ **Progress tracking** - Saves state, safe to interrupt and resume
