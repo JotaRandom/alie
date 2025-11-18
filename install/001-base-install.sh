@@ -667,7 +667,7 @@ case "$PART_CHOICE" in
         
         # Get disk size in GB for validation
         print_info "Getting disk size information..."
-        DISK_SIZE_GB=$(lsblk -b -d -o SIZE "$DISK_PATH" | tail -1 | awk '{print int($1/1024/1024/1024)}')
+        DISK_SIZE_GB=$(lsblk -b -d -o SIZE "$DISK_PATH" 2>/dev/null | tail -1 | awk '{print int($1/1024/1024/1024)}' || echo "0")
         print_info "Disk size: ${DISK_SIZE_GB}GB"
         
         if [ "$DISK_SIZE_GB" -lt 20 ]; then
@@ -1160,11 +1160,22 @@ case "$PART_CHOICE" in
             PARTITION_PATTERN="${DISK_NAME}[0-9]"
         fi
 
-        PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${PARTITION_PATTERN}")
+        # Wait for partitions to be detected (retry up to 10 times)
+        PARTITION_COUNT=0
+        for i in {1..10}; do
+            PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" 2>/dev/null | grep -c "^${PARTITION_PATTERN}" || echo "0")
+            if [ "$PARTITION_COUNT" -gt 0 ]; then
+                break
+            fi
+            print_info "Waiting for partitions to be detected (attempt $i/10)..."
+            sleep 1
+        done
+
         if [ "$PARTITION_COUNT" -eq 0 ]; then
-            print_error "No partitions were created on $DISK_PATH"
+            print_error "No partitions were created on $DISK_PATH after 10 attempts"
             print_info "Current disk layout:"
             lsblk "$DISK_PATH"
+            print_info "This may indicate a problem with parted or disk access"
             exit 1
         fi
         print_success "Created $PARTITION_COUNT partition(s) successfully"
@@ -1255,7 +1266,7 @@ case "$PART_CHOICE" in
         run_critical_command "mkswap '$SWAP_PARTITION'" "Create swap" || exit 1
         
         # Show root partition size before formatting
-        ROOT_PART_SIZE_GB=$(lsblk -b -o SIZE "$ROOT_PARTITION" | tail -1 | awk '{print int($1/1024/1024/1024)}')
+        ROOT_PART_SIZE_GB=$(lsblk -b -o SIZE "$ROOT_PARTITION" 2>/dev/null | tail -1 | awk '{print int($1/1024/1024/1024)}' || echo "0")
         print_info "Root partition size: ${ROOT_PART_SIZE_GB}GB"
         
         print_info "Formatting root partition as $ROOT_FS..."
