@@ -647,19 +647,29 @@ case "$PART_CHOICE" in
 
         # Escape special regex characters in disk name (moved here, before partition detection)
         # Check for existing partitions and warn about data
-        # Detect partition naming pattern (sda1 vs nvme0n1p1)
+        # Detect existing partitions more robustly
+        # Use lsblk to list all partitions on the disk and count them
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}")
+
+        # Additional check: also count partitions with p suffix for NVMe/MMC
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            PARTITION_PATTERN="${DISK_NAME}p[0-9]"
-        else
-            PARTITION_PATTERN="${DISK_NAME}[0-9]"
+            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}p")))
         fi
 
-        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${PARTITION_PATTERN}")
+        # Verify with fdisk/parted as backup
+        if [ "$EXISTING_PARTITIONS" -eq 0 ]; then
+            # Try alternative detection methods
+            if command -v fdisk >/dev/null 2>&1; then
+                EXISTING_PARTITIONS=$(fdisk -l "$DISK_PATH" 2>/dev/null | grep -c "^${DISK_PATH}")
+            elif command -v parted >/dev/null 2>&1; then
+                EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]")
+            fi
+        fi
         if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
             print_warning "[WARNING] This disk has $EXISTING_PARTITIONS existing partition(s)!"
             print_warning "All data on these partitions will be PERMANENTLY LOST!"
             echo ""
-            lsblk "$DISK_PATH" | grep "^${PARTITION_PATTERN}"
+            lsblk "$DISK_PATH" | grep "^${DISK_NAME}"
             echo ""
         fi
         
