@@ -510,10 +510,10 @@ print_info "Available disks:"
 lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
 echo ""
 echo "Partitioning options:"
-echo "  1) Automatic partitioning (DESTRUCTIVE - erases entire disk)"
-echo "  2) Manual partitioning (I'll use cfdisk/fdisk/parted)"
-echo "  3) Use existing partitions (already partitioned)"
-echo "  4) Cancel and exit"
+echo "  ${CYAN}1)${NC} Automatic partitioning (DESTRUCTIVE - erases entire disk)"
+echo "  ${CYAN}2)${NC} Manual partitioning (I'll use cfdisk/fdisk/parted)"
+echo "  ${CYAN}3)${NC} Use existing partitions (already partitioned)"
+echo "  ${CYAN}4)${NC} Cancel and exit"
 read -r -p "Choose option [1-4]: " PART_CHOICE
 
 case "$PART_CHOICE" in
@@ -853,6 +853,25 @@ case "$PART_CHOICE" in
             print_success "Selected partition scheme: $PARTITION_SCHEME"
         fi
         
+        # Ask for partition table type for BIOS systems
+        if [ "$BOOT_MODE" == "BIOS" ]; then
+            echo ""
+            print_info "Partition table type:"
+            echo ""
+            echo "  ${CYAN}1)${NC} MBR (msdos) - Traditional, max 2TB"
+            echo "  ${CYAN}2)${NC} GPT - Modern, better for large disks"
+            echo ""
+            read -r -p "Choose [1-2] (default: 2): " PT_CHOICE
+            
+            if [ "$PT_CHOICE" == "1" ]; then
+                PARTITION_TABLE="MBR"
+            else
+                PARTITION_TABLE="GPT"
+            fi
+            
+            print_success "Selected partition table: $PARTITION_TABLE"
+        fi
+        
         # Configure partitioning based on scheme
         case "$PARTITION_SCHEME" in
             "single")
@@ -880,18 +899,35 @@ case "$PART_CHOICE" in
             echo "  EFI partition: 512MB (FAT32, ESP)"
         fi
         echo "  Swap partition: ${SWAP_SIZE}GB (Linux swap)"
+        
+        # Set mount options for display in summary
+        case "$ROOT_FS" in
+            ext4)
+                MOUNT_OPTS="defaults,noatime,errors=remount-ro,commit=60"
+                ;;
+            btrfs)
+                MOUNT_OPTS="defaults,noatime,compress=zstd:3,space_cache=v2,discard=async"
+                ;;
+            xfs)
+                MOUNT_OPTS="defaults,noatime,inode64,logbsize=256k"
+                ;;
+            *)
+                MOUNT_OPTS="defaults,relatime"
+                ;;
+        esac
+        
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            echo "  Root partition: remaining space ($ROOT_FS with @, @home, @var, @tmp, @.snapshots subvolumes)"
+            printf "  Root partition: remaining space (\033[1m%s\033[0m with @, @home, @var, @tmp, @.snapshots subvolumes)\n" "$ROOT_FS"
             echo "  Layout: / on @ subvolume, /home on @home subvolume, /var on @var, /tmp on @tmp, snapshots on @.snapshots"
-            echo "  Filesystem options: $MOUNT_OPTS"
+            printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
             echo "  Btrfs features: compression (zstd:3), checksums, copy-on-write, subvolumes"
         elif [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-            echo "  Root partition: ${ROOT_SIZE}GB ($ROOT_FS)"
-            echo "  Home partition: ${HOME_SIZE}GB ($ROOT_FS)"
-            echo "  Filesystem options: $MOUNT_OPTS"
+            printf "  Root partition: %sGB (\033[1m%s\033[0m)\n" "$ROOT_SIZE" "$ROOT_FS"
+            printf "  Home partition: %sGB (\033[1m%s\033[0m)\n" "$HOME_SIZE" "$ROOT_FS"
+            printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         else
-            echo "  Root partition: remaining space ($ROOT_FS)"
-            echo "  Filesystem options: $MOUNT_OPTS"
+            printf "  Root partition: remaining space (\033[1m%s\033[0m)\n" "$ROOT_FS"
+            printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         fi
         echo "  Partition table: ${PARTITION_TABLE:-GPT}"
         echo "  Boot configuration: $BOOT_MODE ${PARTITION_TABLE:-GPT}"
@@ -941,11 +977,11 @@ case "$PART_CHOICE" in
         # Check for existing partitions after confirmation (before wipe)
         # Detect existing partitions more robustly
         # Count only partition entries, not the disk itself
-        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}")
+        EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}[0-9]")
         
         # Additional check: also count partitions with p suffix for NVMe/MMC
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" | awk '$2 == "part" {print $1}' | grep -c "^${DISK_NAME}p")))
+            EXISTING_PARTITIONS=$((EXISTING_PARTITIONS + $(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${DISK_NAME}p[0-9]")))
         fi
         
         # Verify with fdisk/parted as backup
@@ -956,9 +992,7 @@ case "$PART_CHOICE" in
             elif command -v parted >/dev/null 2>&1; then
                 EXISTING_PARTITIONS=$(parted -s "$DISK_PATH" print 2>/dev/null | grep -c "^ [0-9]")
             fi
-        fi
-        
-        # Show final warning with actual partition count
+        fi        # Show final warning with actual partition count
         if [ "$EXISTING_PARTITIONS" -gt 0 ]; then
             print_warning "[FINAL WARNING] Detected $EXISTING_PARTITIONS existing partition(s) on $DISK_PATH!"
             print_warning "These partitions will be PERMANENTLY DESTROYED!"
@@ -1007,16 +1041,8 @@ case "$PART_CHOICE" in
             fi
             
         else
-            # BIOS partitioning - ask for table type
-            smart_clear
-            echo ""
-            echo "Partition table type:"
-            echo "  1) MBR (msdos) - Traditional, max 2TB"
-            echo "  2) GPT - Modern, better for large disks"
-            read -r -p "Choose [1-2] (default: 2): " PT_CHOICE
-            
-            if [ "$PT_CHOICE" == "1" ]; then
-                PARTITION_TABLE="MBR"
+            # BIOS partitioning
+            if [ "$PARTITION_TABLE" == "MBR" ]; then
                 print_info "Creating MBR partition table..."
                 run_critical_command "parted -s \"$DISK_PATH\" mklabel msdos" "Create MBR partition table" || exit 1
                 
@@ -1037,7 +1063,7 @@ case "$PART_CHOICE" in
                 fi
                 
             else
-                PARTITION_TABLE="GPT"
+                # GPT
                 print_info "Creating GPT partition table for BIOS..."
                 run_critical_command "parted -s \"$DISK_PATH\" mklabel gpt" "Create GPT partition table" || exit 1
                 
@@ -1291,9 +1317,9 @@ case "$PART_CHOICE" in
         
         smart_clear
         echo "Available tools:"
-        echo "  1) cfdisk (recommended, user-friendly)"
-        echo "  2) fdisk (traditional)"
-        echo "  3) parted (advanced)"
+        echo "  ${CYAN}1)${NC} cfdisk (recommended, user-friendly)"
+        echo "  ${CYAN}2)${NC} fdisk (traditional)"
+        echo "  ${CYAN}3)${NC} parted (advanced)"
         read -r -p "Choose tool [1-3]: " TOOL_CHOICE
         
         case "$TOOL_CHOICE" in
@@ -1385,9 +1411,9 @@ case "$PART_CHOICE" in
                 
                 smart_clear
                 echo "Choose filesystem:"
-                echo "  1) ext4"
-                echo "  2) btrfs"
-                echo "  3) xfs"
+                echo "  ${CYAN}1)${NC} ext4"
+                echo "  ${CYAN}2)${NC} btrfs"
+                echo "  ${CYAN}3)${NC} xfs"
                 read -r -p "Choose [1-3]: " FS_CHOICE
                 
                 case "$FS_CHOICE" in
