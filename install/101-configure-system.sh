@@ -240,7 +240,7 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
         fi
     else
         print_info "Available disks:"
-        lsblk -d -o NAME,SIZE,TYPE | grep disk
+        lsblk -d -o NAME,SIZE,TYPE 2>/dev/null | grep disk
         echo ""
         smart_clear
         read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK

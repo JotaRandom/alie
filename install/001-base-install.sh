@@ -185,6 +185,13 @@ else
     echo "  [INFO] Can use: MBR or GPT partition table"
 fi
 
+# Set EFI_SIZE based on boot mode and partition table
+if [ "$BOOT_MODE" == "UEFI" ] || ([ "$BOOT_MODE" == "BIOS" ] && [ "${PARTITION_TABLE:-GPT}" == "GPT" ]); then
+    EFI_SIZE=1
+else
+    EFI_SIZE=0
+fi
+
 # Show system info
 echo ""
 print_info "System Information:"
@@ -390,7 +397,6 @@ validate_parted() {
 configure_home_partitioning() {
     CREATE_HOME=y
     # Calculate available space after EFI/swap
-    EFI_SIZE=1  # 1GB for EFI
     RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE + 5))  # +5GB buffer
     AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
     
@@ -545,7 +551,7 @@ configure_home_partitioning() {
 }
 
 print_info "Available disks:"
-lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
+lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk
 echo ""
 echo "Partitioning options:"
 printf "  %s1)%s Automatic partitioning (DESTRUCTIVE - erases entire disk)\n" "$CYAN" "$NC"
@@ -566,7 +572,7 @@ case "$PART_CHOICE" in
         
         # Show available disks with more details
         echo "Available disks:"
-        lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
+        lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA 2>/dev/null | grep disk
         echo ""
         echo "[WARNING] Make sure you select the CORRECT disk!"
         echo "   - Check SIZE and MODEL to identify your target disk"
@@ -591,7 +597,7 @@ case "$PART_CHOICE" in
             print_info "Accepted formats: sda, /dev/sda, nvme0n1, /dev/nvme0n1, vda, hda, mmcblk0, etc."
             print_info "You can include /dev/ prefix or not - both formats work"
             print_info "Available disks:"
-            lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
+            lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk
             exit 1
         fi
         
@@ -602,7 +608,7 @@ case "$PART_CHOICE" in
         if [ ! -b "$DISK_PATH" ]; then
             print_error "$DISK_PATH is not a valid block device"
             print_info "Available disks:"
-            lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
+            lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk
             exit 1
         fi
         
@@ -924,7 +930,6 @@ case "$PART_CHOICE" in
                 CREATE_HOME=false
                 ROOT_SIZE=""
                 # Calculate available space for root
-                EFI_SIZE=1  # 1GB for EFI
                 RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE))
                 AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
                 print_info "Using Btrfs subvolumes (/, /home as subvolumes, swap, EFI)"
@@ -939,8 +944,8 @@ case "$PART_CHOICE" in
         echo "  Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         echo "  Boot mode: $BOOT_MODE"
         echo "  Bootloader: $BOOTLOADER"
-        if [ "$BOOT_MODE" == "UEFI" ]; then
-            echo "  EFI partition: 512MB (FAT32, ESP)"
+        if [ "$BOOT_MODE" == "UEFI" ] || ([ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]); then
+            echo "  EFI partition: 1GB (FAT32)"
         elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
             echo "  BIOS boot partition: 8MB (BIOS boot)"
         fi
@@ -963,7 +968,6 @@ case "$PART_CHOICE" in
         esac
         
         if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            EFI_SIZE=1
             RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE))
             AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
             printf "  Root partition: %sGB remaining space (%s%s%s with @, @home, @var, @tmp, @.snapshots subvolumes)\n" "$AVAILABLE_FOR_ROOT" "\033[1m" "$ROOT_FS" "\033[0m"
@@ -975,7 +979,6 @@ case "$PART_CHOICE" in
             printf "  Home partition: %sGB (%s%s%s)\n" "$HOME_SIZE" "\033[1m" "$ROOT_FS" "\033[0m"
             printf "  Filesystem options: %s\n" "$MOUNT_OPTS"
         else
-            EFI_SIZE=1
             RESERVED_SPACE=$((EFI_SIZE + SWAP_SIZE))
             AVAILABLE_FOR_ROOT=$((DISK_SIZE_GB - RESERVED_SPACE))
             printf "  Root partition: %sGB remaining space (%s%s%s)\n" "$AVAILABLE_FOR_ROOT" "\033[1m" "$ROOT_FS" "\033[0m"
@@ -988,7 +991,6 @@ case "$PART_CHOICE" in
         echo ""
         
         # Calculate total reserved space for validation
-        EFI_SIZE=1  # 1GB for EFI
         if [ "$PARTITION_SCHEME" = "home" ]; then
             TOTAL_RESERVED=$((EFI_SIZE + SWAP_SIZE + ROOT_SIZE + HOME_SIZE))
         else
@@ -1115,8 +1117,11 @@ case "$PART_CHOICE" in
                 run_critical_command "parted -s \"$DISK_PATH\" mkpart primary 1MiB 9MiB" "Create BIOS boot partition" || exit 1
                 run_critical_command "parted -s \"$DISK_PATH\" set 1 bios_grub on" "Set BIOS boot flag" || exit 1
                 
+                # EFI-like partition (1GB FAT32)
+                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary fat32 9MiB 1033MiB" "Create EFI-like partition" || exit 1
+                
                 # Swap
-                SWAP_START=9
+                SWAP_START=1033
                 SWAP_END=$((SWAP_START + SWAP_SIZE * 1024))
                 run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB" "Create swap partition" || exit 1
                 
@@ -1213,10 +1218,11 @@ case "$PART_CHOICE" in
         else
             if [ "$PARTITION_TABLE" == "GPT" ]; then
                 BIOS_BOOT_PARTITION="${PART_PREFIX}1"
-                SWAP_PARTITION="${PART_PREFIX}2"
-                ROOT_PARTITION="${PART_PREFIX}3"
+                EFI_PARTITION="${PART_PREFIX}2"
+                SWAP_PARTITION="${PART_PREFIX}3"
+                ROOT_PARTITION="${PART_PREFIX}4"
                 if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-                    HOME_PARTITION="${PART_PREFIX}4"
+                    HOME_PARTITION="${PART_PREFIX}5"
                 fi
             else
                 # MBR
@@ -1264,6 +1270,12 @@ case "$PART_CHOICE" in
         
         print_info "Setting up swap..."
         run_critical_command "mkswap '$SWAP_PARTITION'" "Create swap" || exit 1
+        
+        # Format EFI partition if it exists (UEFI or BIOS-GPT)
+        if [ -n "$EFI_PARTITION" ]; then
+            print_info "Formatting EFI partition as FAT32..."
+            mkfs.fat -F32 -n "EFI" "$EFI_PARTITION"
+        fi
         
         # Show root partition size before formatting
         ROOT_PART_SIZE_GB=$(lsblk -b -o SIZE "$ROOT_PARTITION" 2>/dev/null | tail -1 | awk '{print int($1/1024/1024/1024)}' || echo "0")
@@ -1352,7 +1364,7 @@ case "$PART_CHOICE" in
         # Manual partitioning
         print_info "Launching manual partitioning tool..."
         echo ""
-        lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
+        lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk
         echo ""
         read -r -p "Enter disk to partition (e.g., sda or /dev/sda, nvme0n1 or /dev/nvme0n1): " DISK_NAME
         
@@ -1400,7 +1412,7 @@ case "$PART_CHOICE" in
         # After partitioning, ask user to format
         echo ""
         print_info "Current partition layout:"
-        lsblk "$DISK_PATH"
+        lsblk "$DISK_PATH" 2>/dev/null
         echo ""
         
         smart_clear
@@ -1528,7 +1540,7 @@ case "$PART_CHOICE" in
         # Use existing partitions
         print_info "Using existing partitions (no formatting)"
         echo ""
-        lsblk
+        lsblk 2>/dev/null
         echo ""
         
         AUTO_PARTITIONED=false
@@ -1555,7 +1567,7 @@ print_step "STEP 4: Partition Selection"
 # If not auto-partitioned, ask for partitions
 if [ "$AUTO_PARTITIONED" != true ]; then
     echo ""
-    lsblk
+    lsblk 2>/dev/null
     echo ""
     
     read -r -p "Enter the root partition (e.g., /dev/sda3): " ROOT_PARTITION
@@ -1577,6 +1589,13 @@ if [ "$AUTO_PARTITIONED" != true ]; then
     if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
         read -r -p "Enter the /home partition (e.g., /dev/sda4): " HOME_PARTITION
     fi
+fi
+
+# Determine if we have a home partition
+if [ -n "$HOME_PARTITION" ]; then
+    HAS_HOME="y"
+else
+    HAS_HOME="n"
 fi
 
 # Validate partitions
@@ -1644,9 +1663,10 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
 fi
 echo "  - Root partition: $ROOT_PARTITION"
 echo "  - Swap partition: $SWAP_PARTITION"
-if [ "$BOOT_MODE" == "UEFI" ]; then
+if [ "$BOOT_MODE" == "UEFI" ] || ([ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]); then
     echo "  - EFI partition: $EFI_PARTITION"
-elif [ "$PARTITION_TABLE" == "GPT" ]; then
+fi
+if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
     echo "  - BIOS boot partition: $BIOS_BOOT_PARTITION"
 fi
 if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
@@ -1812,7 +1832,7 @@ fi
 echo ""
 print_success "All partitions mounted successfully!"
 print_info "Current mount layout:"
-lsblk | grep -E "(NAME|/mnt|SWAP)"
+lsblk 2>/dev/null | grep -E "(NAME|/mnt|SWAP)"
 
 # ===================================
 
