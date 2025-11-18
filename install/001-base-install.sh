@@ -975,7 +975,19 @@ case "$PART_CHOICE" in
         
         # Ensure partitions are unmounted before formatting
         print_info "Ensuring partitions are not mounted..."
-        for part in "${PART_PREFIX}"*; do
+        
+        # Only unmount the partitions we created, not all partitions on the disk
+        PARTITIONS_TO_CHECK=("$SWAP_PARTITION" "$ROOT_PARTITION")
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            PARTITIONS_TO_CHECK+=("$EFI_PARTITION")
+        elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
+            PARTITIONS_TO_CHECK+=("$BIOS_BOOT_PARTITION")
+        fi
+        if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
+            PARTITIONS_TO_CHECK+=("$HOME_PARTITION")
+        fi
+        
+        for part in "${PARTITIONS_TO_CHECK[@]}"; do
             if [ -b "$part" ] && (mountpoint -q "$part" 2>/dev/null || mount | grep -q "^$part"); then
                 print_warning "Partition $part is mounted, unmounting..."
                 umount "$part" 2>/dev/null || umount -l "$part" 2>/dev/null || {
@@ -986,12 +998,14 @@ case "$PART_CHOICE" in
         done
         
         # Disable any active swap on these partitions
-        if swapon --show | grep -q "${DISK_PATH}"; then
-            print_info "Deactivating swap on disk..."
-            swapoff -a 2>/dev/null || {
-                print_warning "Some swap partitions could not be deactivated"
-            }
-        fi
+        for part in "${PARTITIONS_TO_CHECK[@]}"; do
+            if swapon --show | grep -q "^$part"; then
+                print_info "Deactivating swap on $part..."
+                swapoff "$part" 2>/dev/null || {
+                    print_warning "Failed to deactivate swap on $part"
+                }
+            fi
+        done
         
         if [ "$BOOT_MODE" == "UEFI" ]; then
             EFI_PARTITION="${PART_PREFIX}1"
