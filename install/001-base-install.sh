@@ -507,14 +507,12 @@ case "$PART_CHOICE" in
         echo ""
 
         # Escape special regex characters in disk name (moved here, before partition detection)
-        ESCAPED_DISK_NAME=$(printf '%s\n' "$DISK_NAME" | sed 's/[.^$*+?()[{\\|]/\\&/g')
-
         # Check for existing partitions and warn about data
         # Detect partition naming pattern (sda1 vs nvme0n1p1)
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            PARTITION_PATTERN="${ESCAPED_DISK_NAME}p[0-9]"
+            PARTITION_PATTERN="${DISK_NAME}p[0-9]"
         else
-            PARTITION_PATTERN="${ESCAPED_DISK_NAME}[0-9]"
+            PARTITION_PATTERN="${DISK_NAME}[0-9]"
         fi
 
         EXISTING_PARTITIONS=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${PARTITION_PATTERN}")
@@ -931,9 +929,9 @@ case "$PART_CHOICE" in
         print_info "Verifying partition creation..."
         # Detect partition naming pattern (sda1 vs nvme0n1p1)
         if [[ $DISK_NAME == nvme* ]] || [[ $DISK_NAME == mmcblk* ]]; then
-            PARTITION_PATTERN="${ESCAPED_DISK_NAME}p[0-9]"
+            PARTITION_PATTERN="${DISK_NAME}p[0-9]"
         else
-            PARTITION_PATTERN="${ESCAPED_DISK_NAME}[0-9]"
+            PARTITION_PATTERN="${DISK_NAME}[0-9]"
         fi
 
         PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" | grep -c "^${PARTITION_PATTERN}")
