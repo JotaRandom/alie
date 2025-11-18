@@ -1168,7 +1168,7 @@ case "$PART_CHOICE" in
         # Wait for partitions to be detected (retry up to 10 times)
         PARTITION_COUNT=0
         for i in {1..10}; do
-            PARTITION_COUNT=$(lsblk -n -o NAME "$DISK_PATH" 2>/dev/null | grep -c "^${PARTITION_PATTERN}" || echo "0")
+            lsblk_output=$(lsblk -n -o NAME "$DISK_PATH" 2>/dev/null) && PARTITION_COUNT=$(echo "$lsblk_output" | grep -c "^${PARTITION_PATTERN}") || PARTITION_COUNT=0
             if [ "$PARTITION_COUNT" -gt 0 ]; then
                 break
             fi
@@ -1592,7 +1592,9 @@ if [ "$AUTO_PARTITIONED" != true ]; then
 fi
 
 # Determine if we have a home partition
-if [ -n "$HOME_PARTITION" ]; then
+if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+    HAS_HOME="y"
+elif [[ -n "$HOME_PARTITION" ]]; then
     HAS_HOME="y"
 else
     HAS_HOME="n"
@@ -1670,7 +1672,11 @@ if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
     echo "  - BIOS boot partition: $BIOS_BOOT_PARTITION"
 fi
 if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
-    echo "  - Home partition: $HOME_PARTITION"
+    if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+        echo "  - Home: (Btrfs subvolume)"
+    else
+        echo "  - Home partition: $HOME_PARTITION"
+    fi
 fi
 echo ""
 
