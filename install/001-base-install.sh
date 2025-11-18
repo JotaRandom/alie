@@ -1303,6 +1303,15 @@ case "$PART_CHOICE" in
             if [ "$BOOT_MODE" == "UEFI" ]; then
                 read -r -p "Enter EFI partition (e.g., /dev/sda1): " EFI_PARTITION
                 if [ -n "$EFI_PARTITION" ] && [ -b "$EFI_PARTITION" ]; then
+                    # Check if partition is mounted before formatting
+                    if mountpoint -q "$EFI_PARTITION" 2>/dev/null || mount | grep -q "^$EFI_PARTITION"; then
+                        print_warning "Partition $EFI_PARTITION is mounted, unmounting..."
+                        umount "$EFI_PARTITION" 2>/dev/null || umount -l "$EFI_PARTITION" 2>/dev/null || {
+                            print_error "Failed to unmount $EFI_PARTITION"
+                            exit 1
+                        }
+                    fi
+                    
                     # Check if partition already has a filesystem (dual-boot warning)
                     EXISTING_FS=$(blkid -o value -s TYPE "$EFI_PARTITION" 2>/dev/null || echo "")
                     
@@ -1334,12 +1343,29 @@ case "$PART_CHOICE" in
             
             read -r -p "Enter swap partition: " SWAP_PARTITION
             if [ -n "$SWAP_PARTITION" ] && [ -b "$SWAP_PARTITION" ]; then
+                # Check if swap partition is active before formatting
+                if swapon --show | grep -q "^$SWAP_PARTITION"; then
+                    print_info "Deactivating swap on $SWAP_PARTITION..."
+                    swapoff "$SWAP_PARTITION" 2>/dev/null || {
+                        print_warning "Failed to deactivate swap on $SWAP_PARTITION"
+                    }
+                fi
+                
                 print_info "Setting up swap..."
                 mkswap "$SWAP_PARTITION"
             fi
             
             read -r -p "Enter root partition: " ROOT_PARTITION
             if [ -n "$ROOT_PARTITION" ] && [ -b "$ROOT_PARTITION" ]; then
+                # Check if partition is mounted before formatting
+                if mountpoint -q "$ROOT_PARTITION" 2>/dev/null || mount | grep -q "^$ROOT_PARTITION"; then
+                    print_warning "Partition $ROOT_PARTITION is mounted, unmounting..."
+                    umount "$ROOT_PARTITION" 2>/dev/null || umount -l "$ROOT_PARTITION" 2>/dev/null || {
+                        print_error "Failed to unmount $ROOT_PARTITION"
+                        exit 1
+                    }
+                fi
+                
                 smart_clear
                 echo "Choose filesystem:"
                 echo "  1) ext4"
@@ -1365,6 +1391,15 @@ case "$PART_CHOICE" in
             if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
                 read -r -p "Enter /home partition: " HOME_PARTITION
                 if [ -n "$HOME_PARTITION" ] && [ -b "$HOME_PARTITION" ]; then
+                    # Check if partition is mounted before formatting
+                    if mountpoint -q "$HOME_PARTITION" 2>/dev/null || mount | grep -q "^$HOME_PARTITION"; then
+                        print_warning "Partition $HOME_PARTITION is mounted, unmounting..."
+                        umount "$HOME_PARTITION" 2>/dev/null || umount -l "$HOME_PARTITION" 2>/dev/null || {
+                            print_error "Failed to unmount $HOME_PARTITION"
+                            exit 1
+                        }
+                    fi
+                    
                     print_info "Formatting /home as $ROOT_FS..."
                     case "$ROOT_FS" in
                         ext4) mkfs.ext4 -F -L "ArchHome" -m 1 -E lazy_itable_init=0,lazy_journal_init=0 "$HOME_PARTITION" ;;
