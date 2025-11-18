@@ -1720,6 +1720,14 @@ if mountpoint -q /mnt 2>/dev/null; then
     umount /mnt
 fi
 
+# Deactivate any active swap
+if swapon --show | grep -q . 2>/dev/null; then
+    print_info "Deactivating any active swap..."
+    swapoff -a 2>/dev/null || {
+        print_warning "Failed to deactivate some swap partitions"
+    }
+fi
+
 # Detect filesystem type for root partition
 ROOT_FS=$(blkid -o value -s TYPE "$ROOT_PARTITION" 2>/dev/null || echo "unknown")
 print_info "Detected root filesystem: $ROOT_FS"
