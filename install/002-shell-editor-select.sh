@@ -48,6 +48,8 @@ SELECTED_EDITORS=()
 # ===================================
 # SHELL SELECTION
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 1: Shell Selection"
 
 print_info "Available shells in official repositories:"
@@ -66,7 +68,6 @@ echo ""
 echo "  0) None - stick with bash only"
 echo ""
 
-smart_clear
 read -r -a shell_choices -p "Select shells to install (space-separated, e.g., '1 2', or 0 for none): "
 
 if [ "${#shell_choices[@]}" -gt 0 ] && [ "${shell_choices[0]}" != "0" ]; then
@@ -106,13 +107,14 @@ fi
 # ===================================
 # EDITOR CONFIGURATION
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 2: Text Editor Configuration"
 
 print_info "Base editors (nano and vim) are always installed."
 echo ""
 
 # Nano configuration
-smart_clear
 echo "Configure nano with syntax highlighting?"
 echo "  1) Yes - install nano-syntax-highlighting package"
 echo "  2) No - use default nano configuration"
@@ -132,7 +134,6 @@ fi
 echo ""
 
 # Vim configuration
-smart_clear
 echo "Configure vim with enhanced settings?"
 echo "  1) Yes - install vim with recommended plugins support"
 echo "  2) No - use default vim configuration"
@@ -151,7 +152,6 @@ fi
 echo ""
 
 # Additional editors
-smart_clear
 print_info "Additional text editors (optional):"
 echo ""
 echo "  1) neovim - Modern Vim fork (recommended)"
@@ -193,6 +193,8 @@ fi
 # ===================================
 # SUMMARY
 # ===================================
+smart_clear
+show_alie_banner
 print_step "Installation Summary"
 
 echo "Shells to be installed:"
@@ -218,7 +220,6 @@ if [ ${#SELECTED_EDITORS[@]} -gt 0 ]; then
 fi
 
 echo ""
-smart_clear
 read -r -p "Proceed with this configuration? (Y/n): " confirm
 if [[ $confirm =~ ^[Nn]$ ]]; then
     print_warning "Installation cancelled by user"
@@ -270,6 +271,8 @@ save_progress "01b-shell-editor-selected"
 # ===================================
 # COMPLETION
 # ===================================
+smart_clear
+show_alie_banner
 print_step "*** Shell and Editor Selection Complete!"
 
 echo ""

@@ -90,7 +90,6 @@ else
 fi
 
 if [ "$NETWORK_OK" = false ]; then
-    smart_clear
     echo ""
     echo "Network configuration options:"
     echo "  1) Ethernet (cable) - automatic DHCP"
@@ -188,11 +187,8 @@ fi
 # ===================================
 # STEP 2: SYSTEM INFORMATION
 # ===================================
-print_step "STEP 2: System Information"
-
-# ===================================
-# STEP 2: SYSTEM INFORMATION
-# ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 2: System Information"
 
 # Detect boot mode (following wiki recommendation)
@@ -228,6 +224,8 @@ echo "  - Architecture: $(uname -m)"
 # ===================================
 # STEP 3: DISK PARTITIONING
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 3: Disk Partitioning & Formatting"
 
 # Function to configure home partition scheme
@@ -353,7 +351,6 @@ configure_home_partitioning() {
 print_info "Available disks:"
 lsblk -d -o NAME,SIZE,TYPE,MODEL | grep disk
 echo ""
-
 echo "Partitioning options:"
 echo "  1) Automatic partitioning (DESTRUCTIVE - erases entire disk)"
 echo "  2) Manual partitioning (I'll use cfdisk/fdisk/parted)"
@@ -369,7 +366,6 @@ case "$PART_CHOICE" in
         echo ""
         
         # Show available disks with more details
-        smart_clear
         echo "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA | grep disk
         echo ""
@@ -631,10 +627,8 @@ case "$PART_CHOICE" in
             fi
             
             if [ "$ROOT_FS" = "btrfs" ]; then
-                smart_clear
                 read -r -p "Choose partition scheme [1-3] (default: 2): " SCHEME_CHOICE
             else
-                smart_clear
                 read -r -p "Choose partition scheme [1-2] (default: 2): " SCHEME_CHOICE
             fi
             
@@ -695,7 +689,6 @@ case "$PART_CHOICE" in
         echo "  Boot configuration: $BOOT_MODE ${PARTITION_TABLE:-GPT}"
         echo ""
         print_warning "[WARNING] This will ERASE ALL DATA on $DISK_PATH!"
-        smart_clear
         read -r -p "Final confirmation - proceed with partitioning? (yes/no): " FINAL_CONFIRM
         
         if [[ ! "$FINAL_CONFIRM" =~ ^(yes|y)$ ]]; then
@@ -1142,6 +1135,8 @@ esac
 # ===================================
 # STEP 4: PARTITION SELECTION & VALIDATION
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 4: Partition Selection"
 
 # If not auto-partitioned, ask for partitions
@@ -1150,14 +1145,12 @@ if [ "$AUTO_PARTITIONED" != true ]; then
     lsblk
     echo ""
     
-    smart_clear
     read -r -p "Enter the root partition (e.g., /dev/sda3): " ROOT_PARTITION
     read -r -p "Enter the swap partition (e.g., /dev/sda2): " SWAP_PARTITION
     
     if [ "$BOOT_MODE" == "UEFI" ]; then
         read -r -p "Enter the EFI partition (e.g., /dev/sda1): " EFI_PARTITION
     else
-        smart_clear
         read -r -p "Are you using GPT partition table? (y/N): " USING_GPT
         if [[ $USING_GPT =~ ^[Yy]$ ]]; then
             PARTITION_TABLE="GPT"
@@ -1167,7 +1160,6 @@ if [ "$AUTO_PARTITIONED" != true ]; then
         fi
     fi
     
-    smart_clear
     read -r -p "Do you have a separate /home partition? (y/N): " HAS_HOME
     if [[ $HAS_HOME =~ ^[Yy]$ ]]; then
         read -r -p "Enter the /home partition (e.g., /dev/sda4): " HOME_PARTITION
@@ -1227,6 +1219,8 @@ print_success "All partitions validated"
 # ===================================
 # STEP 5: INSTALLATION SUMMARY
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 5: Installation Summary"
 
 echo ""
@@ -1248,7 +1242,6 @@ fi
 echo ""
 
 print_warning "This will install Arch Linux with the above configuration"
-smart_clear
 read -r -p "Continue with installation? (y/N): " CONFIRM
 
 if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
@@ -1259,16 +1252,20 @@ fi
 # ===================================
 # STEP 6: SYSTEM CLOCK
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 6: System Preparation"
 
 print_info "Synchronizing system clock..."
 timedatectl set-ntp true
-sleep 2
+sleep 5
 print_success "System clock synchronized"
 
 # ===================================
 # STEP 7: MOUNT PARTITIONS
 # ===================================
+smart_clear
+show_alie_banner
 print_step "STEP 7: Mounting Partitions"
 
 print_info "Preparing mount points..."
