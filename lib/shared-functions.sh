@@ -317,6 +317,9 @@ print_section_header() {
         echo ""
     fi
 }
+
+# Display ALIE banner
+show_alie_banner() {
     smart_clear
     echo -e "${MAGENTA}"
     
@@ -1903,7 +1906,7 @@ has_privilege_access() {
                 fi
             fi
             # Fallback to sudo test
-            ;&
+            ;;
         "doas")
             if command -v doas &>/dev/null && [ -f /etc/doas.conf ]; then
                 # Test doas access without actually running a command
@@ -1912,7 +1915,7 @@ has_privilege_access() {
                 fi
             fi
             # Fallback to sudo test
-            ;&
+            ;;
         *)
             if command -v sudo &>/dev/null; then
                 # Test sudo access
