@@ -1627,17 +1627,35 @@ detect_system_info() {
     if [ -n "$ROOT_PARTITION" ]; then
         local root_disk
         root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
-        PARTITION_TABLE=$(detect_partition_table "$root_disk" 2>/dev/null || echo "unknown")
         
-        # BIOS boot partition detection for GPT
-        if [ "$BOOT_MODE" = "BIOS" ] && [ "$PARTITION_TABLE" = "GPT" ]; then
-            # Try to find BIOS boot partition
-            local bios_part
-            bios_part=$(parted -s "$root_disk" print 2>/dev/null | grep "bios_grub" | awk '{print $1}')
-            if [ -n "$bios_part" ]; then
-                BIOS_BOOT_PARTITION="${root_disk}${bios_part}"
+        # Try multiple methods to detect partition table
+        if command -v parted &>/dev/null; then
+            PARTITION_TABLE=$(parted -s "$root_disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}' | tr '[:upper:]' '[:lower:]')
+            case "$PARTITION_TABLE" in
+                gpt|msdos)
+                    # Valid partition table types
+                    ;;
+                *)
+                    PARTITION_TABLE="unknown"
+                    ;;
+            esac
+        else
+            # Fallback: try to detect from partition naming
+            if [[ "$ROOT_PARTITION" =~ nvme[0-9]+n[0-9]+p[0-9]+ ]] || [[ "$ROOT_PARTITION" =~ sd[a-z][0-9]+ ]] || [[ "$ROOT_PARTITION" =~ hd[a-z][0-9]+ ]]; then
+                # Check if it's likely GPT (partition number > 4 often indicates GPT)
+                local part_num
+                part_num=$(echo "$ROOT_PARTITION" | grep -o '[0-9]*$')
+                if [ "$part_num" -gt 4 ] 2>/dev/null; then
+                    PARTITION_TABLE="gpt"
+                else
+                    PARTITION_TABLE="mbr"
+                fi
+            else
+                PARTITION_TABLE="unknown"
             fi
         fi
+        
+        print_info "Detected partition table: $PARTITION_TABLE on disk $root_disk"
     fi
     
     # Set defaults for missing values

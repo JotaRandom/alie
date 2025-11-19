@@ -149,7 +149,7 @@ if ! mountpoint -q /mnt 2>/dev/null; then
 fi
 
 # Check if previous step was completed
-if ! check_progress "01-partitions-ready"; then
+if ! is_step_completed "01-partitions-ready"; then
     smart_clear
     print_warning "001-base-install.sh progress marker not found"
     print_info "This script expects partitions to be ready"
@@ -202,6 +202,9 @@ if [ -n "${MICROCODE_PKG:-}" ]; then
 fi
 echo "  - Mount point: /mnt"
 
+# Pause to let user read configuration
+read -r -p "Press Enter to continue with mirror optimization..."
+
 # ===================================
 # STEP 8: MIRROR OPTIMIZATION - Package Download Performance
 # ===================================
@@ -239,6 +242,14 @@ echo "  - Mount point: /mnt"
 # ===================================
 print_step "STEP 8: Optimizing Package Mirrors"
 
+print_info "Installing archlinux-keyring for package verification..."
+if ! pacman -S --needed --noconfirm archlinux-keyring; then
+    print_error "Failed to install archlinux-keyring"
+    print_warning "Package verification may fail..."
+else
+    print_success "archlinux-keyring installed"
+fi
+
 print_info "Installing reflector..."
 if ! pacman -S --needed --noconfirm reflector; then
     print_error "Failed to install reflector"
@@ -257,6 +268,9 @@ else
         print_warning "Reflector failed, using default mirrorlist"
     fi
 fi
+
+# Pause before major installation step
+read -r -p "Press Enter to continue with base system installation..."
 
 # ===================================
 # STEP 9: BASE SYSTEM INSTALLATION - Core Package Deployment
@@ -565,15 +579,110 @@ save_progress "02-base-installed"
 echo ""
 print_success "System installation finished!"
 echo ""
-print_info "Next steps:"
-echo "  ${CYAN}1.${NC} Copy the ALIE scripts to the new system:"
-echo "     ${YELLOW}cp -r $(dirname "$SCRIPT_DIR") /mnt/root/alie-scripts${NC}"
+
+# Pause to let user read completion message
+read -r -p "Press Enter to continue..."
+
+# ===================================
+# SYSTEM CONFIGURATION CHOICE
+# ===================================
+print_step "STEP 12: System Configuration Method"
+
 echo ""
-echo "  ${CYAN}2.${NC} Enter the new system:"
-echo "     ${YELLOW}arch-chroot /mnt${NC}"
+print_info "Choose how to continue with system configuration:"
 echo ""
-echo "  ${CYAN}3.${NC} Run the installer again (auto-detects chroot):"
-echo "     ${YELLOW}bash /root/alie-scripts/alie.sh${NC}"
+echo "  ${CYAN}1)${NC} Automatic configuration (recommended)"
+echo "     - Automatically enter chroot environment"
+echo "     - Configure timezone, locale, hostname, bootloader"
+echo "     - Return to live environment when complete"
 echo ""
-print_warning "Don't reboot yet! Continue with system configuration."
+echo "  ${CYAN}2)${NC} Manual configuration"
+echo "     - Show instructions for manual chroot entry"
+echo "     - You control each configuration step"
+echo "     - More control but requires manual commands"
+echo ""
+
+smart_clear
+read -r -p "Select configuration method [1-2]: " CONFIG_METHOD
+
+case "$CONFIG_METHOD" in
+    1)
+        print_info "Selected: Automatic configuration"
+        echo ""
+        
+        print_info "Copying ALIE scripts to the new system..."
+        if cp -r "$(dirname "$SCRIPT_DIR")" /mnt/root/alie-scripts; then
+            print_success "Scripts copied successfully"
+        else
+            print_error "Failed to copy scripts"
+            print_warning "Falling back to manual configuration"
+            CONFIG_METHOD="2"
+        fi
+        
+        if [ "$CONFIG_METHOD" = "1" ]; then
+            print_info "Entering chroot environment to continue configuration..."
+            echo "The system will automatically configure timezone, locale, hostname, and bootloader."
+            echo ""
+            
+            # Execute the configuration script inside chroot
+            if arch-chroot /mnt bash /root/alie-scripts/install/101-configure-system.sh; then
+                print_success "System configuration completed successfully!"
+                echo ""
+                print_info "Final steps:"
+                echo "  ${CYAN}1.${NC} Unmount all partitions:"
+                echo "     ${YELLOW}umount -R /mnt${NC}"
+                echo ""
+                echo "  ${CYAN}2.${NC} Sync filesystem:"
+                echo "     ${YELLOW}sync${NC}"
+                echo ""
+                echo "  ${CYAN}3.${NC} Reboot the system:"
+                echo "     ${YELLOW}reboot${NC}"
+                echo ""
+                print_warning "Remember to remove the installation media before rebooting!"
+            else
+                print_error "System configuration failed!"
+                print_warning "Falling back to manual configuration instructions"
+                CONFIG_METHOD="2"
+            fi
+        fi
+        ;;
+        
+    2)
+        print_info "Selected: Manual configuration"
+        ;;
+        
+    *)
+        print_error "Invalid selection, defaulting to manual configuration"
+        CONFIG_METHOD="2"
+        ;;
+esac
+
+if [ "$CONFIG_METHOD" = "2" ]; then
+    print_info "Manual configuration selected."
+    echo ""
+    print_info "Next steps:"
+    echo "  ${CYAN}1.${NC} Copy the ALIE scripts to the new system:"
+    echo "     ${YELLOW}cp -r $(dirname "$SCRIPT_DIR") /mnt/root/alie-scripts${NC}"
+    echo ""
+    echo "  ${CYAN}2.${NC} Enter the new system:"
+    echo "     ${YELLOW}arch-chroot /mnt${NC}"
+    echo ""
+    echo "  ${CYAN}3.${NC} Run the configuration script:"
+    echo "     ${YELLOW}bash /root/alie-scripts/install/101-configure-system.sh${NC}"
+    echo ""
+    echo "  ${CYAN}4.${NC} After configuration completes, exit chroot:"
+    echo "     ${YELLOW}exit${NC}"
+    echo ""
+    echo "  ${CYAN}5.${NC} Unmount all partitions:"
+    echo "     ${YELLOW}umount -R /mnt${NC}"
+    echo ""
+    echo "  ${CYAN}6.${NC} Sync filesystem:"
+    echo "     ${YELLOW}sync${NC}"
+    echo ""
+    echo "  ${CYAN}7.${NC} Reboot the system:"
+    echo "     ${YELLOW}reboot${NC}"
+    echo ""
+    print_warning "Remember to remove the installation media before rebooting!"
+fi
+
 echo ""
