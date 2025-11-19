@@ -166,10 +166,7 @@ else
     print_warning "Configuration from 001 script not found"
     print_info "Detecting system configuration from mounted partitions..."
     
-    # Fallback: detect basic configuration
-    detect_system_info
-    
-    # Detect mounted partitions
+    # Detect mounted partitions first
     if mountpoint -q /mnt 2>/dev/null; then
         ROOT_PARTITION=$(findmnt -n -o SOURCE /mnt 2>/dev/null || echo "unknown")
         ROOT_FS=$(findmnt -n -o FSTYPE /mnt 2>/dev/null || echo "unknown")
@@ -184,6 +181,9 @@ else
     fi
     
     SWAP_PARTITION=$(swapon --show=NAME --noheadings 2>/dev/null | head -n1 || echo "")
+    
+    # Fallback: detect basic configuration (CPU, boot mode, etc.)
+    detect_system_info
     
     print_success "Auto-detected configuration from mounted filesystems"
 fi
@@ -583,6 +583,7 @@ echo ""
 # Pause to let user read completion message
 read -r -p "Press Enter to continue..."
 
+smart_clear
 # ===================================
 # SYSTEM CONFIGURATION CHOICE
 # ===================================
@@ -602,7 +603,6 @@ echo "     - You control each configuration step"
 echo "     - More control but requires manual commands"
 echo ""
 
-smart_clear
 read -r -p "Select configuration method [1-2]: " CONFIG_METHOD
 
 case "$CONFIG_METHOD" in

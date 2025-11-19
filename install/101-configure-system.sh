@@ -8,9 +8,6 @@
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
-# Add signal handling for graceful interruption
-setup_cleanup_trap
-
 # Determine script directory (works regardless of how script is called)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
@@ -25,6 +22,9 @@ fi
 # shellcheck source=../lib/shared-functions.sh
 # shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
+
+# Add signal handling for graceful interruption
+setup_cleanup_trap
 
 # Welcome banner
 show_alie_banner
@@ -54,6 +54,8 @@ verify_chroot
 # Load configuration from previous script
 load_install_info
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 2: COLLECT CONFIGURATION
 # ===================================
@@ -61,7 +63,6 @@ print_step "STEP 2: System Configuration"
 
 # Hostname
 echo ""
-smart_clear
 print_info "Hostname Configuration"
 echo "The hostname identifies your computer on a network"
 echo "Example: arch-desktop, my-laptop, workstation"
@@ -83,7 +84,6 @@ print_success "Hostname: $HOSTNAME"
 
 # Timezone
 echo ""
-smart_clear
 print_info "Timezone Configuration"
 echo "Common timezones:"
 echo "  - America/New_York     (US Eastern)"
@@ -127,7 +127,6 @@ print_success "Timezone: $TIMEZONE"
 
 # Locale
 echo ""
-smart_clear
 print_info "Locale Configuration"
 echo "Common locales:"
 echo "  - en_US.UTF-8  (English - United States)"
@@ -163,7 +162,6 @@ print_success "Locale: $LOCALE"
 
 # Keyboard layout
 echo ""
-smart_clear
 print_info "Keyboard Layout Configuration"
 echo "Common layouts:"
 echo "  - us           (US English)"
@@ -184,6 +182,8 @@ fi
 
 print_success "Keyboard layout: $KEYMAP"
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 3: BOOT CONFIGURATION
 # ===================================
@@ -202,7 +202,6 @@ else
         print_success "Detected AMD CPU"
     else
         print_error "Could not auto-detect CPU vendor"
-        smart_clear
         read -r -p "Enter CPU vendor (intel/amd): " CPU_VENDOR
         
         if [ "$CPU_VENDOR" != "intel" ] && [ "$CPU_VENDOR" != "amd" ]; then
@@ -229,34 +228,33 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
     # Try to use disk from install info
     if [ -n "$ROOT_PARTITION" ]; then
         # Extract disk from root partition (e.g., /dev/sda3 -> /dev/sda)
-        GRUB_DISK="${ROOT_PARTITION%%[0-9]*}"
-        smart_clear
-        print_info "Auto-detected GRUB disk from installation: $GRUB_DISK"
-        read -r -p "Use this disk for GRUB? (Y/n): " CONFIRM_DISK
+        TARGET_DISK="${ROOT_PARTITION%%[0-9]*}"
+        TARGET_DISK="${TARGET_DISK%%p[0-9]*}"     # Handle NVMe partitions (e.g., /dev/nvme0n1p3 -> /dev/nvme0n1)
+        print_info "Auto-detected target disk from installation: $TARGET_DISK"
+        read -r -p "Use this disk for bootloader? (Y/n): " CONFIRM_DISK
         
         if [[ $CONFIRM_DISK =~ ^[Nn]$ ]]; then
             smart_clear
-            read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
+            read -r -p "Enter disk for bootloader (e.g., /dev/sda): " TARGET_DISK
         fi
     else
         print_info "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE 2>/dev/null | grep disk
         echo ""
-        smart_clear
-        read -r -p "Enter disk for GRUB (e.g., /dev/sda): " GRUB_DISK
+        read -r -p "Enter disk for bootloader (e.g., /dev/sda): " TARGET_DISK
     fi
     
-    if [ -z "$GRUB_DISK" ]; then
-        print_error "GRUB disk cannot be empty for BIOS mode"
+    if [ -z "$TARGET_DISK" ]; then
+        print_error "Target disk cannot be empty for BIOS mode"
         exit 1
     fi
     
-    if [ ! -b "$GRUB_DISK" ]; then
-        print_error "$GRUB_DISK is not a valid block device"
+    if [ ! -b "$TARGET_DISK" ]; then
+        print_error "$TARGET_DISK is not a valid block device"
         exit 1
     fi
     
-    print_success "GRUB will be installed to: $GRUB_DISK"
+    print_success "Bootloader will be installed to: $TARGET_DISK"
 else
     # UEFI mode - verify /boot is mounted
     if ! mountpoint -q /boot 2>/dev/null; then
@@ -269,6 +267,8 @@ else
     print_success "EFI partition mounted at /boot"
 fi
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 4: TIMEZONE CONFIGURATION
 # ===================================
@@ -301,6 +301,8 @@ print_info "Setting console keymap to $KEYMAP..."
 echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 print_success "Console keymap configured"
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 6: NETWORK CONFIGURATION
 # ===================================
@@ -323,6 +325,8 @@ deploy_config_direct "network/resolved.conf" "/etc/systemd/resolved.conf" "644"
 
 print_success "Network configuration complete"
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 7: ROOT PASSWORD
 # ===================================
@@ -332,6 +336,8 @@ print_info "Set a strong password for the root account"
 echo ""
 passwd
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 8: PACMAN CONFIGURATION
 # ===================================
@@ -349,6 +355,8 @@ else
     print_warning "Continuing anyway, but you may have issues later"
 fi
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 9: BOOTLOADER INSTALLATION
 # ===================================
@@ -368,37 +376,45 @@ fi
 case "${BOOTLOADER:-grub}" in
     "grub")
         print_info "Installing GRUB bootloader..."
+        
+        # Determine the target disk for GRUB installation
+        if [ -n "$ROOT_PARTITION" ]; then
+            TARGET_DISK="${ROOT_PARTITION%%[0-9]*}"  # Extract disk from root partition (e.g., /dev/sda3 -> /dev/sda)
+            TARGET_DISK="${TARGET_DISK%%p[0-9]*}"     # Handle NVMe partitions (e.g., /dev/nvme0n1p3 -> /dev/nvme0n1)
+        else
+            print_error "Cannot determine target disk for GRUB installation"
+            print_info "ROOT_PARTITION is not set"
+            exit 1
+        fi
+        
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            if grub-install --verbose --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB; then
-                print_success "GRUB installed successfully (UEFI mode)"
+            print_info "Installing GRUB for UEFI on disk: $TARGET_DISK"
+            
+            # Try x86_64-efi first (most common)
+            if grub-install --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot/efi "$TARGET_DISK"; then
+                print_success "GRUB installed successfully (UEFI x86_64 mode) on $TARGET_DISK"
             else
-                print_error "GRUB installation failed!"
-                exit 1
+                print_warning "x86_64-efi installation failed, trying i386-efi..."
+                # Fallback to i386-efi if x86_64 fails
+                if grub-install --target=i386-efi --boot-directory=/boot --efi-directory=/boot/efi "$TARGET_DISK"; then
+                    print_success "GRUB installed successfully (UEFI i386 mode) on $TARGET_DISK"
+                else
+                    print_error "GRUB UEFI installation failed on both x86_64 and i386 targets!"
+                    exit 1
+                fi
             fi
         else
-            if grub-install --verbose --target=i386-pc "$GRUB_DISK"; then
-                print_success "GRUB installed successfully (BIOS mode) to $GRUB_DISK"
+            # BIOS mode (works for both MBR and GPT)
+            print_info "Installing GRUB for BIOS on disk: $TARGET_DISK"
+            if grub-install --target=i386-pc "$TARGET_DISK"; then
+                print_success "GRUB installed successfully (BIOS mode) on $TARGET_DISK"
             else
-                print_error "GRUB installation failed!"
+                print_error "GRUB BIOS installation failed!"
                 exit 1
             fi
         fi
 
-        print_info "Generating GRUB configuration..."
-        if grub-mkconfig -o /boot/grub/grub.cfg; then
-            print_success "GRUB configuration generated"
-            
-            # Verify grub.cfg was created and has content
-            if [ -s /boot/grub/grub.cfg ]; then
-                print_success "GRUB configuration file verified"
-            else
-                print_error "GRUB configuration file is empty!"
-                exit 1
-            fi
-        else
-            print_error "Failed to generate GRUB configuration!"
-            exit 1
-        fi
+        print_info "GRUB installation completed"
         ;;
         
     "systemd-boot")
@@ -421,87 +437,319 @@ case "${BOOTLOADER:-grub}" in
         # Create loader configuration
         cat > /boot/loader/loader.conf << EOF
 default  arch.conf
-timeout  4
+timeout  5
 console-mode max
 editor   no
 EOF
         
-        # Create boot entry
+        # Build kernel parameters according to Arch Wiki best practices
         ROOT_UUID=$(get_partition_uuid "$ROOT_PARTITION")
-        if [ -n "$SWAP_PARTITION" ]; then
-            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
-            RESUME_PARAM="resume=UUID=$SWAP_UUID"
-        else
-            RESUME_PARAM=""
+        
+        # Base parameters
+        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw"
+        
+        # Add rootfstype for filesystem type
+        if [ -n "$ROOT_FS" ]; then
+            KERNEL_PARAMS="$KERNEL_PARAMS rootfstype=$ROOT_FS"
         fi
         
-        # Build kernel parameters
-        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw quiet $RESUME_PARAM"
+        # Add resume parameter for swap/hibernation
+        if [ -n "$SWAP_PARTITION" ]; then
+            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
+            if [ -n "$SWAP_UUID" ]; then
+                KERNEL_PARAMS="$KERNEL_PARAMS resume=UUID=$SWAP_UUID"
+            fi
+        fi
         
-        # Add microcode if available
+        # Add rootflags for Btrfs subvolumes
+        if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+            KERNEL_PARAMS="$KERNEL_PARAMS rootflags=subvol=@"
+        fi
+        
+        # Add recommended kernel parameters
+        KERNEL_PARAMS="$KERNEL_PARAMS quiet udev.log_priority=3 vt.global_cursor_default=0 loglevel=3"
+        
+        # Determine available kernels (expand detection for more variants)
+        INSTALLED_KERNELS=()
+        if [ -n "${SELECTED_KERNELS:-}" ]; then
+            # Use selected kernels from installation
+            read -r -a INSTALLED_KERNELS <<< "$SELECTED_KERNELS"
+        else
+            # Auto-detect installed kernels (include more variants)
+            for kernel in linux linux-zen linux-hardened linux-lts linux-zen-git linux-hardened-git linux-mainline linux-mainline-git; do
+                if pacman -Q "$kernel" &>/dev/null; then
+                    INSTALLED_KERNELS+=("$kernel")
+                fi
+            done
+            # Fallback to linux if none detected
+            if [ ${#INSTALLED_KERNELS[@]} -eq 0 ]; then
+                INSTALLED_KERNELS=("linux")
+            fi
+        fi
+        
+        print_info "Detected ${#INSTALLED_KERNELS[@]} kernel(s): ${INSTALLED_KERNELS[*]}"
+        
+        # Create boot entry for the first (default) kernel
+        DEFAULT_KERNEL="${INSTALLED_KERNELS[0]}"
+        
+        # Add microcode if available (check once, reuse for all entries)
+        MICROCODE_PARAM=""
         if pacman -Q intel-ucode &>/dev/null; then
             MICROCODE_PARAM="initrd  /intel-ucode.img"
         elif pacman -Q amd-ucode &>/dev/null; then
             MICROCODE_PARAM="initrd  /amd-ucode.img"
-        else
-            MICROCODE_PARAM=""
         fi
         
         cat > /boot/loader/entries/arch.conf << EOF
 title   Arch Linux
-linux   /vmlinuz-linux
+linux   /vmlinuz-$DEFAULT_KERNEL
 $MICROCODE_PARAM
-initrd  /initramfs-linux.img
+initrd  /initramfs-$DEFAULT_KERNEL.img
 options $KERNEL_PARAMS
 EOF
         
-        print_success "systemd-boot configured"
+        # Create entries for additional kernels
+        for kernel_pkg in "${INSTALLED_KERNELS[@]:1}"; do
+            kernel_name="${kernel_pkg#linux}"  # Remove "linux" prefix
+            kernel_name="${kernel_name#-}"     # Remove leading dash if present
+            [ -z "$kernel_name" ] && kernel_name="default"
+            
+            # Capitalize first letter for better display
+            display_name="$(tr '[:lower:]' '[:upper:]' <<< ${kernel_name:0:1})${kernel_name:1}"
+            [ "$display_name" = "Default" ] && display_name="Stable"
+            
+            cat > /boot/loader/entries/arch-$kernel_name.conf << EOF
+title   Arch Linux ($display_name)
+linux   /vmlinuz-$kernel_pkg
+$MICROCODE_PARAM
+initrd  /initramfs-$kernel_pkg.img
+options $KERNEL_PARAMS
+EOF
+        done
+        
+        print_success "systemd-boot configured with ${#INSTALLED_KERNELS[@]} kernel(s)"
+        
+        # Verify systemd-boot configuration
+        if [ -f /boot/loader/loader.conf ] && [ -f /boot/loader/entries/arch.conf ]; then
+            print_success "systemd-boot configuration files verified"
+            
+            # Verify all kernel entries were created
+            local missing_entries=0
+            for kernel_pkg in "${INSTALLED_KERNELS[@]}"; do
+                kernel_name="${kernel_pkg#linux}"
+                kernel_name="${kernel_name#-}"
+                [ -z "$kernel_name" ] && kernel_name="default"
+                
+                if [ "$kernel_pkg" = "$DEFAULT_KERNEL" ]; then
+                    # Main entry
+                    [ ! -f "/boot/loader/entries/arch.conf" ] && ((missing_entries++))
+                else
+                    # Additional entries
+                    [ ! -f "/boot/loader/entries/arch-$kernel_name.conf" ] && ((missing_entries++))
+                fi
+            done
+            
+            if [ $missing_entries -eq 0 ]; then
+                print_success "All kernel boot entries created successfully"
+            else
+                print_warning "$missing_entries kernel boot entries missing"
+            fi
+        else
+            print_error "systemd-boot configuration files missing!"
+            exit 1
+        fi
         ;;
         
     "limine")
         print_info "Installing Limine bootloader..."
         
+        # Install Limine bootloader
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            if limine-install /boot; then
-                print_success "Limine installed successfully (UEFI mode)"
+            if limine-install /boot/EFI/BOOT; then
+                print_success "Limine files installed successfully (UEFI mode)"
+                
+                # Create NVRAM boot entry (required for UEFI)
+                print_info "Creating UEFI boot entry for Limine..."
+                
+                # Find the ESP partition number
+                ESP_PARTITION=$(findmnt -n -o SOURCE /boot | sed 's/.*\([0-9]\+\)$/\1/')
+                ESP_DISK=$(findmnt -n -o SOURCE /boot | sed 's/p\?[0-9]\+$//')
+                
+                if [ -n "$ESP_PARTITION" ] && [ -n "$ESP_DISK" ]; then
+                    if efibootmgr --create --disk "$ESP_DISK" --part "$ESP_PARTITION" --label "Arch Linux Limine" --loader '\EFI\BOOT\BOOTX64.EFI' --unicode; then
+                        print_success "UEFI boot entry created for Limine"
+                    else
+                        print_error "Failed to create UEFI boot entry!"
+                        print_warning "You may need to create the boot entry manually after installation"
+                    fi
+                else
+                    print_warning "Could not detect ESP partition for boot entry creation"
+                    print_info "Limine files are installed, but you may need to create NVRAM entry manually"
+                fi
             else
                 print_error "Limine installation failed!"
                 exit 1
             fi
         else
-            if limine-install "$GRUB_DISK"; then
-                print_success "Limine installed successfully (BIOS mode) to $GRUB_DISK"
+            # BIOS mode - copy limine-bios.sys and install bootloader
+            print_info "Copying Limine BIOS stage 3 code..."
+            mkdir -p /boot/limine
+            if cp /usr/share/limine/limine-bios.sys /boot/limine/; then
+                print_success "Limine BIOS stage 3 code copied"
+                
+                print_info "Installing Limine BIOS bootloader to $TARGET_DISK..."
+                # For GPT disks, limine bios-install will auto-detect the BIOS boot partition
+                # For MBR disks, it installs directly to MBR
+                if limine bios-install "$TARGET_DISK"; then
+                    print_success "Limine BIOS bootloader installed to $TARGET_DISK"
+                else
+                    print_error "Limine BIOS installation failed!"
+                    exit 1
+                fi
             else
-                print_error "Limine installation failed!"
+                print_error "Failed to copy limine-bios.sys!"
                 exit 1
             fi
         fi
         
         print_info "Configuring Limine..."
         
-        # Create Limine configuration
+        # Build kernel parameters according to Arch Wiki best practices
         ROOT_UUID=$(get_partition_uuid "$ROOT_PARTITION")
-        if [ -n "$SWAP_PARTITION" ]; then
-            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
-            RESUME_PARAM="resume=UUID=$SWAP_UUID"
-        else
-            RESUME_PARAM=""
+        
+        # Base parameters
+        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw"
+        
+        # Add rootfstype for filesystem type
+        if [ -n "$ROOT_FS" ]; then
+            KERNEL_PARAMS="$KERNEL_PARAMS rootfstype=$ROOT_FS"
         fi
         
-        # Build kernel parameters
-        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw quiet $RESUME_PARAM"
+        # Add resume parameter for swap/hibernation
+        if [ -n "$SWAP_PARTITION" ]; then
+            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
+            if [ -n "$SWAP_UUID" ]; then
+                KERNEL_PARAMS="$KERNEL_PARAMS resume=UUID=$SWAP_UUID"
+            fi
+        fi
         
-        cat > /boot/limine.cfg << EOF
-TIMEOUT=4
+        # Add rootflags for Btrfs subvolumes
+        if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+            KERNEL_PARAMS="$KERNEL_PARAMS rootflags=subvol=@"
+        fi
+        
+        # Add recommended kernel parameters
+        KERNEL_PARAMS="$KERNEL_PARAMS quiet udev.log_priority=3 vt.global_cursor_default=0 loglevel=3"
+        
+        # Determine available kernels (expand detection for more variants)
+        INSTALLED_KERNELS=()
+        if [ -n "${SELECTED_KERNELS:-}" ]; then
+            # Use selected kernels from installation
+            read -r -a INSTALLED_KERNELS <<< "$SELECTED_KERNELS"
+        else
+            # Auto-detect installed kernels (include more variants)
+            for kernel in linux linux-zen linux-hardened linux-lts linux-zen-git linux-hardened-git linux-mainline linux-mainline-git; do
+                if pacman -Q "$kernel" &>/dev/null; then
+                    INSTALLED_KERNELS+=("$kernel")
+                fi
+            done
+            # Fallback to linux if none detected
+            if [ ${#INSTALLED_KERNELS[@]} -eq 0 ]; then
+                INSTALLED_KERNELS=("linux")
+            fi
+        fi
+        
+        print_info "Configuring Limine with ${#INSTALLED_KERNELS[@]} kernel(s): ${INSTALLED_KERNELS[*]}"
+        
+        # Determine limine.conf location based on boot mode
+        if [ "$BOOT_MODE" == "UEFI" ]; then
+            LIMINE_CONF_PATH="/boot/EFI/BOOT/limine.conf"
+            mkdir -p /boot/EFI/BOOT
+            BOOT_PARTITION="$EFI_PARTITION"
+        else
+            LIMINE_CONF_PATH="/boot/limine/limine.conf"
+            mkdir -p /boot/limine
+            BOOT_PARTITION="$BOOT_PARTITION"
+        fi
+        
+        # Determine if /boot is on a separate partition
+        BOOT_PREFIX="boot():"
+        if [ -n "$BOOT_PARTITION" ] && [ "$BOOT_PARTITION" != "$ROOT_PARTITION" ]; then
+            # /boot is on separate partition, use PARTUUID
+            BOOT_PARTUUID=$(blkid -s PARTUUID -o value "$BOOT_PARTITION" 2>/dev/null)
+            if [ -n "$BOOT_PARTUUID" ]; then
+                BOOT_PREFIX="uuid($BOOT_PARTUUID):"
+            fi
+        fi
+        
+        cat > "$LIMINE_CONF_PATH" << EOF
+timeout: 5
 
-:Arch Linux
-    PROTOCOL=linux
-    KERNEL_PATH=boot:///vmlinuz-linux
-    MODULE_PATH=boot:///initramfs-linux.img
-    KERNEL_CMDLINE=$KERNEL_PARAMS
+/Arch Linux
+    protocol: linux
 EOF
         
-        print_success "Limine configured"
+        # Add microcode module if available
+        if pacman -Q intel-ucode &>/dev/null; then
+            cat >> "$LIMINE_CONF_PATH" << EOF
+    module_path: ${BOOT_PREFIX}/intel-ucode.img
+EOF
+        elif pacman -Q amd-ucode &>/dev/null; then
+            cat >> "$LIMINE_CONF_PATH" << EOF
+    module_path: ${BOOT_PREFIX}/amd-ucode.img
+EOF
+        fi
+        
+        # Add kernel and initramfs paths
+        cat >> "$LIMINE_CONF_PATH" << EOF
+    path: ${BOOT_PREFIX}/vmlinuz-linux
+    cmdline: $KERNEL_PARAMS
+    module_path: ${BOOT_PREFIX}/initramfs-linux.img
+EOF
+        
+        # Add entries for additional kernels if any
+        for kernel_pkg in "${INSTALLED_KERNELS[@]:1}"; do
+            kernel_name="${kernel_pkg#linux}"  # Remove "linux" prefix
+            kernel_name="${kernel_name#-}"     # Remove leading dash if present
+            [ -z "$kernel_name" ] && kernel_name="default"
+            
+            # Capitalize first letter for better display
+            display_name="$(tr '[:lower:]' '[:upper:]' <<< ${kernel_name:0:1})${kernel_name:1}"
+            [ "$display_name" = "Default" ] && display_name="Stable"
+            
+            cat >> "$LIMINE_CONF_PATH" << EOF
+
+/Arch Linux ($display_name)
+    protocol: linux
+EOF
+            
+            # Add microcode for additional kernels too
+            if pacman -Q intel-ucode &>/dev/null; then
+                cat >> "$LIMINE_CONF_PATH" << EOF
+    module_path: ${BOOT_PREFIX}/intel-ucode.img
+EOF
+            elif pacman -Q amd-ucode &>/dev/null; then
+                cat >> "$LIMINE_CONF_PATH" << EOF
+    module_path: ${BOOT_PREFIX}/amd-ucode.img
+EOF
+            fi
+            
+            cat >> "$LIMINE_CONF_PATH" << EOF
+    path: ${BOOT_PREFIX}/vmlinuz-$kernel_pkg
+    cmdline: $KERNEL_PARAMS
+    module_path: ${BOOT_PREFIX}/initramfs-$kernel_pkg.img
+EOF
+        done
+        
+        print_success "Limine configured with ${#INSTALLED_KERNELS[@]} kernel(s)"
+        
+        # Verify Limine configuration
+        if [ -f "$LIMINE_CONF_PATH" ]; then
+            print_success "Limine configuration file verified at $LIMINE_CONF_PATH"
+        else
+            print_error "Limine configuration file missing!"
+            exit 1
+        fi
         ;;
         
     *)
@@ -511,6 +759,8 @@ EOF
         ;;
 esac
 
+read -r -p "Press Enter to continue..."
+smart_clear
 # ===================================
 # STEP 9b: CONFIGURE BOOT SYSTEM
 # ===================================
@@ -524,7 +774,6 @@ if configure_boot_system; then
 else
     print_error "Failed to configure boot system!"
     print_warning "The system may not boot correctly without proper initramfs configuration"
-    smart_clear
     print_info "You may need to manually configure mkinitcpio.conf and regenerate initramfs"
     read -r -p "Continue anyway? (y/N): " CONTINUE_BOOT_CONFIG
     if [[ ! $CONTINUE_BOOT_CONFIG =~ ^[Yy]$ ]]; then
@@ -551,7 +800,6 @@ echo "     - Mature and widely tested"
 echo "     - Good compatibility with older applications"
 echo ""
 
-smart_clear
 read -r -p "Select audio server [1-2]: " AUDIO_SERVER
 
 case "$AUDIO_SERVER" in
@@ -615,7 +863,6 @@ echo ""
 echo "  ${CYAN}5)${NC} Skip (install later if needed)"
 echo ""
 
-smart_clear
 read -r -p "Select option [1-5]: " GST_OPTION
 
 case "$GST_OPTION" in

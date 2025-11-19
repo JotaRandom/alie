@@ -1225,9 +1225,20 @@ case "$PART_CHOICE" in
                 
                 # Home partition (rest of disk)
                 run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%" "Create home partition" || exit 1
+                
+                # Set correct partition types (GUIDs)
+                run_critical_command "sgdisk -t 1:C12A7328-F81F-11D2-BA4B-00A0C93EC93B \"$DISK_PATH\"" "Set EFI System Partition type" || exit 1
+                run_critical_command "sgdisk -t 2:0657FD6D-A4AB-43C4-84E5-0933C84B4F4F \"$DISK_PATH\"" "Set Linux swap type" || exit 1
+                run_critical_command "sgdisk -t 3:4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709 \"$DISK_PATH\"" "Set Linux x86-64 root type" || exit 1
+                run_critical_command "sgdisk -t 4:0FC63DAF-8483-4772-8E79-3D69D8477DE4 \"$DISK_PATH\"" "Set Linux filesystem type for home" || exit 1
             else
                 # Root partition (rest of disk)
                 run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%" "Create root partition" || exit 1
+                
+                # Set correct partition types (GUIDs)
+                run_critical_command "sgdisk -t 1:C12A7328-F81F-11D2-BA4B-00A0C93EC93B \"$DISK_PATH\"" "Set EFI System Partition type" || exit 1
+                run_critical_command "sgdisk -t 2:0657FD6D-A4AB-43C4-84E5-0933C84B4F4F \"$DISK_PATH\"" "Set Linux swap type" || exit 1
+                run_critical_command "sgdisk -t 3:4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709 \"$DISK_PATH\"" "Set Linux x86-64 root type" || exit 1
             fi
             
         else
@@ -1236,20 +1247,43 @@ case "$PART_CHOICE" in
                 print_info "Creating MBR partition table..."
                 run_critical_command "parted -s \"$DISK_PATH\" mklabel msdos" "Create MBR partition table" || exit 1
                 
-                # Swap
-                run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap 1MiB $((SWAP_SIZE * 1024))MiB" "Create swap partition" || exit 1
-                
                 if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-                    # Root
-                    ROOT_START=$((SWAP_SIZE * 1024))
+                    # Boot partition (partition 1, ~1GB FAT32)
+                    BOOT_START=1
+                    BOOT_END=1025
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary fat32 ${BOOT_START}MiB ${BOOT_END}MiB" "Create boot partition" || exit 1
+                    
+                    # Swap partition (partition 2)
+                    SWAP_START=$BOOT_END
+                    SWAP_END=$((SWAP_START + SWAP_SIZE * 1024))
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB" "Create swap partition" || exit 1
+                    
+                    # Root partition (partition 3)
+                    ROOT_START=$SWAP_END
                     ROOT_END=$((ROOT_START + ROOT_SIZE * 1024))
                     run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_START}MiB ${ROOT_END}MiB" "Create root partition" || exit 1
                     
-                    # Home
+                    # Home partition (partition 4)
                     run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%" "Create home partition" || exit 1
+                    
+                    # Mark boot partition as bootable
+                    run_critical_command "parted -s \"$DISK_PATH\" set 1 boot on" "Mark boot partition as bootable" || exit 1
                 else
-                    # Root (rest)
-                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS $((SWAP_SIZE * 1024))MiB 100%" "Create root partition" || exit 1
+                    # Boot partition (partition 1, ~1GB FAT32)
+                    BOOT_START=1
+                    BOOT_END=1025
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary fat32 ${BOOT_START}MiB ${BOOT_END}MiB" "Create boot partition" || exit 1
+                    
+                    # Swap partition (partition 2)
+                    SWAP_START=$BOOT_END
+                    SWAP_END=$((SWAP_START + SWAP_SIZE * 1024))
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary linux-swap ${SWAP_START}MiB ${SWAP_END}MiB" "Create swap partition" || exit 1
+                    
+                    # Root partition (partition 3)
+                    run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%" "Create root partition" || exit 1
+                    
+                    # Mark boot partition as bootable
+                    run_critical_command "parted -s \"$DISK_PATH\" set 1 boot on" "Mark boot partition as bootable" || exit 1
                 fi
                 
             else
@@ -1277,9 +1311,22 @@ case "$PART_CHOICE" in
                     
                     # Home
                     run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${ROOT_END}MiB 100%" "Create home partition" || exit 1
+                    
+                    # Set correct partition types (GUIDs)
+                    run_critical_command "sgdisk -t 1:21686148-6449-6E6F-744E-656564454649 \"$DISK_PATH\"" "Set BIOS boot partition type" || exit 1
+                    run_critical_command "sgdisk -t 2:C12A7328-F81F-11D2-BA4B-00A0C93EC93B \"$DISK_PATH\"" "Set EFI System Partition type" || exit 1
+                    run_critical_command "sgdisk -t 3:0657FD6D-A4AB-43C4-84E5-0933C84B4F4F \"$DISK_PATH\"" "Set Linux swap type" || exit 1
+                    run_critical_command "sgdisk -t 4:4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709 \"$DISK_PATH\"" "Set Linux x86-64 root type" || exit 1
+                    run_critical_command "sgdisk -t 5:0FC63DAF-8483-4772-8E79-3D69D8477DE4 \"$DISK_PATH\"" "Set Linux filesystem type for home" || exit 1
                 else
                     # Root (rest)
                     run_critical_command "parted -s \"$DISK_PATH\" mkpart primary $ROOT_FS ${SWAP_END}MiB 100%" "Create root partition" || exit 1
+                    
+                    # Set correct partition types (GUIDs)
+                    run_critical_command "sgdisk -t 1:21686148-6449-6E6F-744E-656564454649 \"$DISK_PATH\"" "Set BIOS boot partition type" || exit 1
+                    run_critical_command "sgdisk -t 2:C12A7328-F81F-11D2-BA4B-00A0C93EC93B \"$DISK_PATH\"" "Set EFI System Partition type" || exit 1
+                    run_critical_command "sgdisk -t 3:0657FD6D-A4AB-43C4-84E5-0933C84B4F4F \"$DISK_PATH\"" "Set Linux swap type" || exit 1
+                    run_critical_command "sgdisk -t 4:4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709 \"$DISK_PATH\"" "Set Linux x86-64 root type" || exit 1
                 fi
             fi
         fi
@@ -1369,10 +1416,11 @@ case "$PART_CHOICE" in
                 fi
             else
                 # MBR
-                SWAP_PARTITION="${PART_PREFIX}1"
-                ROOT_PARTITION="${PART_PREFIX}2"
+                BOOT_PARTITION="${PART_PREFIX}1"
+                SWAP_PARTITION="${PART_PREFIX}2"
+                ROOT_PARTITION="${PART_PREFIX}3"
                 if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
-                    HOME_PARTITION="${PART_PREFIX}3"
+                    HOME_PARTITION="${PART_PREFIX}4"
                 fi
             fi
         fi
@@ -1386,6 +1434,8 @@ case "$PART_CHOICE" in
             PARTITIONS_TO_CHECK+=("$EFI_PARTITION")
         elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
             PARTITIONS_TO_CHECK+=("$BIOS_BOOT_PARTITION")
+        elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ]; then
+            PARTITIONS_TO_CHECK+=("$BOOT_PARTITION")
         fi
         if [[ $CREATE_HOME =~ ^[Yy]$ ]]; then
             PARTITIONS_TO_CHECK+=("$HOME_PARTITION")
@@ -1418,6 +1468,12 @@ case "$PART_CHOICE" in
         if [ -n "$EFI_PARTITION" ]; then
             print_info "Formatting EFI partition as FAT32..."
             mkfs.fat -F32 -n "EFI" "$EFI_PARTITION"
+        fi
+        
+        # Format boot partition for MBR systems
+        if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ] && [ -n "$BOOT_PARTITION" ]; then
+            print_info "Formatting boot partition as FAT32..."
+            mkfs.fat -F32 -n "BOOT" "$BOOT_PARTITION"
         fi
         
         # Show root partition size before formatting
@@ -1528,7 +1584,12 @@ case "$PART_CHOICE" in
         if [ "$BOOT_MODE" == "UEFI" ]; then
             echo "  - EFI partition: 512MB-1GB, type EFI System"
         else
-            echo "  - For GPT: Create 1MB BIOS boot partition (type: BIOS boot)"
+            if [ "$PARTITION_TABLE" == "GPT" ]; then
+                echo "  - BIOS boot partition: 8MB, type BIOS boot"
+                echo "  - EFI partition: 1GB, type EFI System (compatibility)"
+            else
+                echo "  - Boot partition: 1GB, type FAT32 (for /boot)"
+            fi
         fi
         echo "  - Swap partition: RAM size + 2GB recommended"
         echo "  - Root partition: 30-50GB minimum (type: Linux filesystem)"
@@ -1599,8 +1660,53 @@ case "$PART_CHOICE" in
                 if [[ $USING_GPT =~ ^[Yy]$ ]]; then
                     PARTITION_TABLE="GPT"
                     read -r -p "Enter BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
+                    if [ -n "$BIOS_BOOT_PARTITION" ] && [ -b "$BIOS_BOOT_PARTITION" ]; then
+                        # Check if partition is mounted before formatting
+                        if mountpoint -q "$BIOS_BOOT_PARTITION" 2>/dev/null || mount | grep -q "^$BIOS_BOOT_PARTITION"; then
+                            print_warning "Partition $BIOS_BOOT_PARTITION is mounted, unmounting..."
+                            umount "$BIOS_BOOT_PARTITION" 2>/dev/null || umount -l "$BIOS_BOOT_PARTITION" 2>/dev/null || {
+                                print_error "Failed to unmount $BIOS_BOOT_PARTITION"
+                                exit 1
+                            }
+                        fi
+                        
+                        print_info "Formatting BIOS boot partition..."
+                        # BIOS boot partition should be unformatted (no filesystem)
+                        wipefs -a "$BIOS_BOOT_PARTITION"
+                        print_success "BIOS boot partition prepared"
+                    fi
                 else
                     PARTITION_TABLE="MBR"
+                    read -r -p "Enter boot partition (e.g., /dev/sda1): " BOOT_PARTITION
+                    if [ -n "$BOOT_PARTITION" ] && [ -b "$BOOT_PARTITION" ]; then
+                        # Check if partition is mounted before formatting
+                        if mountpoint -q "$BOOT_PARTITION" 2>/dev/null || mount | grep -q "^$BOOT_PARTITION"; then
+                            print_warning "Partition $BOOT_PARTITION is mounted, unmounting..."
+                            umount "$BOOT_PARTITION" 2>/dev/null || umount -l "$BOOT_PARTITION" 2>/dev/null || {
+                                print_error "Failed to unmount $BOOT_PARTITION"
+                                exit 1
+                            }
+                        fi
+                        
+                        # Check if partition already has a filesystem (dual-boot warning)
+                        EXISTING_FS=$(blkid -o value -s TYPE "$BOOT_PARTITION" 2>/dev/null || echo "")
+                        
+                        if [ -n "$EXISTING_FS" ]; then
+                            print_warning "Partition $BOOT_PARTITION already has filesystem: $EXISTING_FS"
+                            print_warning "This may contain other bootloaders!"
+                            read -r -p "Format anyway? This will destroy other bootloaders! (y/N): " CONFIRM_FORMAT_BOOT
+                            
+                            if [[ ! $CONFIRM_FORMAT_BOOT =~ ^[Yy]$ ]]; then
+                                print_info "Skipping boot partition format - will use existing"
+                            else
+                                print_info "Formatting boot partition as FAT32..."
+                                mkfs.fat -F32 -n "BOOT" "$BOOT_PARTITION"
+                            fi
+                        else
+                            print_info "Formatting boot partition as FAT32..."
+                            mkfs.fat -F32 -n "BOOT" "$BOOT_PARTITION"
+                        fi
+                    fi
                 fi
             fi
             
@@ -1725,6 +1831,7 @@ if [ "$AUTO_PARTITIONED" != true ]; then
             read -r -p "Enter the BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
         else
             PARTITION_TABLE="MBR"
+            read -r -p "Enter the boot partition (e.g., /dev/sda1): " BOOT_PARTITION
         fi
     fi
     
@@ -1761,6 +1868,11 @@ if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ -z "$BIOS_
     exit 1
 fi
 
+if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ] && [ -z "$BOOT_PARTITION" ]; then
+    print_error "Boot partition is required for MBR on BIOS systems"
+    exit 1
+fi
+
 if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ "$PARTITION_SCHEME" != "btrfs-subvolumes" ] && [ -z "$HOME_PARTITION" ]; then
     print_error "/home partition path is required"
     exit 1
@@ -1786,6 +1898,11 @@ if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ ! -b "$BIO
     exit 1
 fi
 
+if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ] && [ ! -b "$BOOT_PARTITION" ]; then
+    print_error "$BOOT_PARTITION is not a valid block device"
+    exit 1
+fi
+
 if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ "$PARTITION_SCHEME" != "btrfs-subvolumes" ] && [ ! -b "$HOME_PARTITION" ]; then
     print_error "$HOME_PARTITION is not a valid block device"
     exit 1
@@ -1808,6 +1925,9 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
 fi
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
     echo "  - BIOS boot partition: $BIOS_BOOT_PARTITION"
+fi
+if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ]; then
+    echo "  - Boot partition: $BOOT_PARTITION (mounted at /boot)"
 fi
 if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; }; then
     echo "  - EFI partition: $EFI_PARTITION"
@@ -1967,6 +2087,15 @@ if [ "$BOOT_MODE" == "UEFI" ]; then
     mount -o "defaults,noatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1" "$EFI_PARTITION" /mnt/boot
     MOUNTED_PARTITIONS+=("/mnt/boot")
     print_success "EFI partition mounted"
+fi
+
+# Mount boot partition for BIOS-MBR
+if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ] && [ -n "$BOOT_PARTITION" ]; then
+    mkdir -p /mnt/boot
+    print_info "Mounting boot partition..."
+    mount -o "defaults,noatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1" "$BOOT_PARTITION" /mnt/boot
+    MOUNTED_PARTITIONS+=("/mnt/boot")
+    print_success "Boot partition mounted"
 fi
 
 # Mount home if separate (with same optimizations)

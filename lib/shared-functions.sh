@@ -1877,23 +1877,23 @@ configure_mkinitcpio() {
 # Usage: configure_grub_defaults "resume=UUID=xxx" "rootflags=subvol=@"
 configure_grub_defaults() {
     local grub_default="/etc/default/grub"
-    
+
     if [ ! -f "$grub_default" ]; then
         print_error "GRUB default config not found at $grub_default"
         return 1
     fi
-    
+
     print_info "Configuring GRUB default parameters..."
-    
+
     # Backup original file
     cp "$grub_default" "${grub_default}.backup"
-    
-    # Build the parameter string
+
+    # Build the parameter string for GRUB_CMDLINE_LINUX_DEFAULT
     local current_params=""
     if grep -q "^GRUB_CMDLINE_LINUX_DEFAULT=" "$grub_default"; then
         current_params=$(grep "^GRUB_CMDLINE_LINUX_DEFAULT=" "$grub_default" | sed 's/GRUB_CMDLINE_LINUX_DEFAULT="//;s/"$//')
     fi
-    
+
     # Combine existing and new parameters
     local new_params="$current_params"
     for param in "$@"; do
@@ -1908,7 +1908,19 @@ configure_grub_defaults() {
             fi
         fi
     done
-    
+
+    # Add recommended default parameters if not already present
+    local recommended_params=("quiet" "udev.log_priority=3" "vt.global_cursor_default=0" "loglevel=3")
+    for param in "${recommended_params[@]}"; do
+        if [[ "$new_params" != *"$param"* ]]; then
+            if [ -n "$new_params" ]; then
+                new_params="$new_params $param"
+            else
+                new_params="$param"
+            fi
+        fi
+    done
+
     # Update GRUB_CMDLINE_LINUX_DEFAULT
     if [ -n "$new_params" ]; then
         sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$new_params\"|" "$grub_default"
@@ -1916,8 +1928,41 @@ configure_grub_defaults() {
     else
         print_info "No GRUB parameters to update"
     fi
-    
-    # Regenerate GRUB configuration
+
+    # Configure other GRUB settings according to Arch Wiki best practices
+    print_info "Configuring additional GRUB settings..."
+
+    # Set GRUB_DEFAULT to saved (remember last boot entry)
+    if ! grep -q "^GRUB_DEFAULT=" "$grub_default" || grep -q "^GRUB_DEFAULT=0$" "$grub_default"; then
+        sed -i 's|^GRUB_DEFAULT=.*|GRUB_DEFAULT=saved|' "$grub_default"
+        print_info "Set GRUB_DEFAULT=saved"
+    fi
+
+    # Set GRUB_TIMEOUT to 5 seconds (reasonable default)
+    if ! grep -q "^GRUB_TIMEOUT=" "$grub_default" || grep -q "^GRUB_TIMEOUT=0$" "$grub_default"; then
+        sed -i 's|^GRUB_TIMEOUT=.*|GRUB_TIMEOUT=5|' "$grub_default"
+        print_info "Set GRUB_TIMEOUT=5"
+    fi
+
+    # Disable OS prober to avoid detecting other OS unnecessarily
+    if ! grep -q "^GRUB_DISABLE_OS_PROBER=" "$grub_default"; then
+        echo "GRUB_DISABLE_OS_PROBER=false" >> "$grub_default"
+        print_info "Added GRUB_DISABLE_OS_PROBER=false"
+    fi
+
+    # Set GRUB_TIMEOUT_STYLE to menu for better UX
+    if ! grep -q "^GRUB_TIMEOUT_STYLE=" "$grub_default"; then
+        echo "GRUB_TIMEOUT_STYLE=menu" >> "$grub_default"
+        print_info "Added GRUB_TIMEOUT_STYLE=menu"
+    fi
+
+    # Set GRUB_CMDLINE_LINUX for parameters that apply to all kernels
+    if ! grep -q "^GRUB_CMDLINE_LINUX=" "$grub_default"; then
+        echo "GRUB_CMDLINE_LINUX=\"\"" >> "$grub_default"
+        print_info "Added GRUB_CMDLINE_LINUX (empty by default)"
+    fi
+
+    # Always regenerate GRUB configuration after installation or parameter changes
     print_info "Regenerating GRUB configuration..."
     if grub-mkconfig -o /boot/grub/grub.cfg; then
         print_success "GRUB configuration regenerated successfully"
@@ -1964,6 +2009,18 @@ configure_boot_system() {
             # Prepare GRUB parameters
             local grub_params=()
             
+            # Add root UUID parameter for explicit root specification
+            if [ -n "$ROOT_UUID" ]; then
+                grub_params+=("root=UUID=$ROOT_UUID")
+                print_info "Added explicit root parameter: root=UUID=$ROOT_UUID"
+            fi
+            
+            # Add rootfstype parameter for filesystem type
+            if [ -n "$root_fs" ]; then
+                grub_params+=("rootfstype=$root_fs")
+                print_info "Added rootfstype parameter: rootfstype=$root_fs"
+            fi
+            
             # Add resume parameter for swap
             if [ -n "$SWAP_PARTITION" ]; then
                 local swap_uuid
@@ -1983,11 +2040,8 @@ configure_boot_system() {
             fi
             
             # Configure GRUB with the parameters
-            if [ ${#grub_params[@]} -gt 0 ]; then
-                configure_grub_defaults "${grub_params[@]}"
-            else
-                print_info "No additional GRUB parameters needed"
-            fi
+            # Always call configure_grub_defaults to ensure grub-mkconfig runs
+            configure_grub_defaults "${grub_params[@]}"
             ;;
             
         "systemd-boot"|"limine")
@@ -2000,6 +2054,11 @@ configure_boot_system() {
             print_warning "Unknown bootloader $bootloader, using default GRUB configuration"
             # Fallback to GRUB configuration
             local grub_params=()
+            
+            # Add rootfstype parameter for filesystem type
+            if [ -n "$root_fs" ]; then
+                grub_params+=("rootfstype=$root_fs")
+            fi
             
             if [ -n "$SWAP_PARTITION" ]; then
                 local swap_uuid
@@ -2015,6 +2074,9 @@ configure_boot_system() {
             
             if [ ${#grub_params[@]} -gt 0 ]; then
                 configure_grub_defaults "${grub_params[@]}"
+            else
+                # Always ensure grub-mkconfig runs even with no additional parameters
+                configure_grub_defaults
             fi
             ;;
     esac
