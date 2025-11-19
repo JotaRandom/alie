@@ -197,7 +197,7 @@ smart_clear
 show_alie_banner
 print_step "Installation Summary"
 
-echo "Shells to be installed:"
+print_info "Shells to be installed:"
 if [ ${#SELECTED_SHELLS[@]} -eq 0 ]; then
     echo "  - bash (default only)"
 else
@@ -208,7 +208,7 @@ else
 fi
 
 echo ""
-echo "Editors to be installed:"
+print_info "Editors to be installed:"
 echo "  - nano (default) - $([ "$CONFIGURE_NANO" = "true" ] && echo "with syntax highlighting" || echo "default config")"
 echo "  - vim (default) - $([ "$CONFIGURE_VIM" = "true" ] && echo "enhanced config" || echo "default config")"
 if [ ${#SELECTED_EDITORS[@]} -gt 0 ]; then
@@ -259,11 +259,13 @@ CONFIG_FILE="/tmp/.alie-shell-editor-config"
 
 print_success "Configuration saved to: $CONFIG_FILE"
 
+print_info "Configuration file content:"
+echo "----------------------------------------"
+cat "$CONFIG_FILE"
+echo "----------------------------------------"
+
 # Also save for later use (after chroot)
-save_install_info "extra_shells" "${SELECTED_SHELLS[*]}"
-save_install_info "extra_editors" "${SELECTED_EDITORS[*]}"
-save_install_info "configure_nano" "$CONFIGURE_NANO"
-save_install_info "configure_vim" "$CONFIGURE_VIM"
+save_install_info "/mnt/root/.alie-install-info" "SELECTED_SHELLS" "SELECTED_EDITORS" "CONFIGURE_NANO" "CONFIGURE_VIM"
 
 # Mark progress
 save_progress "01b-shell-editor-selected"

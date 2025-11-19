@@ -496,7 +496,17 @@ save_install_info() {
     # Write each variable
     for var_name in "${variables[@]}"; do
         # Get the value of the variable
-        local var_value="${!var_name}"
+        local var_value
+        if [ -n "${!var_name:-}" ]; then
+            # Variable exists, use its value
+            var_value="${!var_name}"
+        else
+            # Variable doesn't exist, treat var_name as the value to save
+            # This handles cases where the caller passes values instead of variable names
+            var_value="$var_name"
+            # Use a generic key name since we don't have a proper variable name
+            var_name="value_${var_name//[^a-zA-Z0-9_]/_}"
+        fi
         echo "${var_name}=${var_value}" >> "$output_file"
     done
     
