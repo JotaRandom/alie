@@ -151,7 +151,6 @@ echo ""
 # Build package list using detected configuration
 PACKAGES=(
     base
-    "${SELECTED_KERNEL:-linux}"
     linux-firmware
     networkmanager
     vim
@@ -202,6 +201,17 @@ if [ -f /tmp/.alie-shell-editor-config ]; then
         read -r -a _extra_editors <<< "$EXTRA_EDITORS"
         PACKAGES+=("${_extra_editors[@]}")
         print_info "Adding editors: ${_extra_editors[*]}"
+    fi
+    
+    # Add selected kernels
+    if [ -n "${SELECTED_KERNELS:-}" ]; then
+        read -r -a _selected_kernels <<< "$SELECTED_KERNELS"
+        PACKAGES+=("${_selected_kernels[@]}")
+        print_info "Adding kernels: ${_selected_kernels[*]}"
+    else
+        # Default to linux if no kernels selected
+        PACKAGES+=("linux")
+        print_info "Adding default kernel: linux"
     fi
 fi
 

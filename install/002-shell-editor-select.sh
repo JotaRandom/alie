@@ -10,6 +10,7 @@ set -euo pipefail
 
 # Determine script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
 
 # Load shared functions
@@ -44,6 +45,7 @@ require_root
 # Arrays to store selected packages
 SELECTED_SHELLS=()
 SELECTED_EDITORS=()
+SELECTED_KERNELS=()
 
 # ===================================
 # SHELL SELECTION
@@ -111,7 +113,7 @@ smart_clear
 show_alie_banner
 print_step "STEP 3: Kernel Selection"
 
-print_info "Select the Linux kernel to install:"
+print_info "Select the Linux kernels to install:"
 echo ""
 echo "Available kernels:"
 echo "  1) linux (default) - Standard Linux kernel (recommended for most users)"
@@ -120,33 +122,44 @@ echo "  3) linux-hardened - Security-focused with additional hardening patches"
 echo "  4) linux-lts - Long Term Support kernel (stable, receives updates longer)"
 echo ""
 echo "Note: linux-firmware is always included regardless of kernel choice."
+echo "You can select multiple kernels (e.g., '1 4' for linux and linux-lts)."
 echo ""
 
-read -r -p "Choose kernel [1-4] (default: 1): " kernel_choice
-kernel_choice=${kernel_choice:-1}
+read -r -a kernel_choices -p "Choose kernels [1-4] (space-separated, default: 1): "
 
-case $kernel_choice in
-    1)
-        SELECTED_KERNEL="linux"
-        print_success "Selected: linux (standard kernel)"
-        ;;
-    2)
-        SELECTED_KERNEL="linux-zen"
-        print_success "Selected: linux-zen (desktop optimized)"
-        ;;
-    3)
-        SELECTED_KERNEL="linux-hardened"
-        print_success "Selected: linux-hardened (security focused)"
-        ;;
-    4)
-        SELECTED_KERNEL="linux-lts"
-        print_success "Selected: linux-lts (long term support)"
-        ;;
-    *)
-        SELECTED_KERNEL="linux"
-        print_warning "Invalid choice, using default: linux"
-        ;;
-esac
+if [ "${#kernel_choices[@]}" -eq 0 ]; then
+    kernel_choices=(1)  # Default to linux
+fi
+
+for choice in "${kernel_choices[@]}"; do
+    case $choice in
+        1)
+            SELECTED_KERNELS+=("linux")
+            print_success "Added: linux (standard kernel)"
+            ;;
+        2)
+            SELECTED_KERNELS+=("linux-zen")
+            print_success "Added: linux-zen (desktop optimized)"
+            ;;
+        3)
+            SELECTED_KERNELS+=("linux-hardened")
+            print_success "Added: linux-hardened (security focused)"
+            ;;
+        4)
+            SELECTED_KERNELS+=("linux-lts")
+            print_success "Added: linux-lts (long term support)"
+            ;;
+        *)
+            print_warning "Invalid choice: $choice (skipped)"
+            ;;
+    esac
+done
+
+# Ensure at least one kernel is selected
+if [ ${#SELECTED_KERNELS[@]} -eq 0 ]; then
+    SELECTED_KERNELS=("linux")
+    print_warning "No valid kernels selected, using default: linux"
+fi
 
 echo ""
 
@@ -253,8 +266,10 @@ else
     done
 fi
 
-echo "Kernel to be installed:"
-echo "  - $SELECTED_KERNEL (with linux-firmware)"
+echo "Kernels to be installed:"
+for kernel in "${SELECTED_KERNELS[@]}"; do
+    echo "  - $kernel (with linux-firmware)"
+done
 
 echo ""
 echo "Additional packages to be installed:"
@@ -333,7 +348,7 @@ CONFIG_FILE="/tmp/.alie-shell-editor-config"
     
     echo "CONFIGURE_NANO=\"$CONFIGURE_NANO\""
     echo "CONFIGURE_VIM=\"$CONFIGURE_VIM\""
-    echo "SELECTED_KERNEL=\"$SELECTED_KERNEL\""
+    echo "SELECTED_KERNELS=\"${SELECTED_KERNELS[*]}\""
     
 } > "$CONFIG_FILE"
 
@@ -345,7 +360,7 @@ cat "$CONFIG_FILE"
 echo "----------------------------------------"
 
 # Also save for later use (after chroot)
-save_install_info "/mnt/root/.alie-install-info" "SELECTED_SHELLS" "SELECTED_EDITORS" "CONFIGURE_NANO" "CONFIGURE_VIM" "SELECTED_KERNEL"
+save_install_info "/mnt/root/.alie-install-info" "SELECTED_SHELLS" "SELECTED_EDITORS" "CONFIGURE_NANO" "CONFIGURE_VIM" "SELECTED_KERNELS"
 
 # Mark progress
 save_progress "01b-shell-editor-selected"
