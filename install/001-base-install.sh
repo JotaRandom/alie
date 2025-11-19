@@ -1761,6 +1761,14 @@ if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; the
     MOUNTED_PARTITIONS+=("/mnt")
     print_success "Root partition mounted"
     
+    # Get root UUID and subvolume info for bootloader configuration
+    ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
+    if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+        ROOT_SUBVOL="@"
+    else
+        ROOT_SUBVOL=""
+    fi
+    
     # Mount additional Btrfs subvolumes
     print_info "Mounting additional Btrfs subvolumes..."
     
@@ -1789,6 +1797,14 @@ else
     mount -o "$MOUNT_OPTS" "$ROOT_PARTITION" /mnt
     MOUNTED_PARTITIONS+=("/mnt")
     print_success "Root partition mounted"
+    
+    # Get root UUID and subvolume info for bootloader configuration
+    ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
+    if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+        ROOT_SUBVOL="@"
+    else
+        ROOT_SUBVOL=""
+    fi
 fi
 
 # Activate swap (deactivate first if already active)

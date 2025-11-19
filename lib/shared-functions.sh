@@ -1412,7 +1412,7 @@ detect_system_info() {
     if [ -n "$ROOT_PARTITION" ]; then
         local root_disk
         root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
-        PARTITION_TABLE=$(detect_partition_table "$root_disk")
+        PARTITION_TABLE=$(detect_partition_table "$root_disk" 2>/dev/null || echo "unknown")
         
         # BIOS boot partition detection for GPT
         if [ "$BOOT_MODE" = "BIOS" ] && [ "$PARTITION_TABLE" = "GPT" ]; then
@@ -1756,6 +1756,8 @@ HOME_PARTITION="$HOME_PARTITION"
 # Filesystems
 ROOT_FS="$ROOT_FS"
 PARTITION_SCHEME="$PARTITION_SCHEME"
+ROOT_UUID="$ROOT_UUID"
+ROOT_SUBVOL="$ROOT_SUBVOL"
 
 # Hardware
 CPU_VENDOR="$CPU_VENDOR"
