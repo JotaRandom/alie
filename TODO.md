@@ -2,7 +2,7 @@
 
 ## 🚀 **High Priority Features**
 
-### 0. **Critical Boot Configuration** ✅ COMPLETED
+### 0. **Critical Boot Configuration** ✅ COMPLETED [Manual and semi-manual options need testing]
 - [x] **Initramfs Modules**: Automatic addition of filesystem modules to mkinitcpio.conf/dracut.conf
 - [x] **Swap Resume**: Automatic configuration of resume=UUID parameter for hibernation
 - [x] **Btrfs Subvolumes**: Automatic configuration of rootflags=subvol=@ for Btrfs subvolumes
@@ -14,8 +14,9 @@
 - [x] **Bootloader Flexibility**: Support for GRUB, systemd-boot, and Limine with automatic configurations
 - [x] **Initramfs Configuration**: Automatic mkinitcpio/dracut configuration with filesystem modules
 - [x] **Boot Parameters**: Automatic GRUB configuration with resume= and subvol= parameters
+- [ ] **Syslinux Support**: Add Syslinux as an additional bootloader option
 - [ ] **LUKS Encryption**: Full disk encryption with LUKS2 for security
-- [x] **LVM Support**: Logical Volume Management for flexible storage
+- [ ] **LVM Support**: Logical Volume Management for flexible storage
 - [ ] **ZFS Support**: Basic ZFS setup with encryption and snapshots
 - [ ] **Additional Filesystems**: F2FS and NILFS2 support for specific use cases
 
