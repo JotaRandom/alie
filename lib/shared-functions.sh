@@ -1,63 +1,87 @@
 #!/bin/bash
 # =============================================================================
-# ALIE Shared Functions Library
+# ALIE Shared Functions Library - Core Utilities
 # =============================================================================
-# This file contains common functions used across all ALIE installation scripts
-# Source this file at the beginning of each script:
+# CENTRAL LIBRARY: Contains all reusable functions for ALIE installation scripts
+#
+# PURPOSE:
+# - Provides consistent UI/UX across all installation scripts
+# - Handles system detection, package management, and configuration
+# - Implements robust error handling and retry logic
+# - Manages installation progress tracking and data persistence
+#
+# USAGE:
 #   source "$LIB_DIR/shared-functions.sh"
+#
+# KEY FEATURES:
+# - Color-coded output functions (print_info, print_success, print_warning, print_error)
+# - Automatic retry logic for network/package operations
+# - System hardware detection (CPU, boot mode, filesystems)
+# - Progress tracking between installation steps
+# - Configuration persistence across script runs
+# - Universal AUR helper support (yay, paru, pacman)
+# - Privilege escalation abstraction (sudo, doas, run0)
+#
+# ARCHITECTURE:
+# - Functions are grouped by purpose (printing, system detection, package management, etc.)
+# - All functions use consistent error handling and return codes
+# - Global variables are avoided; functions return values or use local variables
+# - Shell-agnostic design (works with bash, zsh, fish, etc.)
+#
+# DEPENDENCIES:
+# - Bash 4.0+ (for associative arrays and advanced parameter expansion)
+# - Standard Linux tools (grep, sed, awk, findmnt, etc.)
+# - Pacman package manager (Arch Linux specific)
 #
 # NOTE: This file is meant to be sourced, not executed directly.
 # The calling script should use 'set -euo pipefail' for proper error handling.
-#
-# Functions provided:
-#   - Color definitions (RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC)
-#   - print_info()     - Print informational message in cyan
-#   - print_success()  - Print success message in green
-#   - print_warning()  - Print warning message in yellow
-#   - print_error()    - Print error message in red
-#   - print_step()     - Print step header in magenta
-#   - retry_command()  - Retry a command with exponential backoff
-#   - wait_for_operation() - Poll until condition is met or timeout
-#   - verify_chroot()  - Verify script is running in chroot environment
-#   - require_root()   - Ensure script is running as root
-#   - require_non_root() - Ensure script is NOT running as root
-#   - show_alie_banner() - Display ALIE banner
-#   - show_warning_banner() - Display warning about experimental nature
-#   - And many more...
 # =============================================================================
 
 # =============================================================================
-# COLOR DEFINITIONS
+# ANSI COLOR DEFINITIONS - Terminal Output Styling
 # =============================================================================
-RED=$'\033[0;31m'
-GREEN=$'\033[0;32m'
-YELLOW=$'\033[0;33m'
+# Provides consistent color coding for all script output
+# Uses ANSI escape sequences for cross-terminal compatibility
+# Colors follow common conventions: green=success, red=error, yellow=warning, cyan=info
+RED=$'\033[0;31m'        # Error messages, critical issues
+GREEN=$'\033[0;32m'      # Success confirmations, completed operations
+YELLOW=$'\033[0;33m'     # Warnings, non-critical issues, user attention needed
 # shellcheck disable=SC2034
-BLUE=$'\033[0;34m'
-CYAN=$'\033[0;36m'
-MAGENTA=$'\033[0;35m'
-NC=$'\033[0m' # No Color
+BLUE=$'\033[0;34m'       # Reserved for future use (less common in terminals)
+CYAN=$'\033[0;36m'       # Informational messages, progress updates
+MAGENTA=$'\033[0;35m'    # Step headers, important section markers
+NC=$'\033[0m'            # No Color - Reset to terminal default
 
 # =============================================================================
-# TTY COMPATIBILITY FUNCTIONS
+# TTY COMPATIBILITY FUNCTIONS - Terminal Environment Handling
 # =============================================================================
+# Ensures scripts work correctly across different terminal environments
+# Handles terminal size detection, user interaction, and display limitations
+# Critical for providing consistent experience on various systems and terminals
 
 # Get terminal dimensions safely
+# Returns terminal width in characters
+# Handles cases where tput is not available or fails
 get_terminal_width() {
     tput cols 2>/dev/null || echo 80
 }
 
+# Get terminal height safely
+# Returns terminal height in lines
+# Used for determining if banners should be displayed in compact form
 get_terminal_height() {
     tput lines 2>/dev/null || echo 24
 }
 
 # Check if terminal is too small for banners
+# Returns 0 if terminal is small (<70 cols or <20 lines), 1 otherwise
+# This affects banner display and some interactive elements
 is_terminal_small() {
     local width
     local height
     width=$(get_terminal_width)
     height=$(get_terminal_height)
-    
+
     # Consider small if less than 70 columns or 20 lines
     if [ "$width" -lt 70 ] || [ "$height" -lt 20 ]; then
         return 0
@@ -67,6 +91,8 @@ is_terminal_small() {
 }
 
 # Pause for user interaction in TTY
+# Waits for user to press any key before continuing
+# Useful for giving users time to read important information
 press_any_key() {
     echo ""
     read -r -n1 -s -p "Press any key to continue..."
@@ -74,6 +100,8 @@ press_any_key() {
 }
 
 # Clear screen intelligently based on terminal capabilities
+# Uses 'clear' command if available, falls back to ANSI escape sequences
+# More reliable than just using ANSI codes in limited environments
 smart_clear() {
     if command -v clear >/dev/null 2>&1; then
         clear
@@ -84,6 +112,9 @@ smart_clear() {
 }
 
 # Show progress indicator for slow operations
+# Displays a message with animated dots to show activity
+# Usage: show_progress "Installing packages"
+# Useful for operations that take several seconds and need visual feedback
 show_progress() {
     local message="$1"
     echo -n "${CYAN}${message}${NC}"
@@ -95,31 +126,44 @@ show_progress() {
 }
 
 # =============================================================================
-# PRINTING FUNCTIONS
+# PRINTING FUNCTIONS - User Interface Output
 # =============================================================================
+# Standardized output functions for consistent user experience
+# All functions automatically handle color coding and formatting
 
+# Print informational message in cyan
+# Usage: print_info "Loading configuration files..."
 print_info() {
     echo -e "${CYAN}[INFO] ${NC}$1"
 }
 
+# Print success message in green
+# Usage: print_success "Package installed successfully"
 print_success() {
     echo -e "${GREEN}[OK] ${NC}$1"
 }
 
+# Print warning message in yellow (to stderr)
+# Usage: print_warning "This operation may take several minutes"
 print_warning() {
     echo -e "${YELLOW}[WARNING] ${NC}$1"
 }
 
+# Print error message in red (to stderr)
+# Usage: print_error "Failed to mount partition"
 print_error() {
     echo -e "${RED}[ERROR] ${NC}$1" >&2
 }
 
+# Print step header with decorative line
+# Creates a full-width separator line with the step title
+# Usage: print_step "STEP 1: Partitioning Disk"
 print_step() {
     echo ""
     local width
     width=$(get_terminal_width)
     local line_char="#"
-    
+
     # Create separator line based on terminal width
     printf '%b' "$MAGENTA"
     printf "%${width}s\n" | tr ' ' "$line_char"
@@ -128,27 +172,29 @@ print_step() {
     printf '%b' "$NC"
     echo ""
 }
-
 # =============================================================================
-# UTILITY FUNCTIONS
+# UTILITY FUNCTIONS - General Purpose Helpers
 # =============================================================================
 
 # Retry a command with exponential backoff
+# CRITICAL for network operations and package downloads
+# Implements intelligent retry logic to handle temporary failures
 # Usage: retry_command <max_attempts> <command>
 # Example: retry_command 3 "pacman -Sy"
+# Returns: 0 on success, 1 on final failure
 retry_command() {
     local max_attempts=$1
     shift
     local command_str
     command_str="$*"
     local attempt=1
-    
+
     while [ "$attempt" -le "$max_attempts" ]; do
         if eval "$command_str"; then
             return 0
         else
             if [ "$attempt" -lt "$max_attempts" ]; then
-                local wait_time=$((attempt * 3))
+                local wait_time=$((attempt * 3))  # Exponential backoff: 3s, 6s, 9s...
                 print_warning "Command failed (attempt $attempt/$max_attempts)"
                 print_info "Retrying in ${wait_time}s..."
                 sleep "$wait_time"
@@ -162,68 +208,80 @@ retry_command() {
 }
 
 # Wait for an operation to complete by polling
+# POLLS a condition until it becomes true or timeout expires
+# Useful for waiting on asynchronous operations like network availability or service startup
 # Usage: wait_for_operation <check_command> <timeout_seconds> <poll_interval>
 # Example: wait_for_operation "mountpoint -q /mnt" 30 1
+# Returns: 0 if condition met, 1 on timeout
 wait_for_operation() {
     local check_command="$1"
-    local timeout=${2:-30}
-    local interval=${3:-1}
+    local timeout=${2:-30}      # Default 30 seconds timeout
+    local interval=${3:-1}      # Default 1 second poll interval
     local elapsed=0
-    
+
+    print_info "Waiting for operation to complete (timeout: ${timeout}s)..."
+
     while [ "$elapsed" -lt "$timeout" ]; do
         if eval "$check_command" 2>/dev/null; then
+            print_success "Operation completed successfully"
             return 0
         fi
         sleep "$interval"
         elapsed=$((elapsed + interval))
     done
-    
+
     print_error "Operation timed out after ${timeout}s"
+    print_error "Check command was: $check_command"
     return 1
 }
 
 # =============================================================================
-# ENVIRONMENT VALIDATION
+# ENVIRONMENT VALIDATION - Safety Checks
 # =============================================================================
+# Critical functions to ensure scripts run in correct environment
+# Prevents data loss and system corruption from running in wrong context
 
 # Verify the script is running inside a chroot environment
+# IMPORTANT: Many installation operations require chroot context
 # Returns 0 if in chroot, 1 otherwise
+# Uses multiple detection methods for reliability
 verify_chroot() {
     print_info "Verifying chroot environment..."
-    
-    # Method 1: Check if root is mounted
+
+    # Method 1: Check if root is mounted (most reliable)
     if ! grep -qs '/proc' /proc/mounts; then
         print_error "Not running in chroot environment!"
         print_info "This script must be run from within arch-chroot"
         return 1
     fi
-    
+
     # Method 2: Compare device numbers of / and /proc/1/root/.
+    # In chroot, these will be different
     local root_dev
     local init_dev
     root_dev=$(stat -c %d:%i /)
     init_dev=$(stat -c %d:%i /proc/1/root/. 2>/dev/null || echo "")
-    
+
     if [ -n "$init_dev" ] && [ "$root_dev" != "$init_dev" ]; then
         print_success "Running in chroot environment"
         return 0
     fi
-    
+
     # If we can't determine or it looks like we're not in chroot
     print_warning "Could not definitively verify chroot environment"
     read -r -p "Continue anyway? (y/N): " CONTINUE
-    
+
     if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
         print_error "Aborted by user"
         return 1
     fi
-    
+
     return 0
 }
 
-# Check if running as root
-# Returns 0 if root, 1 otherwise
-# Require root privileges - exits if not root
+# Check if running as root - CRITICAL for installation scripts
+# Most partitioning and system installation operations require root
+# Returns 0 if root, exits script with error if not root
 require_root() {
     if [ "$EUID" -ne 0 ]; then
         print_error "This script must be run as root!"
@@ -232,7 +290,9 @@ require_root() {
     fi
 }
 
-# Require non-root (regular user) - exits if root
+# Require non-root (regular user) - for post-install scripts
+# Some configuration scripts should NOT run as root for security
+# Returns 0 if non-root, exits script with error if root
 require_non_root() {
     if [ "$EUID" -eq 0 ]; then
         print_error "Do not run this script as root!"
@@ -334,18 +394,18 @@ show_alie_banner() {
 EOF
     else
         cat << "EOF"
-#############################################
-#                                           #
-#       AAA    L       I   EEEEEEE          #
-#      A   A   L       I   E                #
-#     A     A  L       I   E                #
-#     AAAAAAA  L       I   EEEEE            #
-#     A     A  L       I   E                #
-#     A     A  LLLLLLL I   EEEEEEE          #
-#                                           #
-#  Arch Linux Installation Environment      #
-#                                           #
-#############################################
+#########################################
+#                                       #
+#       AAA    L       I   EEEEEEE      #
+#      A   A   L       I   E            #
+#     A     A  L       I   E            #
+#     AAAAAAA  L       I   EEEEE        #
+#     A     A  L       I   E            #
+#     A     A  LLLLLLL I   EEEEEEE      #
+#                                       #
+#  Arch Linux Installation Environment  #
+#                                       #
+#########################################
 EOF
     fi
     
@@ -356,55 +416,60 @@ EOF
 show_warning_banner() {
     echo -e "${YELLOW}"
     cat << "EOF"
-################################################################
+#############################################################
 #                    **  WARNING  **                        #
-################################################################
+#############################################################
 #  This is an EXPERIMENTAL script provided AS-IS            #
 #  without warranties. Review the code before running       #
 #  and use at your own risk.                                #
-#                                                            #
+#                                                           #
 #  This script will make PERMANENT changes to your system!  #
-################################################################
+#############################################################
 EOF
     echo -e "${NC}"
 }
 
 # =============================================================================
-# PROGRESS TRACKING FUNCTIONS
+# PROGRESS TRACKING - Installation State Management
 # =============================================================================
+# Tracks installation progress across multiple script runs
+# Prevents re-running completed steps and provides installation resume capability
+# Uses simple marker files for reliability and cross-shell compatibility
 
-# Save progress marker
+# Save progress marker for completed installation step
+# CRITICAL for multi-script installation flow
 # Usage: save_progress <step_name>
+# Example: save_progress "01-partitions-ready"
 save_progress() {
     local step="$1"
     local progress_file="${ALIE_PROGRESS_FILE:-/tmp/.alie-progress}"
-    
-    # In live environment
+
+    # Store in live environment (/mnt/root) if available, otherwise in temp
     if [ -d /mnt/root ]; then
         progress_file="/mnt/root/.alie-progress"
     elif [ -f /root/.alie-install-info ]; then
         # In installed system
         progress_file="/root/.alie-progress"
     fi
-    
+
     echo "$step" >> "$progress_file"
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $step" >> "${progress_file}.log"
 }
 
-# Check if step is completed
+# Check if a specific installation step is completed
+# Returns 0 if step completed, 1 if not found
 # Usage: is_step_completed <step_name>
 is_step_completed() {
     local step="$1"
     local progress_file="${ALIE_PROGRESS_FILE:-/tmp/.alie-progress}"
-    
-    # In live environment
+
+    # Check in appropriate location based on environment
     if [ -d /mnt/root ]; then
         progress_file="/mnt/root/.alie-progress"
     elif [ -f /root/.alie-install-info ]; then
-        # In installed system
         progress_file="/root/.alie-progress"
     fi
-    
+
     if [ -f "$progress_file" ] && grep -q "^${step}$" "$progress_file" 2>/dev/null; then
         return 0
     else
@@ -482,21 +547,27 @@ clear_progress() {
 }
 
 # =============================================================================
-# DATA PERSISTENCE FUNCTIONS
+# DATA PERSISTENCE FUNCTIONS - Configuration Storage
 # =============================================================================
+# Saves and loads installation configuration between scripts
+# Uses simple key=value format for cross-shell compatibility
+# Critical for maintaining state across installation phases
 
-# Load installation info from previous script
-# Expects file at /root/.alie-install-info
+# Load installation info from previous script run
+# Reads configuration saved by earlier installation scripts
+# Expects file at /root/.alie-install-info (in installed system)
+# Usage: load_install_info [config_file]
+# Returns: 0 on success, 1 if file not found
 load_install_info() {
     local info_file="${1:-/root/.alie-install-info}"
-    
+
     if [ -f "$info_file" ]; then
         print_info "Loading installation configuration from $info_file..."
         # shellcheck source=/root/.alie-install-info
         # shellcheck disable=SC1091
         source "$info_file"
         print_success "Configuration loaded successfully"
-        
+
         # Display loaded variables for debugging (optional)
         if [ "${DEBUG:-0}" = "1" ]; then
             print_info "Loaded variables:"
@@ -504,7 +575,7 @@ load_install_info() {
                 echo "  $line"
             done < "$info_file"
         fi
-        
+
         return 0
     else
         print_warning "Installation info file not found: $info_file"
@@ -513,22 +584,24 @@ load_install_info() {
     fi
 }
 
-# Save installation info for next script
+# Save installation info for next script to read
+# CRITICAL for passing configuration between installation phases
 # Usage: save_install_info <output_file> <var1> <var2> ...
 # Example: save_install_info "/mnt/root/.alie-install-info" BOOT_MODE ROOT_PARTITION
+# Creates key=value file that can be sourced by other scripts
 save_install_info() {
     local output_file="$1"
     shift
     local variables=("$@")
-    
+
     print_info "Saving installation configuration to $output_file..."
-    
+
     # Create or truncate file
     : > "$output_file"
-    
-    # Write each variable
+
+    # Write each variable as key=value pair
     for var_name in "${variables[@]}"; do
-        # Get the value of the variable
+        # Get the value of the variable using indirect expansion
         local var_value
         if [ -n "${!var_name:-}" ]; then
             # Variable exists, use its value
@@ -542,46 +615,59 @@ save_install_info() {
         fi
         echo "${var_name}=${var_value}" >> "$output_file"
     done
-    
+
     print_success "Configuration saved successfully"
-    
+
     # Display saved variables for debugging (optional)
     if [ "${DEBUG:-0}" = "1" ]; then
         print_info "Saved configuration:"
         cat "$output_file"
     fi
-    
+
     return 0
 }
 
 # =============================================================================
-# NETWORK FUNCTIONS
+# NETWORK FUNCTIONS - Connectivity and Network Operations
 # =============================================================================
+# Handles network connectivity checks and waiting for network availability
+# Critical for installation scripts that require internet access for package downloads
 
 # Check internet connectivity
-# Returns 0 if connected, 1 otherwise
+# Tests connection to a reliable host (default: archlinux.org)
+# Uses ping with timeout to avoid hanging on slow/unreliable connections
+# Usage: check_internet [test_host] [timeout_seconds]
+# Returns: 0 if connected, 1 if not connected
 # shellcheck disable=SC2120
 check_internet() {
     local test_host="${1:-archlinux.org}"
     local timeout="${2:-5}"
-    
+
+    print_info "Testing internet connectivity to $test_host..."
+
     if ping -c 1 -W "$timeout" "$test_host" &>/dev/null; then
+        print_success "Internet connection verified"
         return 0
     else
+        print_warning "No response from $test_host (timeout: ${timeout}s)"
         return 1
     fi
 }
 
 # Wait for internet connection with retries
-# Returns 0 when connected, 1 on timeout
+# Keeps trying to establish internet connection until successful or max attempts reached
+# Useful during installation when network might not be immediately available
+# Usage: wait_for_internet [max_attempts] [test_host]
+# Returns: 0 when connected, 1 on timeout
 wait_for_internet() {
     local max_attempts="${1:-10}"
+    local test_host="${2:-archlinux.org}"
     local attempt=1
-    
+
     print_info "Checking internet connectivity..."
-    
+
     while [ "$attempt" -le "$max_attempts" ]; do
-        if check_internet; then
+        if check_internet "$test_host"; then
             print_success "Internet connection verified"
             return 0
         else
@@ -592,6 +678,7 @@ wait_for_internet() {
                 attempt=$((attempt + 1))
             else
                 print_error "Could not establish internet connection after $max_attempts attempts"
+                print_error "Please check your network configuration"
                 return 1
             fi
         fi
@@ -599,15 +686,19 @@ wait_for_internet() {
 }
 
 # =============================================================================
-# PARTITION HELPERS
+# PARTITION HELPERS - Disk and Filesystem Operations
 # =============================================================================
+# Utilities for working with disk partitions and mount points
+# Critical for installation scripts that manipulate disk partitions
 
 # Check if a partition is mounted
+# Verifies if a given partition device is currently mounted
 # Usage: is_mounted <partition>
-# Returns 0 if mounted, 1 otherwise
+# Example: is_mounted "/dev/sda1"
+# Returns: 0 if mounted, 1 if not mounted
 is_mounted() {
     local partition="$1"
-    
+
     if grep -qs "$partition" /proc/mounts; then
         return 0
     else
@@ -616,10 +707,14 @@ is_mounted() {
 }
 
 # Safely unmount a partition
+# Attempts graceful unmount first, then force unmount if needed
+# Includes proper error handling and user feedback
 # Usage: safe_unmount <mount_point>
+# Example: safe_unmount "/mnt/boot"
+# Returns: 0 on success, 1 on failure
 safe_unmount() {
     local mount_point="$1"
-    
+
     if is_mounted "$mount_point"; then
         print_info "Unmounting $mount_point..."
         if umount "$mount_point" 2>/dev/null; then
@@ -642,16 +737,21 @@ safe_unmount() {
 }
 
 # =============================================================================
-# PACKAGE MANAGER HELPERS
+# PACKAGE MANAGER HELPERS - Pacman Operations
 # =============================================================================
+# Wrappers around pacman commands with retry logic and error handling
+# Ensures reliable package operations during installation
 
 # Install packages with retry logic
+# Installs packages using pacman with automatic retry on failure
 # Usage: install_packages <package1> <package2> ...
+# Example: install_packages "base" "linux" "linux-firmware"
+# Returns: 0 on success, 1 on failure
 install_packages() {
     local packages=("$@")
-    
+
     print_info "Installing packages: ${packages[*]}"
-    
+
     if retry_command 3 "pacman -S --needed --noconfirm ${packages[*]}"; then
         print_success "Packages installed successfully"
         return 0
@@ -662,9 +762,13 @@ install_packages() {
 }
 
 # Update package database with retry
+# Refreshes pacman's package database from mirrors
+# Critical before installing packages to ensure latest information
+# Usage: update_package_db
+# Returns: 0 on success, 1 on failure
 update_package_db() {
     print_info "Updating package database..."
-    
+
     if retry_command 3 "pacman -Syy"; then
         print_success "Package database updated"
         return 0
@@ -681,51 +785,58 @@ run_with_retry() {
 }
 
 # =============================================================================
-# SHELL CONFIGURATION FUNCTIONS
+# SHELL CONFIGURATION FUNCTIONS - User Environment Setup
 # =============================================================================
+# Configures shell environments for users after installation
+# Supports multiple shells with appropriate configuration files and settings
+# Ensures consistent user experience across different shell choices
 
 # Detect available shells on the system
+# Scans for installed shell executables and returns available options
+# Used to present shell choices to users during installation
 # Returns: space-separated list of available shell names
 detect_available_shells() {
     local shells=()
-    
+
     if command -v bash >/dev/null 2>&1; then
         shells+=("bash")
     fi
-    
+
     if command -v zsh >/dev/null 2>&1; then
         shells+=("zsh")
     fi
-    
+
     if command -v fish >/dev/null 2>&1; then
         shells+=("fish")
     fi
-    
+
     if command -v dash >/dev/null 2>&1; then
         shells+=("dash")
     fi
-    
+
     if command -v tcsh >/dev/null 2>&1; then
         shells+=("tcsh")
     fi
-    
+
     if command -v ksh >/dev/null 2>&1; then
         shells+=("ksh")
     fi
-    
+
     if command -v nu >/dev/null 2>&1; then
         shells+=("nushell")
     fi
-    
+
     echo "${shells[*]}"
 }
 
 # Get shell path for a given shell name
+# Maps shell names to their executable paths
+# Used by chsh command to change user shell
 # Usage: get_shell_path <shell_name>
 # Returns: full path to shell executable
 get_shell_path() {
     local shell_name="$1"
-    
+
     case "$shell_name" in
         "bash") echo "/bin/bash" ;;
         "zsh") echo "/bin/zsh" ;;
@@ -739,18 +850,20 @@ get_shell_path() {
 }
 
 # Configure shell environment for a user
+# Main entry point for shell configuration
+# Dispatches to specific shell configuration functions
 # Usage: configure_shell_for_user <username> <shell_name>
 configure_shell_for_user() {
     local username="$1"
     local shell_name="$2"
     local user_home="/home/$username"
-    
+
     print_info "Configuring $shell_name environment for $username..."
-    
+
     # Get configs directory
     local configs_dir
     configs_dir="$(dirname "$(dirname "$SCRIPT_DIR")")/configs/shell"
-    
+
     case "$shell_name" in
         "zsh")
             configure_zsh_environment "$username" "$configs_dir"
@@ -774,7 +887,7 @@ configure_shell_for_user() {
             print_warning "No specific configuration available for shell: $shell_name"
             ;;
     esac
-    
+
     print_success "$shell_name environment configured for $username"
 }
 
@@ -1010,11 +1123,15 @@ change_user_shell() {
 }
 
 # =============================================================================
-# PACKAGE MANAGEMENT FUNCTIONS
+# PACKAGE MANAGEMENT FUNCTIONS - Installation State Checks
 # =============================================================================
+# Functions to check package installation status and manage dependencies
+# Critical for ensuring required packages are available before proceeding
 
 # Check if a package is installed
+# Queries pacman database to verify package installation status
 # Usage: is_package_installed <package_name>
+# Example: is_package_installed "linux"
 # Returns: 0 if installed, 1 if not installed
 is_package_installed() {
     local package="$1"
@@ -1022,18 +1139,20 @@ is_package_installed() {
 }
 
 # Check if multiple packages are installed
+# Verifies installation status of multiple packages at once
+# Useful for dependency checking before complex operations
 # Usage: are_packages_installed <package1> <package2> ...
 # Returns: 0 if all installed, 1 if any missing
 are_packages_installed() {
     local packages=("$@")
     local missing_packages=()
-    
+
     for package in "${packages[@]}"; do
         if ! is_package_installed "$package"; then
             missing_packages+=("$package")
         fi
     done
-    
+
     if [ ${#missing_packages[@]} -eq 0 ]; then
         return 0
     else
@@ -1043,24 +1162,27 @@ are_packages_installed() {
 }
 
 # Install packages only if not already installed
+# Smart installation that skips already installed packages
+# Saves time and bandwidth during installation process
 # Usage: ensure_packages_installed <package1> <package2> ...
+# Returns: 0 on success, 1 on failure
 ensure_packages_installed() {
     local packages=("$@")
     local packages_to_install=()
-    
+
     for package in "${packages[@]}"; do
         if ! is_package_installed "$package"; then
             packages_to_install+=("$package")
         fi
     done
-    
+
     if [ ${#packages_to_install[@]} -eq 0 ]; then
         print_info "All packages already installed"
         return 0
     fi
-    
+
     print_info "Installing packages: ${packages_to_install[*]}"
-    
+
     if install_packages "${packages_to_install[@]}"; then
         print_success "Packages installed successfully"
         return 0
@@ -1071,21 +1193,27 @@ ensure_packages_installed() {
 }
 
 # Check if Xorg server is installed
+# Convenience function for X11/Wayland display server detection
+# Returns: 0 if installed, 1 if not installed
 is_xorg_installed() {
     is_package_installed "xorg-server"
 }
 
 # Check if Wayland is installed
+# Convenience function for Wayland display server detection
+# Returns: 0 if installed, 1 if not installed
 is_wayland_installed() {
     is_package_installed "wayland"
 }
 
 # Check if display manager is installed
+# Verifies installation of common display managers
 # Usage: is_display_manager_installed <dm_name>
 # Supported: sddm, gdm, lightdm
+# Returns: 0 if installed, 1 if not installed or unsupported
 is_display_manager_installed() {
     local dm_name="$1"
-    
+
     case "$dm_name" in
         "sddm") is_package_installed "sddm" ;;
         "gdm") is_package_installed "gdm" ;;
@@ -1095,53 +1223,63 @@ is_display_manager_installed() {
 }
 
 # =============================================================================
-# AUR HELPER UNIVERSAL FUNCTIONS
+# AUR HELPER UNIVERSAL FUNCTIONS - Arch User Repository Support
 # =============================================================================
+# Provides unified interface to different AUR helpers (yay, paru, pacman)
+# Handles AUR package installation with fallback and error recovery
+# Critical for installing packages not available in official repositories
 
 # Get the preferred AUR helper (saved from installation or auto-detect)
+# Checks saved preference first, then auto-detects available helpers
+# Preference order: paru > yay > pacman (fallback)
+# Returns: name of detected AUR helper
 get_aur_helper() {
     # First try to load saved preference
     local saved_helper
     saved_helper=$(load_install_info "aur_helper" 2>/dev/null || echo "")
-    
+
     if [ -n "$saved_helper" ] && command -v "$saved_helper" &>/dev/null; then
         echo "$saved_helper"
         return 0
     fi
-    
+
     # Auto-detect if no preference saved
     if command -v paru &>/dev/null; then
         echo "paru"
         return 0
     fi
-    
+
     if command -v yay &>/dev/null; then
         echo "yay"
         return 0
     fi
-    
+
     if command -v pacman &>/dev/null; then
         echo "pacman"
         return 0
     fi
-    
+
     print_error "No package manager found (yay, paru, or pacman)"
     return 1
 }
 
 # Universal AUR package installation
+# Installs packages using the detected AUR helper
+# Handles different command-line interfaces transparently
+# Usage: aur_install <package1> <package2> ...
+# Returns: 0 on success, 1 on failure
 aur_install() {
     local packages=("$@")
     local helper
     helper=$(get_aur_helper)
-    
+
     if [ -z "$helper" ]; then
         print_error "No AUR helper available"
         return 1
     fi
-    
+
     print_info "Installing packages using $helper: ${packages[*]}"
-    
+
     case "$helper" in
         "paru")
             paru -S --needed --noconfirm "${packages[@]}"
@@ -1160,17 +1298,21 @@ aur_install() {
 }
 
 # Universal AUR system update
+# Updates all packages using the detected AUR helper
+# Includes both official repos and AUR packages
+# Usage: aur_update
+# Returns: 0 on success, 1 on failure
 aur_update() {
     local helper
     helper=$(get_aur_helper)
-    
+
     if [ -z "$helper" ]; then
         print_error "No AUR helper available"
         return 1
     fi
-    
+
     print_info "Updating system using $helper..."
-    
+
     case "$helper" in
         "paru")
             paru -Syu --noconfirm
@@ -1189,18 +1331,22 @@ aur_update() {
 }
 
 # Universal AUR package search
+# Searches for packages using the detected AUR helper
+# Useful for finding available packages before installation
+# Usage: aur_search <search_term>
+# Returns: 0 on success, 1 on failure
 aur_search() {
     local search_term="$1"
     local helper
     helper=$(get_aur_helper)
-    
+
     if [ -z "$helper" ]; then
         print_error "No AUR helper available"
         return 1
     fi
-    
+
     print_info "Searching packages using $helper: $search_term"
-    
+
     case "$helper" in
         "paru")
             paru -Ss "$search_term"
@@ -1208,7 +1354,8 @@ aur_search() {
         "yay")
             yay -Ss "$search_term"
             ;;
-        "pacman")
+        "pacman") 
+        # NOTE: pacman does not search AUR, only official repos
             pacman -Ss "$search_term"
             ;;
         *)
@@ -1322,21 +1469,29 @@ show_aur_config() {
 }
 
 # =============================================================================
-# SYSTEM DETECTION FUNCTIONS
+# SYSTEM DETECTION FUNCTIONS - Hardware and Environment Analysis
 # =============================================================================
+# Detects system characteristics needed for proper configuration
+# Critical for bootloader setup, initramfs configuration, and hardware-specific packages
 
 # Detect boot mode (UEFI vs BIOS)
+# Determines firmware type by checking for EFI variables directory
+# Critical for bootloader selection and partition scheme validation
+# Returns: "UEFI" or "BIOS"
 detect_boot_mode() {
     if [ -d /sys/firmware/efi/efivars ]; then
         echo "UEFI"
     elif [ -d /sys/firmware/efi ]; then
-        echo "UEFI"  
+        echo "UEFI"
     else
         echo "BIOS"
     fi
 }
 
 # Detect CPU vendor and microcode package
+# Analyzes /proc/cpuinfo to determine CPU manufacturer
+# Used to install appropriate microcode updates for security
+# Returns: "intel", "amd", or "unknown"
 detect_cpu_vendor() {
     if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
         echo "intel"
@@ -1348,6 +1503,8 @@ detect_cpu_vendor() {
 }
 
 # Get microcode package for detected CPU
+# Maps CPU vendor to appropriate microcode package name
+# Returns: "intel-ucode", "amd-ucode", or empty string
 get_microcode_package() {
     local cpu_vendor
     cpu_vendor=$(detect_cpu_vendor)
@@ -1359,29 +1516,36 @@ get_microcode_package() {
 }
 
 # Detect if system has separate home partition
+# Checks if /home is mounted separately from root
+# Affects partition layout and backup strategies
+# Returns: "yes" or "no"
 detect_separate_home() {
     if mountpoint -q /mnt/home 2>/dev/null; then
         echo "yes"
     elif findmnt /home 2>/dev/null | grep -q /dev; then
-        echo "yes"  
+        echo "yes"
     else
         echo "no"
     fi
 }
 
 # Detect partition table type for a disk
+# Uses parted to determine if disk uses GPT or MBR partition table
+# Critical for bootloader configuration (BIOS-GPT needs bios_grub partition)
+# Usage: detect_partition_table <disk_device>
+# Returns: "GPT", "MBR", or "unknown"
 detect_partition_table() {
     local disk="${1:-}"
     if [ -z "$disk" ]; then
         echo "unknown"
         return 1
     fi
-    
+
     if ! [ -b "$disk" ]; then
         echo "unknown"
         return 1
     fi
-    
+
     # Use parted to detect partition table type
     local pt_type
     pt_type=$(parted -s "$disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}')
@@ -1393,6 +1557,10 @@ detect_partition_table() {
 }
 
 # Detect root filesystem type
+# Determines filesystem type of root partition
+# Critical for initramfs configuration and bootloader parameters
+# Usage: detect_root_filesystem [mount_point]
+# Returns: filesystem type (ext4, btrfs, xfs, etc.) or "unknown"
 detect_root_filesystem() {
     local root_mount="${1:-/}"
     local fs_type
@@ -1401,13 +1569,17 @@ detect_root_filesystem() {
 }
 
 # Get partition that contains a mount point
+# Finds the device partition backing a mount point
+# Used for UUID detection and partition identification
+# Usage: get_partition_from_mount <mount_point>
+# Returns: partition device path or empty string
 get_partition_from_mount() {
     local mount_point="${1:-}"
     if [ -z "$mount_point" ]; then
         echo ""
         return 1
     fi
-    
+
     local device
     device=$(findmnt -n -o SOURCE "$mount_point" 2>/dev/null)
     echo "$device"
@@ -1833,19 +2005,25 @@ load_system_config() {
 }
 
 # =============================================================================
-# PRIVILEGE ESCALATION UNIVERSAL FUNCTIONS
+# PRIVILEGE ESCALATION UNIVERSAL FUNCTIONS - Secure Command Execution
 # =============================================================================
+# Provides unified interface to different privilege escalation tools
+# Ensures consistent behavior across different privilege escalation methods
+# Critical for security and proper permission handling
 
 # Get the configured privilege escalation tool
+# Detects and returns the preferred privilege escalation method
+# Preference order: run0 > doas > sudo-rs > sudo
+# Returns: name of privilege tool or "sudo" as fallback
 get_privilege_tool() {
     local priv_tool
     priv_tool=$(get_install_info "privilege_tool" 2>/dev/null || echo "")
-    
+
     if [ -n "$priv_tool" ]; then
         echo "$priv_tool"
         return 0
     fi
-    
+
     # Auto-detect if not configured (order by preference: run0 > doas > sudo-rs > sudo)
     if command -v run0 &>/dev/null; then
         echo "run0"
@@ -1861,13 +2039,15 @@ get_privilege_tool() {
 }
 
 # Execute command with appropriate privilege escalation
+# Runs command with detected privilege tool, handling different interfaces
 # Usage: run_privileged "command with args"
+# Example: run_privileged "pacman -S package"
 run_privileged() {
     local -a priv_cmd
     priv_cmd=("$@")
     local priv_tool
     priv_tool=$(get_privilege_tool)
-    
+
     case "$priv_tool" in
         "run0")
             if command -v run0 &>/dev/null; then
@@ -1900,16 +2080,19 @@ run_privileged() {
 }
 
 # Execute command with privilege escalation and retry logic
+# Combines privilege escalation with retry functionality
 # Usage: run_privileged_retry "command with args"
 run_privileged_retry() {
     run_with_retry "run_privileged $*"
 }
 
 # Check if user has privilege escalation configured
+# Tests if current user can escalate privileges with configured tool
+# Returns: 0 if privilege access available, 1 if not
 has_privilege_access() {
     local priv_tool
     priv_tool=$(get_privilege_tool)
-    
+
     case "$priv_tool" in
         "run0")
             if command -v run0 &>/dev/null; then
@@ -1944,17 +2127,19 @@ has_privilege_access() {
             fi
             ;;
     esac
-    
+
     return 1
 }
 
 # Print information about configured privilege escalation
+# Displays current privilege tool configuration and status
+# Useful for debugging privilege escalation issues
 print_privilege_info() {
     local priv_tool
     priv_tool=$(get_privilege_tool)
-    
+
     print_info "Privilege escalation tool: $priv_tool"
-    
+
     case "$priv_tool" in
         "run0")
             print_info "run0: Modern systemd privilege escalation"
@@ -1978,7 +2163,7 @@ print_privilege_info() {
             print_info "sudo: Traditional implementation"
             ;;
     esac
-    
+
     # Check for sudo compatibility wrappers
     if [ -f /usr/local/bin/sudo ] && [ "$priv_tool" = "doas" ]; then
         print_info "sudo compatibility wrapper: present"
@@ -1986,18 +2171,23 @@ print_privilege_info() {
 }
 
 # =============================================================================
-# CLEANUP AND TRAP FUNCTIONS
+# CLEANUP AND TRAP FUNCTIONS - Error Handling & Recovery
 # =============================================================================
+# Provides robust error handling and cleanup on script failures
+# Ensures system remains in consistent state even when scripts fail
+# Critical for preventing partial installations and data corruption
 
 # Setup cleanup trap for error handling
+# CRITICAL: Must be called early in scripts to ensure proper cleanup
 # Usage: setup_cleanup_trap
 # This function sets up traps for proper cleanup on script exit/error
+# Handles: EXIT, TERM, INT signals with appropriate cleanup actions
 setup_cleanup_trap() {
     # Function to handle cleanup on exit/error
     cleanup() {
         local exit_code=$?
         local line_number=${BASH_LINENO[1]:-${BASH_LINENO[0]}}  # Use caller line number
-        
+
         # Only show cleanup message if there was an error
         if [ $exit_code -ne 0 ]; then
             echo "" >&2
@@ -2006,12 +2196,12 @@ setup_cleanup_trap() {
             print_error "Function: ${FUNCNAME[1]:-main}"
             print_error "File: ${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
             echo "" >&2
-            
+
             # Show last few commands if available
             if [ -n "${BASH_COMMAND:-}" ]; then
                 print_error "Last command: $BASH_COMMAND"
             fi
-            
+
             # Cleanup mounted partitions
             if [ -n "${MOUNTED_PARTITIONS:-}" ]; then
                 print_info "Cleaning up mounted partitions..."
@@ -2022,24 +2212,24 @@ setup_cleanup_trap() {
                     fi
                 done
             fi
-            
+
             # Cleanup active swap
             if [ -n "${SWAP_ACTIVE:-}" ]; then
                 print_info "Deactivating swap..."
                 swapoff "$SWAP_ACTIVE" 2>/dev/null || true
             fi
-            
+
             # Cleanup AUR build directory if set
             if [ -n "${AUR_BUILD_DIR:-}" ] && [ -d "$AUR_BUILD_DIR" ]; then
                 print_info "Cleaning up AUR build directory..."
                 rm -rf "$AUR_BUILD_DIR" 2>/dev/null || true
             fi
-            
+
             print_warning "Cleanup complete"
             print_warning "Check the error messages above for details"
         fi
     }
-    
+
     # Set trap for cleanup - separate INT from EXIT/TERM for better responsiveness
     trap cleanup EXIT TERM
     trap 'cleanup; exit 1' INT

@@ -1,19 +1,69 @@
 #!/bin/bash
-# ALIE Base System Installation Script
-# This script should be run from the Arch Linux installation media
+# =============================================================================
+# ALIE Base System Installation Script - Comprehensive Disk Partitioning & Setup
+# =============================================================================
 #
-# [WARNING] WARNING: EXPERIMENTAL SCRIPT
+# DESCRIPTION:
+#   This script performs the initial phase of Arch Linux installation, handling
+#   network connectivity, disk partitioning, formatting, and mounting. It serves
+#   as the foundation for the entire ALIE installation process.
+#
+# ARCHITECTURAL ROLE:
+#   - First script in the 3-phase installation sequence (001 → 002 → 003)
+#   - Establishes the physical storage foundation for the new system
+#   - Critical prerequisite for all subsequent installation steps
+#   - Handles both automatic and manual partitioning workflows
+#
+# KEY RESPONSIBILITIES:
+#   - Network connectivity verification and configuration
+#   - System information detection (UEFI/BIOS, CPU, RAM, etc.)
+#   - Keyboard layout configuration for international users
+#   - Disk partitioning with multiple scheme options
+#   - Filesystem creation with optimal mount options
+#   - Secure partition mounting and validation
+#   - Configuration persistence for subsequent scripts
+#
+# SECURITY CONSIDERATIONS:
+#   - Requires root privileges for disk operations
+#   - Implements multiple safety checks before destructive operations
+#   - Validates disk selection to prevent accidental data loss
+#   - Uses UUID-based mounting for filesystem stability
+#   - Includes comprehensive error handling and cleanup traps
+#
+# DEPENDENCIES:
+#   - Arch Linux installation media (live environment)
+#   - shared-functions.sh library for common utilities
+#   - parted, lsblk, mount, and other system utilities
+#
+# CONFIGURATION OUTPUT:
+#   - /tmp/.alie-install-config: System configuration for script 003
+#   - /mnt/root/.alie-install-config: Configuration in new system
+#   - /tmp/.alie-install-info: Installation metadata
+#
+# USAGE SCENARIOS:
+#   - Fresh Arch Linux installation from live media
+#   - Automated deployment with pre-configured settings
+#   - Manual partitioning for complex storage layouts
+#   - Multi-boot system preparation
+#
+# WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
-# Make sure you have backups of any important data.
+# =============================================================================
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
+# =============================================================================
+# SCRIPT INITIALIZATION - Environment Setup and Dependency Loading
+# =============================================================================
+
 # Determine script directory (works regardless of how script is called)
+# This ensures the script can find its dependencies regardless of execution context
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
 
 # Validate and load shared functions
+# Critical dependency - without this library, the script cannot function
 if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     echo "ERROR: shared-functions.sh not found at $LIB_DIR/shared-functions.sh"
     echo "Cannot continue without shared functions library."
@@ -25,15 +75,19 @@ fi
 source "$LIB_DIR/shared-functions.sh"
 
 # Global variables for cleanup
+# MOUNTED_PARTITIONS tracks all mount points for proper cleanup on errors
 MOUNTED_PARTITIONS=()
 
-# Cleanup function for Ctrl+C or errors
+# Setup cleanup function for Ctrl+C or errors
+# Ensures no mounted partitions are left hanging if installation fails
 setup_cleanup_trap
 
 # Verify running as root
+# Disk partitioning and mounting require elevated privileges
 require_root
 
-# Welcome banner
+# Welcome banner and safety warnings
+# User must acknowledge the experimental nature of the script
 show_alie_banner
 show_warning_banner
 
@@ -156,10 +210,38 @@ else
 fi
 
 # ===================================
-# STEP 2: SYSTEM INFORMATION
+# STEP 2: SYSTEM INFORMATION DETECTION
 # ===================================
-smart_clear
-show_alie_banner
+#
+# PURPOSE:
+#   Detects critical system information required for proper partitioning and boot configuration
+#   This information determines partition table type, EFI requirements, and bootloader options
+#
+# WHY THIS STEP IS CRITICAL:
+#   - Boot mode (UEFI vs BIOS) determines partitioning strategy and bootloader selection
+#   - Incorrect detection can lead to unbootable systems
+#   - Hardware information helps optimize partition sizes and filesystem choices
+#
+# DETECTION METHODS:
+#   - UEFI: Checks for /sys/firmware/efi/efivars directory (most reliable method)
+#   - BIOS: Fallback when UEFI detection fails
+#   - Hardware: Uses lscpu and free commands for CPU and RAM information
+#
+# UEFI SPECIFICS:
+#   - Requires EFI System Partition (ESP) for booting
+#   - ESP must be FAT32 formatted and have specific flags
+#   - Supports both GPT and MBR partition tables (GPT preferred)
+#
+# BIOS SPECIFICS:
+#   - Can use MBR or GPT partition tables
+#   - GPT requires BIOS boot partition for compatibility
+#   - No ESP required but can be created for flexibility
+#
+# ARCHITECTURE IMPACT:
+#   - x86_64: Full UEFI/BIOS support
+#   - ARM64: Typically UEFI-only
+#   - i686: BIOS-only (UEFI not common)
+# ===================================
 print_step "STEP 2: System Information"
 
 # Detect boot mode (following wiki recommendation)
@@ -201,7 +283,38 @@ echo "  - Architecture: $(uname -m)"
 sleep 2
 
 # ===================================
-# STEP 2.5: KEYBOARD LAYOUT
+# STEP 2.5: KEYBOARD LAYOUT CONFIGURATION
+# ===================================
+#
+# PURPOSE:
+#   Configures the console keyboard layout for international users
+#   Ensures proper keyboard input during installation and in the final system
+#
+# WHY THIS STEP IS CRITICAL:
+#   - Wrong keyboard layout can make system unusable for non-US users
+#   - Special characters (@, #, etc.) may be in different positions
+#   - Early configuration prevents input issues during partitioning
+#
+# KEYMAP SYSTEM:
+#   - Keymaps located in /usr/share/kbd/keymaps/
+#   - Format: KEYMAP.map.gz (e.g., us.map.gz, es.map.gz)
+#   - Loaded with loadkeys command (temporary) and configured in system
+#
+# COMMON KEYMAPS:
+#   - us: US English (default, QWERTY)
+#   - es: Spanish (includes ñ, accents)
+#   - fr: French (AZERTY layout)
+#   - de: German (QWERTZ layout)
+#   - uk: United Kingdom (different symbols)
+#
+# MANUAL ENTRY:
+#   - Allows custom keymaps not in the predefined list
+#   - Validates keymap existence before loading
+#   - Provides fallback to US layout if custom fails
+#
+# PERSISTENCE:
+#   - Saved to /tmp/.alie-install-info for use by later scripts
+#   - Will be configured in the final system during post-install
 # ===================================
 smart_clear
 show_alie_banner

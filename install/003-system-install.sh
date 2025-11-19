@@ -1,17 +1,76 @@
 #!/bin/bash
-# ALIE System Installation Script
-# This script installs the base system using pacstrap after partitioning is complete
+# =============================================================================
+# ALIE System Installation Script - Base System Deployment
+# =============================================================================
 #
-# *** WARNING: EXPERIMENTAL SCRIPT  
+# DESCRIPTION:
+#   Performs the actual base Arch Linux system installation using pacstrap
+#   Installs essential packages, generates fstab, and prepares for chroot configuration
+#   Final step in the 3-phase installation sequence
+#
+# ARCHITECTURAL ROLE:
+#   - Third and final script in the installation sequence (001 → 002 → 003)
+#   - Executes pacstrap to install base system into mounted partitions
+#   - Configures system files (fstab, editor configs) for the new installation
+#   - Prepares system for chroot-based configuration and bootloader setup
+#
+# KEY RESPONSIBILITIES:
+#   - Mirror optimization for faster package downloads
+#   - Base system package installation via pacstrap
+#   - Filesystem table generation with UUID-based mounting
+#   - Text editor configuration (nano/vim) with enhanced features
+#   - Installation configuration persistence
+#   - Progress tracking and completion verification
+#
+# PACKAGE INSTALLATION:
+#   - base: Core system packages (kernel, init, coreutils, etc.)
+#   - linux-firmware: Hardware firmware for device support
+#   - networkmanager: Network management and configuration
+#   - Selected kernels, shells, and editors from previous steps
+#   - Bootloader packages (grub, systemd-boot, or limine)
+#   - Microcode packages for CPU-specific updates
+#
+# SYSTEM PREPARATION:
+#   - NTP synchronization for accurate system time
+#   - Partition validation and filesystem detection
+#   - Space requirement verification before installation
+#   - Error handling and retry logic for network issues
+#
+# CONFIGURATION OUTPUT:
+#   - /mnt/etc/fstab: Filesystem mount configuration
+#   - /mnt/etc/nanorc, /mnt/etc/vimrc: Editor configurations
+#   - /mnt/root/.alie-install-config: Installation metadata
+#
+# DEPENDENCIES:
+#   - Requires script 001 completion (mounted partitions)
+#   - Optionally uses script 002 selections (shells/editors/kernels)
+#   - Depends on shared-functions.sh for utilities
+#   - Requires internet connectivity for package downloads
+#
+# CRITICAL SAFETY CHECKS:
+#   - Validates live environment execution
+#   - Confirms mounted root partition at /mnt
+#   - Verifies sufficient disk space (minimum 2GB)
+#   - Checks for existing installation progress
+#
+# USAGE SCENARIOS:
+#   - Complete base system installation after partitioning
+#   - Automated deployment with pre-configured selections
+#   - Recovery installations with custom package sets
+#   - Development system setup with specific tools
+#
+# WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
-# Review the code before running and use at your own risk.
+# Review the code before running and use at your risk.
 # Requires 001-base-install.sh to be completed first.
 # Optionally run 002-shell-editor-select.sh before this.
+# =============================================================================
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
-# Add signal handling for graceful interruption
-setup_cleanup_trap
+# =============================================================================
+# SCRIPT INITIALIZATION - Environment Setup and Validation
+# =============================================================================
 
 # Determine script directory (works regardless of how script is called)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,12 +82,14 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     echo "Cannot continue without shared functions library."
     exit 1
 fi
-
 # shellcheck source=../lib/shared-functions.sh
 # shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
-# Script header
+# Add signal handling for graceful interruption
+setup_cleanup_trap
+
+# Script header with installation overview
 echo ""
 print_step "*** ALIE System Installation"
 echo ""
@@ -36,14 +97,40 @@ echo "This script installs the base Arch Linux system using pacstrap."
 echo "It should be run AFTER disk partitioning and mounting is complete."
 echo ""
 echo "What this script does:"
-echo "  - Optimize package mirrors"  
+echo "  - Optimize package mirrors"
 echo "  - Install base system packages with pacstrap"
 echo "  - Generate filesystem table (fstab)"
 echo "  - Save installation configuration"
 echo ""
 
 # ===================================
-# PREREQUISITES CHECK
+# PREREQUISITES CHECK - Installation Readiness Validation
+# ===================================
+#
+# PURPOSE:
+#   Validates all prerequisites before attempting system installation
+#   Prevents failures due to incomplete preparation or system state issues
+#
+# CRITICAL CHECKS:
+#   - Live environment verification (must run from installation media)
+#   - Root partition mount validation (required for pacstrap)
+#   - Progress marker verification (ensures proper sequence)
+#   - Configuration loading (uses settings from script 001)
+#
+# LIVE ENVIRONMENT DETECTION:
+#   - Checks for /run/archiso (Arch ISO indicator)
+#   - Verifies archiso kernel parameter
+#   - Ensures we're not running on an installed system
+#
+# MOUNT VALIDATION:
+#   - Confirms /mnt is a valid mount point
+#   - Ensures target system is properly prepared
+#   - Prevents installation into wrong location
+#
+# CONFIGURATION FALLBACK:
+#   - Attempts to load saved configuration from script 001
+#   - Falls back to auto-detection if config unavailable
+#   - Detects mounted partitions and filesystem types
 # ===================================
 print_step "Prerequisites Check"
 
@@ -103,7 +190,7 @@ fi
 
 print_info "Current system configuration:"
 echo "  - Boot mode: ${BOOT_MODE:-unknown}"
-echo "  - Partition table: ${PARTITION_TABLE:-unknown}" 
+echo "  - Partition table: ${PARTITION_TABLE:-unknown}"
 echo "  - Root filesystem: ${ROOT_FS:-unknown}"
 echo "  - Root partition: ${ROOT_PARTITION:-unknown}"
 [ -n "${EFI_PARTITION:-}" ] && echo "  - EFI partition: $EFI_PARTITION"
@@ -116,7 +203,39 @@ fi
 echo "  - Mount point: /mnt"
 
 # ===================================
-# STEP 8: MIRROR OPTIMIZATION
+# STEP 8: MIRROR OPTIMIZATION - Package Download Performance
+# ===================================
+#
+# PURPOSE:
+#   Optimizes pacman mirror list for faster and more reliable package downloads
+#   Critical for large base system installations with many packages
+#
+# WHY MIRROR OPTIMIZATION MATTERS:
+#   - pacstrap downloads hundreds of packages (base system ~200-300MB)
+#   - Slow mirrors can cause timeouts and installation failures
+#   - Geographic proximity affects download speeds significantly
+#   - Mirror reliability prevents partial installation failures
+#
+# OPTIMIZATION STRATEGY:
+#   - Uses reflector to automatically select fastest mirrors
+#   - Filters for HTTPS-only mirrors (security)
+#   - Sorts by download rate for optimal performance
+#   - Limits to 20 mirrors to balance speed and reliability
+#
+# REFLECTOR CONFIGURATION:
+#   - --latest 20: Select 20 most recently updated mirrors
+#   - --protocol https: Only HTTPS mirrors for security
+#   - --sort rate: Sort by download speed
+#   - --save: Update /etc/pacman.d/mirrorlist
+#
+# FALLBACK HANDLING:
+#   - Continues with default mirrorlist if reflector fails
+#   - Uses retry_command for network resilience
+#   - Shows top 5 mirrors for user verification
+#
+# SECURITY CONSIDERATIONS:
+#   - HTTPS-only mirrors prevent man-in-the-middle attacks
+#   - Mirror updates ensure latest package databases
 # ===================================
 print_step "STEP 8: Optimizing Package Mirrors"
 
@@ -140,7 +259,45 @@ else
 fi
 
 # ===================================
-# STEP 9: BASE SYSTEM INSTALLATION
+# STEP 9: BASE SYSTEM INSTALLATION - Core Package Deployment
+# ===================================
+#
+# PURPOSE:
+#   Installs the base Arch Linux system using pacstrap
+#   Deploys essential packages for a functional system
+#
+# CRITICAL NATURE:
+#   - This is the main installation step that creates the new system
+#   - Downloads and installs ~200 packages (base, kernel, drivers, etc.)
+#   - Requires stable internet connection and sufficient disk space
+#   - Point of no return - system becomes bootable after this step
+#
+# PACKAGE CATEGORIES:
+#   - base: Core system (kernel, init, coreutils, filesystem tools)
+#   - linux-firmware: Hardware firmware for device support
+#   - networkmanager: Network configuration and management
+#   - vim, nano: Text editors for system administration
+#   - sudo: Privilege escalation for multi-user systems
+#
+# DYNAMIC PACKAGE SELECTION:
+#   - Bootloader: grub, systemd-boot, or limine based on user choice
+#   - Microcode: CPU-specific updates (intel-ucode, amd-ucode)
+#   - EFI tools: efibootmgr for UEFI systems
+#   - User selections: Shells, editors, kernels from script 002
+#
+# SPACE VALIDATION:
+#   - Checks available space on /mnt (minimum 2GB recommended)
+#   - Warns about low space conditions (<5GB)
+#   - Prevents installation failures due to insufficient space
+#
+# ERROR HANDLING:
+#   - Temporarily disables set -e for pacstrap error management
+#   - Provides retry option on failure
+#   - Captures and reports exit codes for debugging
+#
+# PACSTRAP OPTIONS:
+#   - -K: Initialize pacman keyring (required for new installations)
+#   - Target directory: /mnt (mounted root partition)
 # ===================================
 print_step "STEP 9: Installing Base System"
 
