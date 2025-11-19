@@ -623,11 +623,42 @@ case "$PART_CHOICE" in
         
         # Check if disk is currently mounted or in use
         if mount | grep -q "^$DISK_PATH" || swapon --show | grep -q "^$DISK_PATH"; then
-            print_error "Disk $DISK_PATH is currently in use (mounted or swap active)"
-            print_info "Please unmount all partitions on this disk first"
-            mount | grep "^$DISK_PATH"
-            swapon --show | grep "^$DISK_PATH"
-            exit 1
+            print_warning "Disk $DISK_PATH is currently in use (mounted partitions or active swap detected)"
+            print_info "Attempting to automatically unmount all partitions on this disk..."
+            
+            # Get all partitions on this disk
+            # DISK_PARTITIONS=$(lsblk -n -p -o NAME "$DISK_PATH" 2>/dev/null | grep "^${DISK_PATH}" || echo "")
+            
+            # Unmount all mounted partitions on this disk (in reverse order)
+            for part in $(mount | grep "^${DISK_PATH}" | awk '{print $1}' | sort -r); do
+                print_info "Unmounting $part..."
+                if ! umount "$part" 2>/dev/null && ! umount -l "$part" 2>/dev/null; then
+                    print_error "Failed to unmount $part"
+                    print_info "Please unmount manually and try again"
+                    exit 1
+                fi
+            done
+            
+            # Deactivate any swap on partitions of this disk
+            for part in $(swapon --show --noheadings 2>/dev/null | awk '{print $1}' | grep "^${DISK_PATH}"); do
+                print_info "Deactivating swap on $part..."
+                if ! swapoff "$part" 2>/dev/null; then
+                    print_error "Failed to deactivate swap on $part"
+                    print_info "Please deactivate swap manually and try again"
+                    exit 1
+                fi
+            done
+            
+            print_success "Successfully unmounted all partitions and deactivated swap on $DISK_PATH"
+            
+            # Double-check that everything is clean now
+            if mount | grep -q "^$DISK_PATH" || swapon --show | grep -q "^$DISK_PATH"; then
+                print_error "Disk $DISK_PATH is still in use after cleanup attempt"
+                print_info "Please check manually:"
+                mount | grep "^$DISK_PATH" || echo "No mounts found"
+                swapon --show | grep "^$DISK_PATH" || echo "No active swap found"
+                exit 1
+            fi
         fi
         
         # Check if this is the system disk (where we're running from)
