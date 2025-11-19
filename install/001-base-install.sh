@@ -1928,6 +1928,17 @@ save_progress "01-partitions-ready"
 
 echo ""
 print_success "Partitioning and mounting finished!"
+
+# Auto-continue to next step if auto-partitioned
+if [ "$AUTO_PARTITIONED" = true ]; then
+    echo ""
+    print_info "Auto-partitioning completed successfully!"
+    print_info "Continuing automatically with shell and editor selection..."
+    echo ""
+    sleep 5
+    exec bash "$(dirname "$0")/002-shell-editor-select.sh"
+fi
+
 echo ""
 print_info "Next steps:"
 echo "  ${CYAN}1.${NC} (Optional) Select shells and editors:"
