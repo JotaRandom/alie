@@ -1160,8 +1160,18 @@ case "$PART_CHOICE" in
             exit 1
         fi
         
-        # Unmount if mounted
-        umount -R /mnt 2>/dev/null || true
+        # Unmount in reverse order: /home first, then /boot, then root
+        if mountpoint -q /mnt/home 2>/dev/null; then
+            umount /mnt/home 2>/dev/null || true
+        fi
+
+        if mountpoint -q /mnt/boot 2>/dev/null; then
+            umount /mnt/boot 2>/dev/null || true
+        fi
+
+        if mountpoint -q /mnt 2>/dev/null; then
+            umount /mnt 2>/dev/null || true
+        fi
         swapoff -a 2>/dev/null || true
         
         # Check for existing partitions after confirmation (before wipe)
