@@ -105,7 +105,53 @@ if [ "${#shell_choices[@]}" -gt 0 ] && [ "${shell_choices[0]}" != "0" ]; then
 fi
 
 # ===================================
-# EDITOR CONFIGURATION
+# KERNEL SELECTION
+# ===================================
+smart_clear
+show_alie_banner
+print_step "STEP 3: Kernel Selection"
+
+print_info "Select the Linux kernel to install:"
+echo ""
+echo "Available kernels:"
+echo "  1) linux (default) - Standard Linux kernel (recommended for most users)"
+echo "  2) linux-zen - Optimized for desktop use with patches for responsiveness"
+echo "  3) linux-hardened - Security-focused with additional hardening patches"
+echo "  4) linux-lts - Long Term Support kernel (stable, receives updates longer)"
+echo ""
+echo "Note: linux-firmware is always included regardless of kernel choice."
+echo ""
+
+read -r -p "Choose kernel [1-4] (default: 1): " kernel_choice
+kernel_choice=${kernel_choice:-1}
+
+case $kernel_choice in
+    1)
+        SELECTED_KERNEL="linux"
+        print_success "Selected: linux (standard kernel)"
+        ;;
+    2)
+        SELECTED_KERNEL="linux-zen"
+        print_success "Selected: linux-zen (desktop optimized)"
+        ;;
+    3)
+        SELECTED_KERNEL="linux-hardened"
+        print_success "Selected: linux-hardened (security focused)"
+        ;;
+    4)
+        SELECTED_KERNEL="linux-lts"
+        print_success "Selected: linux-lts (long term support)"
+        ;;
+    *)
+        SELECTED_KERNEL="linux"
+        print_warning "Invalid choice, using default: linux"
+        ;;
+esac
+
+echo ""
+
+# ===================================
+# EDITOR SELECTION
 # ===================================
 smart_clear
 show_alie_banner
@@ -207,16 +253,49 @@ else
     done
 fi
 
+echo "Kernel to be installed:"
+echo "  - $SELECTED_KERNEL (with linux-firmware)"
+
 echo ""
-print_info "Editors to be installed:"
-echo "  - nano (default) - $([ "$CONFIGURE_NANO" = "true" ] && echo "with syntax highlighting" || echo "default config")"
-echo "  - vim (default) - $([ "$CONFIGURE_VIM" = "true" ] && echo "enhanced config" || echo "default config")"
-if [ ${#SELECTED_EDITORS[@]} -gt 0 ]; then
-    for editor in "${SELECTED_EDITORS[@]}"; do
-        # Skip nano-syntax-highlighting as it's already mentioned
-        [[ "$editor" == "nano-syntax-highlighting" ]] && continue
-        echo "  - $editor"
-    done
+echo "Additional packages to be installed:"
+echo "  - networkmanager (network management)"
+echo "  - vim, nano (base editors)"
+echo "  - sudo (privilege escalation)"
+
+# Show bootloader info if available
+if [ -f /tmp/.alie-install-config ]; then
+    # shellcheck disable=SC1091
+    source /tmp/.alie-install-config
+    if [ "${BOOTLOADER:-grub}" = "systemd-boot" ]; then
+        echo "  - systemd-boot (bootloader)"
+    elif [ "${BOOTLOADER:-grub}" = "limine" ]; then
+        echo "  - limine (bootloader)"
+    else
+        echo "  - grub (bootloader)"
+    fi
+    
+    if [ -n "${MICROCODE_PKG:-}" ]; then
+        echo "  - $MICROCODE_PKG (CPU microcode)"
+    fi
+    
+    if [ "$BOOT_MODE" = "UEFI" ]; then
+        echo "  - efibootmgr (UEFI boot manager)"
+    fi
+fi
+
+# Show filesystem-specific packages
+if [ -f /tmp/.alie-install-config ]; then
+    case "${ROOT_FS:-ext4}" in
+        "btrfs")
+            echo "  - btrfs-progs (Btrfs filesystem tools)"
+            ;;
+        "xfs")
+            echo "  - xfsprogs (XFS filesystem tools)"
+            ;;
+        "zfs")
+            echo "  - zfs-linux (ZFS filesystem support)"
+            ;;
+    esac
 fi
 
 echo ""
@@ -254,6 +333,7 @@ CONFIG_FILE="/tmp/.alie-shell-editor-config"
     
     echo "CONFIGURE_NANO=\"$CONFIGURE_NANO\""
     echo "CONFIGURE_VIM=\"$CONFIGURE_VIM\""
+    echo "SELECTED_KERNEL=\"$SELECTED_KERNEL\""
     
 } > "$CONFIG_FILE"
 
@@ -265,24 +345,31 @@ cat "$CONFIG_FILE"
 echo "----------------------------------------"
 
 # Also save for later use (after chroot)
-save_install_info "/mnt/root/.alie-install-info" "SELECTED_SHELLS" "SELECTED_EDITORS" "CONFIGURE_NANO" "CONFIGURE_VIM"
+save_install_info "/mnt/root/.alie-install-info" "SELECTED_SHELLS" "SELECTED_EDITORS" "CONFIGURE_NANO" "CONFIGURE_VIM" "SELECTED_KERNEL"
 
 # Mark progress
 save_progress "01b-shell-editor-selected"
 
 # ===================================
-# COMPLETION
+# CONTINUE TO SYSTEM INSTALLATION
 # ===================================
 smart_clear
 show_alie_banner
-print_step "*** Shell and Editor Selection Complete!"
+print_step "*** Continuing to System Installation..."
 
 echo ""
 print_success "Configuration complete!"
 echo ""
-print_info "Next steps:"
-echo "  ${CYAN}1.${NC} Continue with system installation:"
-echo "     ${YELLOW}bash install/003-system-install.sh${NC}"
+print_info "Automatically proceeding to system installation..."
 echo ""
-print_info "The selected packages will be automatically included in the base installation."
-echo ""
+
+# Execute the next script automatically
+if [ -f "$INSTALL_DIR/003-system-install.sh" ]; then
+    print_info "Running: 003-system-install.sh"
+    echo ""
+    bash "$INSTALL_DIR/003-system-install.sh"
+else
+    print_error "003-system-install.sh not found in $INSTALL_DIR"
+    print_info "Please run it manually: bash install/003-system-install.sh"
+    exit 1
+fi

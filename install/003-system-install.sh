@@ -151,7 +151,7 @@ echo ""
 # Build package list using detected configuration
 PACKAGES=(
     base
-    linux
+    "${SELECTED_KERNEL:-linux}"
     linux-firmware
     networkmanager
     vim
