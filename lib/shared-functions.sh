@@ -1502,18 +1502,27 @@ detect_boot_mode() {
     fi
 }
 
-# Detect CPU vendor and microcode package
-# Analyzes /proc/cpuinfo to determine CPU manufacturer
-# Used to install appropriate microcode updates for security
-# Returns: "intel", "amd", or "unknown"
-detect_cpu_vendor() {
-    if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
-        echo "intel"
-    elif grep -q "AuthenticAMD" /proc/cpuinfo 2>/dev/null; then
-        echo "amd"
-    else
+# Detect x86-64 microarchitecture level
+# Determines the x86-64 level (v1-v4) based on CPU flags
+# Returns: x86-64 level (1-4) or "unknown"
+detect_x86_64_level() {
+    if ! command -v awk &>/dev/null; then
         echo "unknown"
+        return 1
     fi
+
+    # Use awk to check CPU flags from /proc/cpuinfo
+    awk '
+    BEGIN {
+        level = 0
+        while (!/flags/) if (getline < "/proc/cpuinfo" != 1) exit 1
+        if (/lm/&&/cmov/&&/cx8/&&/fpu/&&/fxsr/&&/mmx/&&/syscall/&&/sse2/) level = 1
+        if (level == 1 && /cx16/&&/lahf/&&/popcnt/&&/sse4_1/&&/sse4_2/&&/ssse3/) level = 2
+        if (level == 2 && /avx/&&/avx2/&&/bmi1/&&/bmi2/&&/f16c/&&/fma/&&/abm/&&/movbe/&&/xsave/) level = 3
+        if (level == 3 && /avx512f/&&/avx512bw/&&/avx512cd/&&/avx512dq/&&/avx512vl/) level = 4
+        if (level > 0) { print "x86-64-v" level; exit level + 1 }
+        exit 1
+    }' 2>/dev/null || echo "unknown"
 }
 
 # Get microcode package for detected CPU
@@ -1604,8 +1613,17 @@ detect_system_info() {
     # Basic detection
     BOOT_MODE=$(detect_boot_mode)
     CPU_VENDOR=$(detect_cpu_vendor)
+    CPU_X86_64_LEVEL=$(detect_x86_64_level)
     MICROCODE_PKG=$(get_microcode_package)
     ROOT_FS=$(detect_root_filesystem "/mnt")
+    
+    # Display CPU information
+    print_info "Detected CPU vendor: $CPU_VENDOR"
+    if [ "$CPU_X86_64_LEVEL" != "unknown" ]; then
+        print_info "Detected x86-64 level: $CPU_X86_64_LEVEL"
+    else
+        print_warning "Could not detect x86-64 microarchitecture level"
+    fi
     
     # Partition detection
     ROOT_PARTITION=$(get_partition_from_mount "/mnt")
@@ -1638,16 +1656,18 @@ detect_system_info() {
     fi
     
     # Partition table detection
+    PARTITION_TABLE="unknown"  # Default value
     if [ -n "$ROOT_PARTITION" ]; then
         local root_disk
         root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
         
         # Try multiple methods to detect partition table
         if command -v parted &>/dev/null; then
-            PARTITION_TABLE=$(parted -s "$root_disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}' | tr '[:upper:]' '[:lower:]')
-            case "$PARTITION_TABLE" in
+            local detected_table
+            detected_table=$(parted -s "$root_disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}' | tr '[:upper:]' '[:lower:]')
+            case "$detected_table" in
                 gpt|msdos)
-                    # Valid partition table types
+                    PARTITION_TABLE="$detected_table"
                     ;;
                 *)
                     PARTITION_TABLE="unknown"
@@ -1669,7 +1689,13 @@ detect_system_info() {
             fi
         fi
         
-        print_info "Detected partition table: $PARTITION_TABLE on disk $root_disk"
+        if [ "$PARTITION_TABLE" != "unknown" ]; then
+            print_info "Detected partition table: $PARTITION_TABLE on disk $root_disk"
+        else
+            print_warning "Could not detect partition table type"
+        fi
+    else
+        print_warning "Root partition not detected, cannot determine partition table"
     fi
     
     # Set defaults for missing values
@@ -2008,6 +2034,7 @@ ROOT_SUBVOL="$ROOT_SUBVOL"
 
 # Hardware
 CPU_VENDOR="$CPU_VENDOR"
+CPU_X86_64_LEVEL="$CPU_X86_64_LEVEL"
 MICROCODE_PKG="$MICROCODE_PKG"
 MICROCODE_INSTALLED="$MICROCODE_INSTALLED"
 
@@ -2216,12 +2243,13 @@ print_privilege_info() {
 # Handles: EXIT, TERM, INT signals with appropriate cleanup actions
 setup_cleanup_trap() {
     # Function to handle cleanup on exit/error
+    # shellcheck disable=SC2329  # Function is invoked indirectly via trap
     cleanup() {
         local exit_code=$?
         local line_number=${BASH_LINENO[1]:-${BASH_LINENO[0]}}  # Use caller line number
 
         # Only show cleanup message if there was an error
-        if [ $exit_code -ne 0 ]; then
+        if [ "$exit_code" -ne 0 ]; then
             echo "" >&2
             print_error "Script failed with exit code: $exit_code"
             print_error "Error occurred at line: $line_number"
@@ -2288,7 +2316,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo "  [+] install_packages, update_package_db"
     echo "  [+] get_aur_helper, aur_install, aur_update, aur_search"
     echo "  [+] aur_debug_enabled, show_aur_config"
-    echo "  [+] detect_boot_mode, detect_cpu_vendor, get_microcode_package"
+    echo "  [+] detect_boot_mode, detect_cpu_vendor, detect_x86_64_level, get_microcode_package"
     echo "  [+] detect_system_info, save_system_config, load_system_config"
     echo "  [+] get_privilege_tool, run_privileged, run_privileged_retry, has_privilege_access, print_privilege_info"
     echo "  [+] setup_cleanup_trap"
