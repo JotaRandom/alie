@@ -379,12 +379,12 @@ print_info "Automatically proceeding to system installation..."
 echo ""
 
 # Execute the next script automatically
-if [ -f "$INSTALL_DIR/003-system-install.sh" ]; then
+if [ -f "$SCRIPT_DIR/003-system-install.sh" ]; then
     print_info "Running: 003-system-install.sh"
     echo ""
-    bash "$INSTALL_DIR/003-system-install.sh"
+    bash "$SCRIPT_DIR/003-system-install.sh"
 else
-    print_error "003-system-install.sh not found in $INSTALL_DIR"
+    print_error "003-system-install.sh not found in $SCRIPT_DIR"
     print_info "Please run it manually: bash install/003-system-install.sh"
     exit 1
 fi
