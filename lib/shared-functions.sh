@@ -523,7 +523,14 @@ get_next_installation_step_name() {
     
     case "$step" in
         "0") echo "001-base-install.sh" ;;
-        "1") echo "002-shell-editor-select.sh" ;;
+        "1") 
+            # Check if shell/editor selection was completed
+            if is_step_completed "01b-shell-editor-selected"; then
+                echo "003-system-install.sh"
+            else
+                echo "002-shell-editor-select.sh"
+            fi
+            ;;
         "2") echo "201-user-setup.sh" ;;
         "3") echo "211-install-aur-helper.sh" ;;
         "4") echo "212-cli-tools.sh" ;;
@@ -543,7 +550,14 @@ clear_progress() {
     rm -f "/root/.alie-progress" 2>/dev/null || true
     rm -f "/root/.alie-progress.log" 2>/dev/null || true
     
-    print_success "Progress cleared"
+    # Also clear configuration files that might indicate previous installation state
+    rm -f "/tmp/.alie-install-config" 2>/dev/null || true
+    rm -f "/mnt/root/.alie-install-config" 2>/dev/null || true
+    rm -f "/root/.alie-install-info" 2>/dev/null || true
+    rm -f "/mnt/root/.alie-install-info" 2>/dev/null || true
+    rm -f "/tmp/.alie-shell-editor-config" 2>/dev/null || true
+    
+    print_success "Progress and configuration files cleared"
 }
 
 # =============================================================================

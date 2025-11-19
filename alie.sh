@@ -246,11 +246,11 @@ case "$ENV" in
                     fi
                     ;;
                 3)
-                    print_warning "This will clear all progress markers"
+                    print_warning "This will clear all progress markers and configuration files"
                     read -r -p "Are you sure? (yes/no): " confirm
                     if [ "${confirm:-}" = "yes" ]; then
                         clear_progress
-                        print_info "Progress cleared. Re-run the installer."
+                        print_success "Progress cleared. Re-run the installer to start fresh."
                         exit 0
                     else
                         print_info "Cancelled"
