@@ -179,10 +179,13 @@ print_success "Detected environment: $ENV"
 # Check installation progress
 STEP=$(get_installation_step)
 STEP="${STEP:-0}"
+STEP_NAME=$(get_installation_step_name)
+NEXT_STEP_NAME=$(get_next_installation_step_name)
+
 if [ "$STEP" != "0" ]; then
     echo ""
     print_info "Installation progress detected!"
-    print_success "Last completed step: $STEP"
+    print_success "Last completed step: $STEP ($STEP_NAME)"
     echo ""
 fi
 
@@ -204,12 +207,45 @@ case "$ENV" in
             echo ""
             echo "What would you like to do?"
             echo "  1) Continue/Retry base installation (001-base-install.sh)"
-            echo "  2) Start fresh (clear progress and reinstall)"
-            echo "  3) Exit"
-            read -r -p "Choose an option [1-3]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Start fresh (clear progress and reinstall)"
+            echo "  4) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-4]: " choice
+            else
+                read -r -p "Choose an option [1,3,4]: " choice
+            fi
             
             case "$choice" in
+                1)
+                    # Continue with base installation
+                    ;;
                 2)
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
+                                print_error "$NEXT_STEP_NAME not found in $INSTALL_DIR"
+                                exit 1
+                            fi
+                            bash "$INSTALL_DIR/$NEXT_STEP_NAME"
+                            exit 0
+                        else
+                            print_info "Cancelled. Continuing with base installation."
+                        fi
+                    else
+                        print_error "Invalid option"
+                        exit 1
+                    fi
+                    ;;
+                3)
                     print_warning "This will clear all progress markers"
                     read -r -p "Are you sure? (yes/no): " confirm
                     if [ "${confirm:-}" = "yes" ]; then
@@ -221,9 +257,13 @@ case "$ENV" in
                         exit 0
                     fi
                     ;;
-                3)
+                4)
                     print_info "Exiting..."
                     exit 0
+                    ;;
+                *)
+                    print_error "Invalid option"
+                    exit 1
                     ;;
             esac
         else
@@ -272,10 +312,37 @@ case "$ENV" in
             echo ""
             echo "What would you like to do?"
             echo "  1) Reconfigure system (101-configure-system.sh)"
-            echo "  2) Exit chroot and reboot"
-            read -r -p "Choose an option [1-2]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Exit chroot and reboot"
             
-            if [ "$choice" = "2" ]; then
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-3]: " choice
+            else
+                read -r -p "Choose an option [1,3]: " choice
+            fi
+            
+            if [ "$choice" = "2" ] && [ -n "$NEXT_STEP_NAME" ]; then
+                print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                print_warning "Configuration from previous steps will be preserved."
+                print_warning "Variables from this step will be overwritten if they exist."
+                echo ""
+                read -r -p "Are you sure? (yes/no): " confirm
+                if [ "${confirm:-}" = "yes" ]; then
+                    if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
+                        print_error "$NEXT_STEP_NAME not found in $INSTALL_DIR"
+                        exit 1
+                    fi
+                    bash "$INSTALL_DIR/$NEXT_STEP_NAME"
+                    exit 0
+                else
+                    print_info "Cancelled. Continuing with system configuration."
+                    choice="1"
+                fi
+            fi
+            
+            if [ "$choice" = "3" ]; then
                 print_info "Exit chroot and follow instructions to reboot"
                 exit 0
             fi
@@ -318,10 +385,37 @@ case "$ENV" in
             echo ""
             echo "Next steps:"
             echo "  1) Install YAY (run as regular user)"
-            echo "  2) Exit"
-            read -r -p "Choose an option [1-2]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Exit"
             
-            if [ "$choice" = "2" ]; then
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-3]: " choice
+            else
+                read -r -p "Choose an option [1,3]: " choice
+            fi
+            
+            if [ "$choice" = "2" ] && [ -n "$NEXT_STEP_NAME" ]; then
+                print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                print_warning "Configuration from previous steps will be preserved."
+                print_warning "Variables from this step will be overwritten if they exist."
+                echo ""
+                read -r -p "Are you sure? (yes/no): " confirm
+                if [ "${confirm:-}" = "yes" ]; then
+                    if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
+                        print_error "$NEXT_STEP_NAME not found in $INSTALL_DIR"
+                        exit 1
+                    fi
+                    bash "$INSTALL_DIR/$NEXT_STEP_NAME"
+                    exit 0
+                else
+                    print_info "Cancelled. Installing YAY."
+                    choice="1"
+                fi
+            fi
+            
+            if [ "$choice" = "3" ]; then
                 print_info "Exiting..."
                 exit 0
             fi
@@ -382,16 +476,43 @@ case "$ENV" in
             echo ""
             echo "Available actions:"
             echo "  1) Setup display server (213-display-server.sh) - as root"
-            echo "  2) Desktop selection - DE/WM (220-desktop-select.sh) - as root"
-            echo "  3) Install desktop tools (231-desktop-tools.sh) - as root"
-            echo "  4) Exit"
-            read -r -p "Choose an option [1-4]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Desktop selection - DE/WM (220-desktop-select.sh) - as root"
+            echo "  4) Install desktop tools (231-desktop-tools.sh) - as root"
+            echo "  5) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-5]: " choice
+            else
+                read -r -p "Choose an option [1,3-5]: " choice
+            fi
             
             case "$choice" in
                 1) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
-                2) NEXT_SCRIPT="220-desktop-select.sh"; NEEDS_ROOT=true ;;
-                3) NEXT_SCRIPT="231-desktop-tools.sh"; NEEDS_ROOT=true ;;
-                4) print_info "Exiting..."; exit 0 ;;
+                2) 
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            NEXT_SCRIPT="$NEXT_STEP_NAME"
+                            NEEDS_ROOT=true
+                        else
+                            print_info "Cancelled. Choose another option."
+                            continue
+                        fi
+                    else
+                        print_error "Invalid option"
+                        exit 1
+                    fi
+                    ;;
+                3) NEXT_SCRIPT="220-desktop-select.sh"; NEEDS_ROOT=true ;;
+                4) NEXT_SCRIPT="231-desktop-tools.sh"; NEEDS_ROOT=true ;;
+                5) print_info "Exiting..."; exit 0 ;;
                 *) print_error "Invalid option"; exit 1 ;;
             esac
         elif [ "$STEP" -ge "5" ]; then
@@ -399,29 +520,83 @@ case "$ENV" in
             echo ""
             echo "Available actions:"
             echo "  1) Install CLI tools (212-cli-tools.sh) - as user"
-            echo "  2) Setup display server (213-display-server.sh) - as root"
-            echo "  3) Exit"
-            read -r -p "Choose an option [1-3]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Setup display server (213-display-server.sh) - as root"
+            echo "  4) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-4]: " choice
+            else
+                read -r -p "Choose an option [1,3,4]: " choice
+            fi
             
             case "$choice" in
                 1) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
-                2) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
-                3) print_info "Exiting..."; exit 0 ;;
+                2)
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            NEXT_SCRIPT="$NEXT_STEP_NAME"
+                            NEEDS_ROOT=false
+                        else
+                            print_info "Cancelled. Choose another option."
+                            continue
+                        fi
+                    else
+                        print_error "Invalid option"
+                        exit 1
+                    fi
+                    ;;
+                3) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                4) print_info "Exiting..."; exit 0 ;;
                 *) print_error "Invalid option"; exit 1 ;;
             esac
         else
             echo "Available actions:"
             echo "  1) Install AUR helper (211-install-aur-helper.sh) - as user"
-            echo "  2) Install CLI tools (212-cli-tools.sh) - requires AUR helper"
-            echo "  3) Setup display server (213-display-server.sh) - as root"
-            echo "  4) Exit"
-            read -r -p "Choose an option [1-4]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Install CLI tools (212-cli-tools.sh) - requires AUR helper"
+            echo "  4) Setup display server (213-display-server.sh) - as root"
+            echo "  5) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-5]: " choice
+            else
+                read -r -p "Choose an option [1,3-5]: " choice
+            fi
             
             case "$choice" in
                 1) NEXT_SCRIPT="211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
-                2) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
-                3) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
-                4)
+                2)
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            NEXT_SCRIPT="$NEXT_STEP_NAME"
+                            NEEDS_ROOT=false
+                        else
+                            print_info "Cancelled. Choose another option."
+                            continue
+                        fi
+                    else
+                        print_error "Invalid option"
+                        exit 1
+                    fi
+                    ;;
+                3) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
+                4) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                5)
                     print_info "Exiting..."
                     exit 0
                     ;;

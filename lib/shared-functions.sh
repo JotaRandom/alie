@@ -434,6 +434,39 @@ get_installation_step() {
     fi
 }
 
+# Get installation step name
+# Returns: script name for the current step or "unknown"
+get_installation_step_name() {
+    local step
+    step=$(get_installation_step)
+    
+    case "$step" in
+        "1") echo "001-base-install.sh" ;;
+        "2") echo "101-configure-system.sh" ;;
+        "3") echo "201-user-setup.sh" ;;
+        "4") echo "211-install-aur-helper.sh" ;;
+        "5") echo "212-cli-tools.sh" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+# Get next installation step name
+# Returns: script name for the next step or empty string if none
+get_next_installation_step_name() {
+    local step
+    step=$(get_installation_step)
+    
+    case "$step" in
+        "0") echo "001-base-install.sh" ;;
+        "1") echo "002-shell-editor-select.sh" ;;
+        "2") echo "201-user-setup.sh" ;;
+        "3") echo "211-install-aur-helper.sh" ;;
+        "4") echo "212-cli-tools.sh" ;;
+        "5") echo "213-display-server.sh" ;;
+        *) echo "" ;;
+    esac
+}
+
 # Clear progress (for fresh start)
 clear_progress() {
     local progress_file="${ALIE_PROGRESS_FILE:-/tmp/.alie-progress}"
