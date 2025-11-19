@@ -1671,45 +1671,50 @@ detect_system_info() {
     
     # Partition table detection
     PARTITION_TABLE="unknown"  # Default value
-    if [ -n "$ROOT_PARTITION" ]; then
+    if [ -n "$ROOT_PARTITION" ] && [ -b "$ROOT_PARTITION" ]; then
         local root_disk
         root_disk=$(echo "$ROOT_PARTITION" | sed 's/[0-9]*$//' | sed 's/p$//')
         
-        # Try multiple methods to detect partition table
-        if command -v parted &>/dev/null; then
-            local detected_table
-            detected_table=$(parted -s "$root_disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}' | tr '[:upper:]' '[:lower:]')
-            case "$detected_table" in
-                gpt|msdos)
-                    PARTITION_TABLE="$detected_table"
-                    ;;
-                *)
-                    PARTITION_TABLE="unknown"
-                    ;;
-            esac
-        else
-            # Fallback: try to detect from partition naming
-            if [[ "$ROOT_PARTITION" =~ nvme[0-9]+n[0-9]+p[0-9]+ ]] || [[ "$ROOT_PARTITION" =~ sd[a-z][0-9]+ ]] || [[ "$ROOT_PARTITION" =~ hd[a-z][0-9]+ ]]; then
-                # Check if it's likely GPT (partition number > 4 often indicates GPT)
-                local part_num
-                part_num=$(echo "$ROOT_PARTITION" | grep -o '[0-9]*$')
-                if [ "$part_num" -gt 4 ] 2>/dev/null; then
-                    PARTITION_TABLE="gpt"
-                else
-                    PARTITION_TABLE="mbr"
-                fi
+        # Verify disk exists and is accessible
+        if [ -b "$root_disk" ]; then
+            # Try multiple methods to detect partition table
+            if command -v parted &>/dev/null; then
+                local detected_table
+                detected_table=$(parted -s "$root_disk" print 2>/dev/null | grep "Partition Table:" | awk '{print $3}' | tr '[:upper:]' '[:lower:]')
+                case "$detected_table" in
+                    gpt|msdos)
+                        PARTITION_TABLE="$detected_table"
+                        ;;
+                    *)
+                        PARTITION_TABLE="unknown"
+                        ;;
+                esac
             else
-                PARTITION_TABLE="unknown"
+                # Fallback: try to detect from partition naming
+                if [[ "$ROOT_PARTITION" =~ nvme[0-9]+n[0-9]+p[0-9]+ ]] || [[ "$ROOT_PARTITION" =~ sd[a-z][0-9]+ ]] || [[ "$ROOT_PARTITION" =~ hd[a-z][0-9]+ ]]; then
+                    # Check if it's likely GPT (partition number > 4 often indicates GPT)
+                    local part_num
+                    part_num=$(echo "$ROOT_PARTITION" | grep -o '[0-9]*$')
+                    if [ "$part_num" -gt 4 ] 2>/dev/null; then
+                        PARTITION_TABLE="gpt"
+                    else
+                        PARTITION_TABLE="msdos"
+                    fi
+                else
+                    PARTITION_TABLE="unknown"
+                fi
             fi
-        fi
-        
-        if [ "$PARTITION_TABLE" != "unknown" ]; then
-            print_info "Detected partition table: $PARTITION_TABLE on disk $root_disk"
+            
+            if [ "$PARTITION_TABLE" != "unknown" ]; then
+                print_info "Detected partition table: $PARTITION_TABLE on disk $root_disk"
+            else
+                print_warning "Could not detect partition table type on $root_disk"
+            fi
         else
-            print_warning "Could not detect partition table type"
+            print_warning "Root disk $root_disk not accessible"
         fi
     else
-        print_warning "Root partition not detected, cannot determine partition table"
+        print_warning "Root partition not detected or not accessible, cannot determine partition table"
     fi
     
     # Set defaults for missing values
