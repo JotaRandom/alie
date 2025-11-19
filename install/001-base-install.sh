@@ -1434,6 +1434,7 @@ case "$PART_CHOICE" in
             PARTITIONS_TO_CHECK+=("$EFI_PARTITION")
         elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
             PARTITIONS_TO_CHECK+=("$BIOS_BOOT_PARTITION")
+            PARTITIONS_TO_CHECK+=("$EFI_PARTITION")
         elif [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ]; then
             PARTITIONS_TO_CHECK+=("$BOOT_PARTITION")
         fi
@@ -1930,7 +1931,11 @@ if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ]; then
     echo "  - Boot partition: $BOOT_PARTITION (mounted at /boot)"
 fi
 if [ "$BOOT_MODE" == "UEFI" ] || { [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; }; then
-    echo "  - EFI partition: $EFI_PARTITION"
+    if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ]; then
+        echo "  - EFI partition: $EFI_PARTITION (mounted at /boot)"
+    else
+        echo "  - EFI partition: $EFI_PARTITION"
+    fi
 fi
 echo "  - Root partition: $ROOT_PARTITION"
 echo "  - Swap partition: $SWAP_PARTITION"
@@ -2085,8 +2090,18 @@ if [ "$BOOT_MODE" == "UEFI" ]; then
     print_info "Mounting EFI partition..."
     # EFI: fmask=0077,dmask=0077 (secure permissions), codepage=437,iocharset=iso8859-1 (compatibility)
     mount -o "defaults,noatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1" "$EFI_PARTITION" /mnt/boot
+    mkdir -p /mnt/boot/efi
     MOUNTED_PARTITIONS+=("/mnt/boot")
     print_success "EFI partition mounted"
+fi
+
+# Mount EFI partition for BIOS-GPT (compatibility layer)
+if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ -n "$EFI_PARTITION" ]; then
+    mkdir -p /mnt/boot
+    print_info "Mounting EFI compatibility partition..."
+    mount -o "defaults,noatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1" "$EFI_PARTITION" /mnt/boot
+    MOUNTED_PARTITIONS+=("/mnt/boot")
+    print_success "EFI compatibility partition mounted"
 fi
 
 # Mount boot partition for BIOS-MBR
