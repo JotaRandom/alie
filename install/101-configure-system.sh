@@ -54,6 +54,22 @@ verify_chroot
 # Load configuration from previous script
 load_install_info
 
+# Initialize variables that might not be set in install info
+CPU_VENDOR="${CPU_VENDOR:-}"
+BOOT_MODE="${BOOT_MODE:-}"
+ROOT_PARTITION="${ROOT_PARTITION:-}"
+ROOT_FS="${ROOT_FS:-}"
+SWAP_PARTITION="${SWAP_PARTITION:-}"
+EFI_PARTITION="${EFI_PARTITION:-}"
+BOOT_PARTITION="${BOOT_PARTITION:-}"
+MICROCODE_INSTALLED="${MICROCODE_INSTALLED:-no}"
+BOOTLOADER="${BOOTLOADER:-grub}"
+TIMEZONE="${TIMEZONE:-America/New_York}"
+LOCALE="${LOCALE:-en_US.UTF-8}"
+KEYMAP="${KEYMAP:-us}"
+HOSTNAME="${HOSTNAME:-arch-linux}"
+SELECTED_KERNELS="${SELECTED_KERNELS:-}"
+
 read -r -p "Press Enter to continue..."
 smart_clear
 # ===================================
@@ -181,6 +197,9 @@ if [ -z "$KEYMAP" ]; then
 fi
 
 print_success "Keyboard layout: $KEYMAP"
+
+# Save user configuration for future reference
+save_install_info "/root/.alie-install-info" HOSTNAME TIMEZONE LOCALE KEYMAP
 
 read -r -p "Press Enter to continue..."
 smart_clear

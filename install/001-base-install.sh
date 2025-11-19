@@ -2170,7 +2170,7 @@ save_system_config "/tmp/.alie-install-config"
 if mountpoint -q /mnt 2>/dev/null; then
     mkdir -p /mnt/root
     save_system_config "/mnt/root/.alie-install-config"
-    save_install_info "/mnt/root/.alie-install-info" KEYMAP
+    save_install_info "/mnt/root/.alie-install-info" KEYMAP BOOT_MODE CPU_VENDOR ROOT_PARTITION ROOT_FS SWAP_PARTITION EFI_PARTITION BOOT_PARTITION MICROCODE_INSTALLED BOOTLOADER
     print_info "Configuration also saved to /mnt/root/.alie-install-config and /mnt/root/.alie-install-info"
 fi
 
