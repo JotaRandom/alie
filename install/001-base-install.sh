@@ -1723,9 +1723,11 @@ fi
 # Deactivate any active swap
 if swapon --show | grep -q . 2>/dev/null; then
     print_info "Deactivating any active swap..."
-    swapoff -a 2>/dev/null || {
-        print_warning "Failed to deactivate some swap partitions"
-    }
+    for swap_dev in $(swapon --show=NAME --noheadings 2>/dev/null); do
+        if [ -n "$swap_dev" ]; then
+            swapoff "$swap_dev" 2>/dev/null || print_warning "Failed to deactivate swap on $swap_dev"
+        fi
+    done
 fi
 
 # Detect filesystem type for root partition
