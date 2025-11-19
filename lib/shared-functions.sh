@@ -1525,6 +1525,20 @@ detect_x86_64_level() {
     }' 2>/dev/null || echo "unknown"
 }
 
+# Detect CPU vendor and microcode package
+# Analyzes /proc/cpuinfo to determine CPU manufacturer
+# Used to install appropriate microcode updates for security
+# Returns: "intel", "amd", or "unknown"
+detect_cpu_vendor() {
+    if grep -q "GenuineIntel" /proc/cpuinfo 2>/dev/null; then
+        echo "intel"
+    elif grep -q "AuthenticAMD" /proc/cpuinfo 2>/dev/null; then
+        echo "amd"
+    else
+        echo "unknown"
+    fi
+}
+
 # Get microcode package for detected CPU
 # Maps CPU vendor to appropriate microcode package name
 # Returns: "intel-ucode", "amd-ucode", or empty string
