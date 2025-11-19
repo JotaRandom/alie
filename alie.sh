@@ -503,7 +503,6 @@ case "$ENV" in
                             NEEDS_ROOT=true
                         else
                             print_info "Cancelled. Choose another option."
-                            continue
                         fi
                     else
                         print_error "Invalid option"
@@ -546,7 +545,6 @@ case "$ENV" in
                             NEEDS_ROOT=false
                         else
                             print_info "Cancelled. Choose another option."
-                            continue
                         fi
                     else
                         print_error "Invalid option"
@@ -587,7 +585,6 @@ case "$ENV" in
                             NEEDS_ROOT=false
                         else
                             print_info "Cancelled. Choose another option."
-                            continue
                         fi
                     else
                         print_error "Invalid option"
