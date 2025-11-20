@@ -23,6 +23,17 @@ fi
 # shellcheck disable=SC1091
 source "$LIB_DIR/shared-functions.sh"
 
+# Validate and load config functions
+if [ ! -f "$LIB_DIR/config-functions.sh" ]; then
+    echo "ERROR: config-functions.sh not found at $LIB_DIR/config-functions.sh"
+    echo "Cannot continue without config functions library."
+    exit 1
+fi
+
+# shellcheck source=../lib/config-functions.sh
+# shellcheck disable=SC1091
+source "$LIB_DIR/config-functions.sh"
+
 # Add signal handling for graceful interruption
 setup_cleanup_trap
 
