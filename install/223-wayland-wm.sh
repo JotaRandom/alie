@@ -18,6 +18,8 @@ setup_cleanup_trap
 
 # Source shared functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 # shellcheck source=../lib/shared-functions.sh
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../lib/shared-functions.sh"

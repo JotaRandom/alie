@@ -15,6 +15,7 @@ trap 'echo ""; print_warning "Display server installation cancelled by user (Ctr
 # Determine script directory (works regardless of how script is called)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Validate and load shared functions
 if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then

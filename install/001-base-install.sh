@@ -61,6 +61,7 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 # This ensures the script can find its dependencies regardless of execution context
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Validate and load shared functions
 # Critical dependency - without this library, the script cannot function
@@ -101,9 +102,9 @@ echo ""
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # ===================================
-# STEP 1: NETWORK CONNECTIVITY
+# 001: STEP 1: NETWORK CONNECTIVITY
 # ===================================
-print_step "STEP 1: Network Connectivity"
+print_step "001: STEP 1: Network Connectivity"
 
 # Check current connectivity
 print_info "Checking network connectivity..."
@@ -211,7 +212,7 @@ else
 fi
 
 # ===================================
-# STEP 2: SYSTEM INFORMATION DETECTION
+# 001: STEP 2: SYSTEM INFORMATION DETECTION
 # ===================================
 #
 # PURPOSE:
@@ -243,7 +244,7 @@ fi
 #   - ARM64: Typically UEFI-only
 #   - i686: BIOS-only (UEFI not common)
 # ===================================
-print_step "STEP 2: System Information"
+print_step "001: STEP 2: System Information"
 
 # Detect boot mode (following wiki recommendation)
 if [ -d /sys/firmware/efi/efivars ]; then
@@ -284,7 +285,7 @@ echo "  - Architecture: $(uname -m)"
 sleep 2
 
 # ===================================
-# STEP 2.5: KEYBOARD LAYOUT CONFIGURATION
+# 001: STEP 3: KEYBOARD LAYOUT CONFIGURATION
 # ===================================
 #
 # PURPOSE:
@@ -319,7 +320,7 @@ sleep 2
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 2.5: Keyboard Layout"
+print_step "001: STEP 3: Keyboard Layout"
 
 select_keymap() {
     print_info "The KEYMAP variable defines the console keyboard layout."
@@ -455,11 +456,11 @@ select_keymap
 save_install_info "/tmp/.alie-install-info" KEYMAP
 
 # ===================================
-# STEP 3: DISK PARTITIONING
+# 001: STEP 4: DISK PARTITIONING
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 3: Disk Partitioning & Formatting"
+print_step "001: STEP 4: Disk Partitioning & Formatting"
 
 # ===================================
 # ROBUST CLEANUP FUNCTION
@@ -1013,7 +1014,7 @@ case "$PART_CHOICE" in
         # Show progress screen after confirmation
         smart_clear
         show_alie_banner
-        print_step "STEP 3: Configuration"
+        print_step "001: STEP 4a: Configuration"
         print_info "✓ Disk confirmed: $DISK_PATH (${DISK_SIZE_GB}GB)"
         print_info "✓ Data destruction confirmed"
         echo ""
@@ -1986,11 +1987,11 @@ case "$PART_CHOICE" in
 esac
 
 # ===================================
-# STEP 4: PARTITION SELECTION & VALIDATION
+# 001: STEP 5: PARTITION SELECTION & VALIDATION
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 4: Partition Selection"
+print_step "001: STEP 5: Partition Selection"
 
 # If not auto-partitioned, ask for partitions
 if [ "$AUTO_PARTITIONED" != true ]; then
@@ -2090,15 +2091,66 @@ fi
 print_success "All partitions validated"
 
 # ===================================
-# STEP 5: INSTALLATION SUMMARY
+# 001: STEP 6: BOOTLOADER SELECTION
+# ===================================
+echo ""
+print_info "Bootloader selection:"
+echo ""
+printf "  %s1)%s GRUB (recommended for most users)\n" "$CYAN" "$NC"
+echo "     - Mature, feature-rich bootloader"
+echo "     - Supports both BIOS and UEFI"
+echo "     - Advanced configuration options"
+echo "     - Default choice for Linux distributions"
+echo ""
+
+if [ "$BOOT_MODE" == "UEFI" ]; then
+    printf "  %s2)%s systemd-boot (modern, simple)\n" "$CYAN" "$NC"
+    echo "     - Modern UEFI-only bootloader"
+    echo "     - Integrated with systemd"
+    echo "     - Simple configuration, fast boot"
+    echo "     - Requires UEFI, no BIOS support"
+    echo ""
+    printf "  %s3)%s Limine (lightweight, fast)\n" "$CYAN" "$NC"
+    echo "     - Minimal, fast bootloader"
+    echo "     - Supports both BIOS and UEFI"
+    echo "     - Modern features, simple config"
+    echo "     - Good for advanced users"
+    echo ""
+    read -r -p "Choose bootloader [1-3] (default: 1): " BOOTLOADER_CHOICE
+    
+    case "$BOOTLOADER_CHOICE" in
+        2) BOOTLOADER="systemd-boot" ;;
+        3) BOOTLOADER="limine" ;;
+        *) BOOTLOADER="grub" ;;
+    esac
+else
+    printf "  %s2)%s Limine (lightweight, fast)\n" "$CYAN" "$NC"
+    echo "     - Minimal, fast bootloader"
+    echo "     - Supports both BIOS and UEFI"
+    echo "     - Modern features, simple config"
+    echo "     - Good for advanced users"
+    echo ""
+    read -r -p "Choose bootloader [1-2] (default: 1): " BOOTLOADER_CHOICE
+    
+    case "$BOOTLOADER_CHOICE" in
+        2) BOOTLOADER="limine" ;;
+        *) BOOTLOADER="grub" ;;
+    esac
+fi
+
+print_success "Selected bootloader: $BOOTLOADER"
+
+# ===================================
+# 001: STEP 7: INSTALLATION SUMMARY
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 5: Installation Summary"
+print_step "001: STEP 7: Installation Summary"
 
 echo ""
 print_info "Installation Configuration:"
 echo "  - Boot mode: $BOOT_MODE"
+echo "  - Bootloader: $BOOTLOADER"
 if [ "$BOOT_MODE" == "BIOS" ]; then
     echo "  - Partition table: ${PARTITION_TABLE:-Not specified}"
 fi
@@ -2135,11 +2187,9 @@ if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
 fi
 
 # ===================================
-# STEP 6: SYSTEM CLOCK
+# 001: STEP 8: SYSTEM CLOCK SYNCHRONIZATION
 # ===================================
-smart_clear
-show_alie_banner
-print_step "STEP 6: System Preparation"
+print_step "001: STEP 8: System Preparation"
 
 print_info "Synchronizing system clock..."
 timedatectl set-ntp true
@@ -2147,11 +2197,11 @@ sleep 5
 print_success "System clock synchronized"
 
 # ===================================
-# STEP 7: MOUNT PARTITIONS
+# 001: STEP 9: MOUNTING PARTITIONS
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 7: Mounting Partitions"
+print_step "001: STEP 9: Mounting Partitions"
 
 print_info "Preparing mount points..."
 # Unmount in reverse order: /home first, then /boot, then root
@@ -2336,7 +2386,7 @@ lsblk 2>/dev/null | grep -E "(NAME|/mnt|SWAP)"
 # ===================================
 # SAVE CONFIGURATION FOR NEXT STEP
 # ===================================
-print_step "Saving Configuration"
+print_step "001: STEP 10: Saving Configuration"
 
 # Detect and populate all system information
 detect_system_info

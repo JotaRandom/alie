@@ -8,8 +8,7 @@
 - [x] **Btrfs Subvolumes**: Automatic configuration of rootflags=subvol=@ for Btrfs subvolumes
 - [x] **Boot Parameter Management**: Safe updating of GRUB_CMDLINE_LINUX_DEFAULT with proper backups
 - [x] **Initramfs Regeneration**: Automatic regeneration of initramfs after configuration changes
-
-### 1. **Advanced Filesystem Support**
+- [ ] **Selección de Initcpio**: Elegir entre mkinitcpio, booster y dracut, colocándolo junto a base (quedando "init base") durante la primera instalación, o sino base por defecto tomará mkinitcpio.
 - [x] **Kernel selection**: Allow multiple kernel options (linux, linux-lts, linux-zen, linux-hardened)
 - [x] **Bootloader Flexibility**: Support for GRUB, systemd-boot, and Limine with automatic configurations
 - [x] **Initramfs Configuration**: Automatic mkinitcpio/dracut configuration with filesystem modules
@@ -117,5 +116,5 @@ Want to contribute? Check the [Contributing Guide](CONTRIBUTING.md) and pick an 
 
 ---
 
-*Last updated: November 2025 (Robust partitioning improvements)*</content>
+*Last updated: November 2025 (Initcpio selection and robust partitioning improvements)*</content>
 <parameter name="filePath">c:\Users\Usuario\source\repos\ALIE\TODO.md

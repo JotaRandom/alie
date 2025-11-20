@@ -75,6 +75,7 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 # Determine script directory (works regardless of how script is called)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
+INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Validate and load shared functions
 if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
@@ -566,6 +567,8 @@ save_system_config "/mnt/root/.alie-install-config"
 
 # Also save to temporary location for potential use by other scripts
 save_system_config "/tmp/.alie-install-config"
+
+sleep 3
 
 # ===================================
 # INSTALLATION COMPLETE
