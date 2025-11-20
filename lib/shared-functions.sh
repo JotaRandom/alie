@@ -2638,22 +2638,16 @@ select_keymap() {
     echo "==============================================================================="
     printf "  %s99)%s Other (enter manually)\n" "$CYAN" "$NC"
     echo ""
-    echo "Variants / Variantes:"
+    echo "Variants:"
     echo "  - QWERTY: Standard US/UK layout"
     echo "  - AZERTY: French/Belgian layout"
     echo "  - QWERTZ: German/Czech layout"
     echo "  - JCUKEN: Russian layout"
     echo "  - Bopomofo: Chinese phonetic"
     echo ""
-    echo "  - QWERTY: Distribución estándar US/UK"
-    echo "  - AZERTY: Distribución francés/belga"
-    echo "  - QWERTZ: Distribución alemán/checa"
-    echo "  - JCUKEN: Distribución rusa"
-    echo "  - Bopomofo: Fonética china"
-    echo ""
 
     local choice
-    read -r -p "Choose keyboard layout / Elija distribución de teclado [1-$((${#common_keymaps[@]}+1))] (default: 1): " choice
+    read -r -p "Choose keyboard layout [1-$((${#common_keymaps[@]}+1))] (default: 1): " choice
 
     if [ -z "$choice" ]; then
         choice=1
@@ -2679,7 +2673,7 @@ select_keymap() {
             printf "  %s\n" "${available_keymaps[$i]}"
         done
         echo ""
-        echo "  ... (and more / y más / 等)"
+        echo "  ... (and more / y mas / 等等)"
         echo ""
 
         while true; do

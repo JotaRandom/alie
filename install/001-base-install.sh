@@ -316,7 +316,7 @@ sleep 2
 #
 # COMMON KEYMAPS:
 #   - us: US English (default, QWERTY)
-#   - es: Spanish (includes ñ, accents)
+#   - es: Spanish (includes spanish n, accents)
 #   - fr: French (AZERTY layout)
 #   - de: German (QWERTZ layout)
 #   - uk: United Kingdom (different symbols)
