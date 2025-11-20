@@ -80,7 +80,8 @@ MOUNTED_PARTITIONS=()
 
 # Setup cleanup function for Ctrl+C or errors
 # Ensures no mounted partitions are left hanging if installation fails
-setup_cleanup_trap
+# Note: Using custom robust cleanup instead of shared setup_cleanup_trap
+# setup_cleanup_trap
 
 # Verify running as root
 # Disk partitioning and mounting require elevated privileges
@@ -459,6 +460,100 @@ save_install_info "/tmp/.alie-install-info" KEYMAP
 smart_clear
 show_alie_banner
 print_step "STEP 3: Disk Partitioning & Formatting"
+
+# ===================================
+# ROBUST CLEANUP FUNCTION
+# ===================================
+
+# Function to robustly unmount partitions with multiple strategies
+robust_unmount() {
+    local mount_point="$1"
+    local partition="$2"
+    local description="$3"
+    
+    if [ ! -d "$mount_point" ]; then
+        return 0
+    fi
+    
+    # Check if actually mounted
+    if ! mountpoint -q "$mount_point" 2>/dev/null; then
+        print_info "$description not mounted"
+        return 0
+    fi
+    
+    print_info "Unmounting $description ($mount_point)..."
+    
+    # Strategy 1: Normal unmount
+    if umount "$mount_point" 2>/dev/null; then
+        print_success "$description unmounted successfully"
+        return 0
+    fi
+    
+    # Strategy 2: Lazy unmount (detaches immediately, cleans up later)
+    print_warning "Normal unmount failed, trying lazy unmount..."
+    if umount -l "$mount_point" 2>/dev/null; then
+        print_success "$description lazy-unmounted successfully"
+        return 0
+    fi
+    
+    # Strategy 3: Force unmount (for NFS, may corrupt data)
+    print_warning "Lazy unmount failed, trying force unmount..."
+    if umount -f "$mount_point" 2>/dev/null; then
+        print_success "$description force-unmounted successfully"
+        return 0
+    fi
+    
+    # Strategy 4: Kill processes using the mount point
+    print_warning "Force unmount failed, killing processes..."
+    local pids
+    pids=$(lsof "$mount_point" 2>/dev/null | awk 'NR>1 {print $2}' | sort -u || echo "")
+    
+    if [ -n "$pids" ]; then
+        print_info "Found processes using $mount_point: $pids"
+        for pid in $pids; do
+            if kill -9 "$pid" 2>/dev/null; then
+                print_info "Killed process $pid"
+            fi
+        done
+        sleep 2
+        
+        # Try unmount again after killing processes
+        if umount "$mount_point" 2>/dev/null; then
+            print_success "$description unmounted after killing processes"
+            return 0
+        fi
+        
+        # Try lazy unmount again
+        if umount -l "$mount_point" 2>/dev/null; then
+            print_success "$description lazy-unmounted after killing processes"
+            return 0
+        fi
+    fi
+    
+    # Strategy 5: Final attempt with timeout
+    print_error "All unmount strategies failed for $description"
+    print_warning "This may leave the partition in an inconsistent state"
+    print_info "You may need to manually unmount after installation"
+    return 1
+}
+
+# Function to robustly unmount a partition (finds mount point automatically)
+robust_unmount_partition() {
+    local partition="$1"
+    local description="$2"
+    
+    # Find where the partition is mounted
+    local mount_point
+    mount_point=$(mount | grep "^$partition " | awk '{print $3}' || echo "")
+    
+    if [ -z "$mount_point" ]; then
+        print_info "$description ($partition) is not mounted"
+        return 0
+    fi
+    
+    print_info "Found $description mounted at $mount_point"
+    robust_unmount "$mount_point" "$partition" "$description"
+}
 
 # Function to run critical commands with detailed error reporting
 run_critical_command() {
@@ -1639,12 +1734,12 @@ case "$PART_CHOICE" in
                 read -r -p "Enter EFI partition (e.g., /dev/sda1): " EFI_PARTITION
                 if [ -n "$EFI_PARTITION" ] && [ -b "$EFI_PARTITION" ]; then
                     # Check if partition is mounted before formatting
-                    if mountpoint -q "$EFI_PARTITION" 2>/dev/null || mount | grep -q "^$EFI_PARTITION"; then
+                    if mount | grep -q "^$EFI_PARTITION"; then
                         print_warning "Partition $EFI_PARTITION is mounted, unmounting..."
-                        umount "$EFI_PARTITION" 2>/dev/null || umount -l "$EFI_PARTITION" 2>/dev/null || {
+                        if ! robust_unmount_partition "$EFI_PARTITION" "EFI partition"; then
                             print_error "Failed to unmount $EFI_PARTITION"
                             exit 1
-                        }
+                        fi
                     fi
                     
                     # Check if partition already has a filesystem (dual-boot warning)
@@ -1673,12 +1768,12 @@ case "$PART_CHOICE" in
                     read -r -p "Enter BIOS boot partition (e.g., /dev/sda1): " BIOS_BOOT_PARTITION
                     if [ -n "$BIOS_BOOT_PARTITION" ] && [ -b "$BIOS_BOOT_PARTITION" ]; then
                         # Check if partition is mounted before formatting
-                        if mountpoint -q "$BIOS_BOOT_PARTITION" 2>/dev/null || mount | grep -q "^$BIOS_BOOT_PARTITION"; then
+                        if mount | grep -q "^$BIOS_BOOT_PARTITION"; then
                             print_warning "Partition $BIOS_BOOT_PARTITION is mounted, unmounting..."
-                            umount "$BIOS_BOOT_PARTITION" 2>/dev/null || umount -l "$BIOS_BOOT_PARTITION" 2>/dev/null || {
+                            if ! robust_unmount_partition "$BIOS_BOOT_PARTITION" "BIOS boot partition"; then
                                 print_error "Failed to unmount $BIOS_BOOT_PARTITION"
                                 exit 1
-                            }
+                            fi
                         fi
                         
                         print_info "Formatting BIOS boot partition..."
@@ -1691,12 +1786,12 @@ case "$PART_CHOICE" in
                     read -r -p "Enter boot partition (e.g., /dev/sda1): " BOOT_PARTITION
                     if [ -n "$BOOT_PARTITION" ] && [ -b "$BOOT_PARTITION" ]; then
                         # Check if partition is mounted before formatting
-                        if mountpoint -q "$BOOT_PARTITION" 2>/dev/null || mount | grep -q "^$BOOT_PARTITION"; then
+                        if mount | grep -q "^$BOOT_PARTITION"; then
                             print_warning "Partition $BOOT_PARTITION is mounted, unmounting..."
-                            umount "$BOOT_PARTITION" 2>/dev/null || umount -l "$BOOT_PARTITION" 2>/dev/null || {
+                            if ! robust_unmount_partition "$BOOT_PARTITION" "boot partition"; then
                                 print_error "Failed to unmount $BOOT_PARTITION"
                                 exit 1
-                            }
+                            fi
                         fi
                         
                         # Check if partition already has a filesystem (dual-boot warning)
@@ -1738,12 +1833,12 @@ case "$PART_CHOICE" in
             read -r -p "Enter root partition: " ROOT_PARTITION
             if [ -n "$ROOT_PARTITION" ] && [ -b "$ROOT_PARTITION" ]; then
                 # Check if partition is mounted before formatting
-                if mountpoint -q "$ROOT_PARTITION" 2>/dev/null || mount | grep -q "^$ROOT_PARTITION"; then
+                if mount | grep -q "^$ROOT_PARTITION"; then
                     print_warning "Partition $ROOT_PARTITION is mounted, unmounting..."
-                    umount "$ROOT_PARTITION" 2>/dev/null || umount -l "$ROOT_PARTITION" 2>/dev/null || {
+                    if ! robust_unmount_partition "$ROOT_PARTITION" "root partition"; then
                         print_error "Failed to unmount $ROOT_PARTITION"
                         exit 1
-                    }
+                    fi
                 fi
                 
                 smart_clear
@@ -1772,12 +1867,12 @@ case "$PART_CHOICE" in
                 read -r -p "Enter /home partition: " HOME_PARTITION
                 if [ -n "$HOME_PARTITION" ] && [ -b "$HOME_PARTITION" ]; then
                     # Check if partition is mounted before formatting
-                    if mountpoint -q "$HOME_PARTITION" 2>/dev/null || mount | grep -q "^$HOME_PARTITION"; then
+                    if mount | grep -q "^$HOME_PARTITION"; then
                         print_warning "Partition $HOME_PARTITION is mounted, unmounting..."
-                        umount "$HOME_PARTITION" 2>/dev/null || umount -l "$HOME_PARTITION" 2>/dev/null || {
+                        if ! robust_unmount_partition "$HOME_PARTITION" "/home partition"; then
                             print_error "Failed to unmount $HOME_PARTITION"
                             exit 1
-                        }
+                        fi
                     fi
                     
                     print_info "Formatting /home as $ROOT_FS..."
@@ -2195,6 +2290,61 @@ save_progress "01-partitions-ready"
 
 echo ""
 print_success "Partitioning and mounting finished!"
+
+# ===================================
+# ROBUST CLEANUP FUNCTION
+# ===================================
+
+# Function to perform complete cleanup
+perform_cleanup() {
+    local exit_code=$?
+    
+    print_warning "Performing cleanup (exit code: $exit_code)..."
+    
+    # Deactivate swap first
+    if swapon --show | grep -q . 2>/dev/null; then
+        print_info "Deactivating swap partitions..."
+        swapoff -a 2>/dev/null || print_warning "Failed to deactivate some swap partitions"
+    fi
+    
+    # Unmount in reverse order: /home first, then /boot, then root
+    # This prevents issues with nested mounts
+    
+    # Unmount /home and related subvolumes
+    if [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+        # Unmount Btrfs subvolumes in reverse order
+        robust_unmount "/mnt/.snapshots" "$ROOT_PARTITION" "/.snapshots subvolume" || true
+        robust_unmount "/mnt/tmp" "$ROOT_PARTITION" "/tmp subvolume" || true
+        robust_unmount "/mnt/var" "$ROOT_PARTITION" "/var subvolume" || true
+        robust_unmount "/mnt/home" "$ROOT_PARTITION" "/home subvolume" || true
+    else
+        robust_unmount "/mnt/home" "${HOME_PARTITION:-}" "/home partition" || true
+    fi
+    
+    # Unmount /boot (EFI or boot partition)
+    robust_unmount "/mnt/boot" "${EFI_PARTITION:-${BOOT_PARTITION:-}}" "/boot partition" || true
+    
+    # Unmount root last
+    robust_unmount "/mnt" "$ROOT_PARTITION" "root partition" || true
+    
+    # Final check for any remaining mounts
+    local remaining_mounts
+    remaining_mounts=$(mount | grep "/mnt" | wc -l)
+    if [ "$remaining_mounts" -gt 0 ]; then
+        print_warning "Some partitions may still be mounted under /mnt"
+        print_info "Remaining mounts:"
+        mount | grep "/mnt" || true
+        print_info "You may need to manually unmount these after installation"
+    else
+        print_success "All partitions successfully unmounted"
+    fi
+    
+    # Reset terminal if needed
+    stty sane 2>/dev/null || true
+}
+
+# Set trap to call cleanup on exit, error, or interrupt
+trap perform_cleanup EXIT INT TERM
 
 # Auto-continue to next step if auto-partitioned
 if [ "$AUTO_PARTITIONED" = true ]; then
