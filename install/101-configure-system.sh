@@ -254,23 +254,91 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
         
         if [[ $CONFIRM_DISK =~ ^[Nn]$ ]]; then
             smart_clear
-            read -r -p "Enter disk for bootloader (e.g., /dev/sda): " TARGET_DISK
+            # Allow user to enter disk name with retry logic
+            while true; do
+                read -r -p "Enter disk for bootloader (e.g., /dev/sda or sda): " TARGET_DISK
+                
+                # Sanitize input - remove /dev/ prefix if present and whitespace
+                TARGET_DISK="${TARGET_DISK#/dev/}"
+                TARGET_DISK="$(echo "$TARGET_DISK" | tr -d '[:space:]')"
+                
+                # Convert back to full path
+                TARGET_DISK="/dev/$TARGET_DISK"
+                
+                if [ -z "$TARGET_DISK" ] || [ "$TARGET_DISK" = "/dev/" ]; then
+                    print_error "Disk name cannot be empty"
+                    echo ""
+                    read -r -p "Try again or exit? (t/e): " RETRY_CHOICE
+                    if [[ $RETRY_CHOICE =~ ^[Ee]$ ]]; then
+                        print_info "Exiting installation..."
+                        exit 1
+                    fi
+                    continue
+                fi
+                
+                if [ ! -b "$TARGET_DISK" ]; then
+                    print_error "$TARGET_DISK is not a valid block device"
+                    print_info "Available disks:"
+                    lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk | while read -r line; do
+                        echo "  /dev/$(echo "$line" | awk '{print $1}')"
+                    done
+                    echo ""
+                    read -r -p "Try again or exit? (t/e): " RETRY_CHOICE
+                    if [[ $RETRY_CHOICE =~ ^[Ee]$ ]]; then
+                        print_info "Exiting installation..."
+                        exit 1
+                    fi
+                    continue
+                fi
+                
+                # Valid disk found
+                break
+            done
         fi
     else
         print_info "Available disks:"
         lsblk -d -o NAME,SIZE,TYPE 2>/dev/null | grep disk
         echo ""
-        read -r -p "Enter disk for bootloader (e.g., /dev/sda): " TARGET_DISK
-    fi
-    
-    if [ -z "$TARGET_DISK" ]; then
-        print_error "Target disk cannot be empty for BIOS mode"
-        exit 1
-    fi
-    
-    if [ ! -b "$TARGET_DISK" ]; then
-        print_error "$TARGET_DISK is not a valid block device"
-        exit 1
+        # Allow user to enter disk name with retry logic
+        while true; do
+            read -r -p "Enter disk for bootloader (e.g., /dev/sda or sda): " TARGET_DISK
+            
+            # Sanitize input - remove /dev/ prefix if present and whitespace
+            TARGET_DISK="${TARGET_DISK#/dev/}"
+            TARGET_DISK="$(echo "$TARGET_DISK" | tr -d '[:space:]')"
+            
+            # Convert back to full path
+            TARGET_DISK="/dev/$TARGET_DISK"
+            
+            if [ -z "$TARGET_DISK" ] || [ "$TARGET_DISK" = "/dev/" ]; then
+                print_error "Disk name cannot be empty"
+                echo ""
+                read -r -p "Try again or exit? (t/e): " RETRY_CHOICE
+                if [[ $RETRY_CHOICE =~ ^[Ee]$ ]]; then
+                    print_info "Exiting installation..."
+                    exit 1
+                fi
+                continue
+            fi
+            
+            if [ ! -b "$TARGET_DISK" ]; then
+                print_error "$TARGET_DISK is not a valid block device"
+                print_info "Available disks:"
+                lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk | while read -r line; do
+                    echo "  /dev/$(echo "$line" | awk '{print $1}')"
+                done
+                echo ""
+                read -r -p "Try again or exit? (t/e): " RETRY_CHOICE
+                if [[ $RETRY_CHOICE =~ ^[Ee]$ ]]; then
+                    print_info "Exiting installation..."
+                    exit 1
+                fi
+                continue
+            fi
+            
+            # Valid disk found
+            break
+        done
     fi
     
     print_success "Bootloader will be installed to: $TARGET_DISK"
@@ -333,15 +401,12 @@ echo "$HOSTNAME" > /etc/hostname
 # Deploy hosts file from template
 print_info "Deploying hosts configuration..."
 deploy_config "network/hosts.template" "/etc/hosts" "HOSTNAME=$HOSTNAME"
-
 # Deploy NetworkManager configuration
 print_info "Deploying NetworkManager configuration..."
 deploy_config_direct "network/NetworkManager.conf" "/etc/NetworkManager/NetworkManager.conf" "644"
-
 # Deploy systemd-resolved configuration
 print_info "Deploying systemd-resolved configuration..."
 deploy_config_direct "network/resolved.conf" "/etc/systemd/resolved.conf" "644"
-
 print_success "Network configuration complete"
 
 read -r -p "Press Enter to continue..."
