@@ -166,6 +166,7 @@ reboot
 - Verifies internet connection before installing
 - Validates environment (Live USB, chroot, installed system)
 - **Multiple shell support** - Choose from Bash, Zsh, Fish, or Nushell with full configuration
+- **Robust partitioning** - Enhanced disk cleanup with multiple unmount attempts and process management
 
 ### Shell Options
 ALIE supports multiple shell environments with full configuration:
@@ -204,6 +205,50 @@ If a script fails:
 1. Read the error message
 2. Fix the problem manually
 3. Continue with next step or re-run the script
+
+### Disk Partitioning Issues
+
+If the installer fails with "initialization canceled or failed" after selecting a disk:
+
+**1. Check Disk Basics**
+```bash
+# Verify disk exists and is accessible
+lsblk -d /dev/sda  # Replace sda with your disk
+
+# Check if disk is in use
+mount | grep /dev/sda
+swapon --show | grep /dev/sda
+```
+
+**2. Test parted Commands Manually**
+```bash
+# Test basic parted functionality
+sudo parted -s /dev/sda print
+
+# Test partition table creation (dry run)
+sudo parted -s /dev/sda mklabel gpt --dry-run
+```
+
+**3. Enhanced Partition Cleanup (v2.0+)**
+ALIE now includes robust partition unmounting with multiple strategies:
+- **Normal unmount** - Standard umount command
+- **Lazy unmount** - umount -l for busy partitions
+- **Process detection** - Automatically finds and terminates processes using partitions
+- **Force unmount** - umount -f as last resort
+- **Multiple attempts** - Up to 5 attempts with 3-second delays between retries
+
+If partitions are temporarily busy, the installer will automatically handle cleanup.
+
+**4. Common Issues**
+
+- **Disk not found**: Make sure you're using the correct disk name (sda, nvme0n1, etc.)
+- **Permission denied**: Run installer as root
+- **Disk in use**: Unmount any mounted partitions first
+- **Virtual machine**: Some VMs need special disk configurations
+- **USB drive**: Some USB drives don't support all partitioning schemes
+
+**5. Alternative: Manual Partitioning**
+If automatic partitioning fails, choose option 2 in the installer for manual partitioning with cfdisk/fdisk.
 
 ## Contributions
 

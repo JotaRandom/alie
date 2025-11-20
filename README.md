@@ -167,6 +167,7 @@ These scripts will automatically detect and fix any permission issues.
 - ✅ **Manual mode** - Run individual steps as needed
 - ✅ **Comprehensive logging** - Clear progress indicators and error messages
 - ✅ **Multiple shell support** - Choose from Bash, Zsh, Fish, or Nushell with full configuration
+- ✅ **Robust partitioning** - Enhanced disk cleanup with multiple unmount attempts and process management
 
 ---
 
@@ -304,7 +305,17 @@ sudo parted -s /dev/sda print
 sudo parted -s /dev/sda mklabel gpt --dry-run
 ```
 
-**3. Common Issues**
+**3. Enhanced Partition Cleanup (v2.0+)**
+ALIE now includes robust partition unmounting with multiple strategies:
+- **Normal unmount** - Standard umount command
+- **Lazy unmount** - umount -l for busy partitions
+- **Process detection** - Automatically finds and terminates processes using partitions
+- **Force unmount** - umount -f as last resort
+- **Multiple attempts** - Up to 5 attempts with 3-second delays between retries
+
+If partitions are temporarily busy, the installer will automatically handle cleanup.
+
+**4. Common Issues**
 
 - **Disk not found**: Make sure you're using the correct disk name (sda, nvme0n1, etc.)
 - **Permission denied**: Run installer as root
@@ -312,7 +323,7 @@ sudo parted -s /dev/sda mklabel gpt --dry-run
 - **Virtual machine**: Some VMs need special disk configurations
 - **USB drive**: Some USB drives don't support all partitioning schemes
 
-**4. Alternative: Manual Partitioning**
+**5. Alternative: Manual Partitioning**
 If automatic partitioning fails, choose option 2 in the installer for manual partitioning with cfdisk/fdisk.
 
 ### Permission Issues

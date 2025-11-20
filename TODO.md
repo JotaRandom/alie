@@ -21,6 +21,7 @@
 - [ ] **Additional Filesystems**: F2FS and NILFS2 support for specific use cases
 
 ### 2. **Partitioning Enhancements**
+- [x] **Robust Unmounting**: Enhanced partition cleanup with multiple unmount attempts and process management (COMPLETED v2.0)
 - [ ] **RAID Configuration**: Software RAID setup (RAID 1, 5, 10)
 - [ ] **Advanced Btrfs Features**: More subvolume options and configurations
 - [ ] **Partition Recovery Tools**: Basic tools to help recover accidentally deleted partitions
@@ -116,5 +117,5 @@ Want to contribute? Check the [Contributing Guide](CONTRIBUTING.md) and pick an 
 
 ---
 
-*Last updated: November 2024 (Boot configuration improvements)*</content>
+*Last updated: November 2025 (Robust partitioning improvements)*</content>
 <parameter name="filePath">c:\Users\Usuario\source\repos\ALIE\TODO.md

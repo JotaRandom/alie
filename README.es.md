@@ -166,6 +166,7 @@ reboot
 - Verifica conexión a internet antes de instalar
 - Valida entorno (Live USB, chroot, sistema instalado)
 - **Soporte múltiple de shells** - Elige entre Bash, Zsh, Fish o Nushell con configuración completa
+- **Particionado robusto** - Limpieza mejorada de disco con múltiples intentos de desmontaje y gestión de procesos
 
 ### Opciones de Shell
 ALIE soporta múltiples entornos de shell con configuración completa:
@@ -204,6 +205,50 @@ Si un script falla:
 1. Lee el mensaje de error
 2. Corrige el problema manualmente
 3. Continúa con el siguiente paso o vuelve a ejecutar
+
+### Problemas de Particionado de Disco
+
+Si el instalador falla con "initialization canceled or failed" después de seleccionar un disco:
+
+**1. Verificar lo Básico del Disco**
+```bash
+# Verificar que el disco existe y es accesible
+lsblk -d /dev/sda  # Reemplaza sda con tu disco
+
+# Verificar si el disco está en uso
+mount | grep /dev/sda
+swapon --show | grep /dev/sda
+```
+
+**2. Probar Comandos de parted Manualmente**
+```bash
+# Probar funcionalidad básica de parted
+sudo parted -s /dev/sda print
+
+# Probar creación de tabla de particiones (prueba)
+sudo parted -s /dev/sda mklabel gpt --dry-run
+```
+
+**3. Limpieza Mejorada de Particiones (v2.0+)**
+ALIE ahora incluye desmontaje robusto de particiones con múltiples estrategias:
+- **Desmontaje normal** - Comando umount estándar
+- **Desmontaje lazy** - umount -l para particiones ocupadas
+- **Detección de procesos** - Encuentra y termina automáticamente procesos que usan particiones
+- **Desmontaje forzado** - umount -f como último recurso
+- **Múltiples intentos** - Hasta 5 intentos con 3 segundos de espera entre reintentos
+
+Si las particiones están temporalmente ocupadas, el instalador manejará automáticamente la limpieza.
+
+**4. Problemas Comunes**
+
+- **Disco no encontrado**: Asegúrate de usar el nombre correcto del disco (sda, nvme0n1, etc.)
+- **Permiso denegado**: Ejecuta el instalador como root
+- **Disco en uso**: Desmonta cualquier partición montada primero
+- **Máquina virtual**: Algunas VMs necesitan configuraciones especiales de disco
+- **Disco USB**: Algunos discos USB no soportan todos los esquemas de particionado
+
+**5. Alternativa: Particionado Manual**
+Si el particionado automático falla, elige la opción 2 en el instalador para particionado manual con cfdisk/fdisk.
 
 ## Contribuciones
 
