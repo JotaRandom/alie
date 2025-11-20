@@ -834,16 +834,79 @@ case "$PART_CHOICE" in
             print_warning "Disk $DISK_PATH is currently in use (mounted partitions or active swap detected)"
             print_info "Attempting to automatically unmount all partitions on this disk..."
             
+            # Function to robustly unmount partitions with multiple attempts
+            robust_unmount_partition() {
+                local partition="$1"
+                local description="$2"
+                local max_attempts=5
+                local attempt=1
+                
+                print_info "Attempting to unmount $description ($partition)..."
+                
+                while [ $attempt -le $max_attempts ]; do
+                    print_info "Unmount attempt $attempt/$max_attempts for $partition..."
+                    
+                    # Try normal unmount first
+                    if umount "$partition" 2>/dev/null; then
+                        print_success "Successfully unmounted $partition (attempt $attempt)"
+                        return 0
+                    fi
+                    
+                    # Try lazy unmount
+                    if umount -l "$partition" 2>/dev/null; then
+                        print_success "Successfully lazy unmounted $partition (attempt $attempt)"
+                        sleep 2  # Give it time to complete
+                        return 0
+                    fi
+                    
+                    # If still mounted, try to kill processes using the partition
+                    if [ $attempt -gt 2 ]; then
+                        print_warning "Attempting to kill processes using $partition..."
+                        # Find processes with open files on this partition
+                        local pids
+                        pids=$(fuser -m "$partition" 2>/dev/null | sed 's/.*://' || echo "")
+                        
+                        if [ -n "$pids" ]; then
+                            print_info "Found processes using $partition: $pids"
+                            # Kill processes gracefully first
+                            kill -TERM $pids 2>/dev/null || true
+                            sleep 2
+                            
+                            # Kill forcefully if still running
+                            kill -KILL $pids 2>/dev/null || true
+                            sleep 1
+                        fi
+                    fi
+                    
+                    # Try force unmount as last resort
+                    if [ $attempt -eq $max_attempts ]; then
+                        if umount -f "$partition" 2>/dev/null; then
+                            print_success "Successfully force unmounted $partition (attempt $attempt)"
+                            return 0
+                        fi
+                    fi
+                    
+                    if [ $attempt -lt $max_attempts ]; then
+                        print_warning "Unmount attempt $attempt failed, waiting before retry..."
+                        sleep 3
+                    fi
+                    
+                    attempt=$((attempt + 1))
+                done
+                
+                print_error "Failed to unmount $partition after $max_attempts attempts"
+                return 1
+            }
+            
             # Get all partitions on this disk
-            # DISK_PARTITIONS=$(lsblk -n -p -o NAME "$DISK_PATH" 2>/dev/null | grep "^${DISK_PATH}" || echo "")
+            local disk_partitions
+            disk_partitions=$(lsblk -n -p -o NAME "$DISK_PATH" 2>/dev/null | grep "^${DISK_PATH}" || echo "")
             
             # Unmount all mounted partitions on this disk (in reverse order)
+            local unmount_failed=false
             for part in $(mount | grep "^${DISK_PATH}" | awk '{print $1}' | sort -r); do
-                print_info "Unmounting $part..."
-                if ! umount "$part" 2>/dev/null && ! umount -l "$part" 2>/dev/null; then
-                    print_error "Failed to unmount $part"
-                    print_info "Please unmount manually and try again"
-                    exit 1
+                if ! robust_unmount_partition "$part" "partition"; then
+                    unmount_failed=true
                 fi
             done
             
@@ -852,19 +915,29 @@ case "$PART_CHOICE" in
                 print_info "Deactivating swap on $part..."
                 if ! swapoff "$part" 2>/dev/null; then
                     print_error "Failed to deactivate swap on $part"
-                    print_info "Please deactivate swap manually and try again"
-                    exit 1
+                    unmount_failed=true
+                else
+                    print_success "Successfully deactivated swap on $part"
                 fi
             done
             
-            print_success "Successfully unmounted all partitions and deactivated swap on $DISK_PATH"
+            if [ "$unmount_failed" = false ]; then
+                print_success "Successfully unmounted all partitions and deactivated swap on $DISK_PATH"
+            else
+                print_error "Some partitions could not be unmounted after multiple attempts"
+                print_info "This may cause partitioning to fail. Please manually unmount partitions and try again."
+                print_info "You can try: umount -l /path/to/mountpoint && swapoff /dev/partition"
+                exit 1
+            fi
             
             # Double-check that everything is clean now
             if mount | grep -q "^$DISK_PATH" || swapon --show | grep -q "^$DISK_PATH"; then
-                print_error "Disk $DISK_PATH is still in use after cleanup attempt"
-                print_info "Please check manually:"
+                print_error "Disk $DISK_PATH is still in use after cleanup attempts"
+                print_info "Remaining mounts:"
                 mount | grep "^$DISK_PATH" || echo "No mounts found"
+                print_info "Remaining swap:"
                 swapon --show | grep "^$DISK_PATH" || echo "No active swap found"
+                print_info "Please manually resolve these issues and try again"
                 exit 1
             fi
         fi
