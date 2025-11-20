@@ -61,7 +61,6 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 # This ensures the script can find its dependencies regardless of execution context
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Validate and load shared functions
 # Critical dependency - without this library, the script cannot function
@@ -561,7 +560,7 @@ configure_home_partitioning() {
                 print_error_detailed "Too many invalid attempts. Installation cancelled." \
                     "Maximum retry attempts exceeded for root partition sizing" \
                     "Restart the installation and provide valid partition sizes" \
-                    "bash $(dirname \"$0\")/001-base-install.sh"
+                    "bash $(dirname "$0")/001-base-install.sh"
                 exit 1
             fi
         else
@@ -791,11 +790,11 @@ case "$PART_CHOICE" in
                         if [ -n "$pids" ]; then
                             print_info "Found processes using $partition: $pids"
                             # Kill processes gracefully first
-                            kill -TERM $pids 2>/dev/null || true
+                            kill -TERM "$pids" 2>/dev/null || true
                             sleep 2
                             
                             # Kill forcefully if still running
-                            kill -KILL $pids 2>/dev/null || true
+                            kill -KILL "$pids" 2>/dev/null || true
                             sleep 1
                         fi
                     fi
@@ -824,11 +823,10 @@ case "$PART_CHOICE" in
             }
             
             # Get all partitions on this disk
-            local disk_partitions
             disk_partitions=$(lsblk -n -p -o NAME "$DISK_PATH" 2>/dev/null | grep "^${DISK_PATH}" || echo "")
             
             # Unmount all mounted partitions on this disk (in reverse order)
-            local unmount_failed=false
+            unmount_failed=false
             for part in $(mount | grep "^${DISK_PATH}" | awk '{print $1}' | sort -r); do
                 if ! robust_unmount_partition "$part" "partition"; then
                     unmount_failed=true
@@ -2482,7 +2480,7 @@ perform_cleanup() {
     
     # Final check for any remaining mounts
     local remaining_mounts
-    remaining_mounts=$(mount | grep "/mnt" | wc -l)
+    remaining_mounts=$(mount | grep -c "/mnt")
     if [ "$remaining_mounts" -gt 0 ]; then
         print_warning "Some partitions may still be mounted under /mnt"
         print_info "Remaining mounts:"

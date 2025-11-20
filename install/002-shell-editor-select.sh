@@ -67,7 +67,6 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Determine script directory and set up paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
 
 # Load shared functions library

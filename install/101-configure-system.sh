@@ -11,7 +11,6 @@ set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 # Determine script directory (works regardless of how script is called)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$(dirname "$SCRIPT_DIR")/lib"
-INSTALL_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Validate and load shared functions
 if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
@@ -682,10 +681,10 @@ EOF
             [ -z "$kernel_name" ] && kernel_name="default"
             
             # Capitalize first letter for better display
-            display_name="$(tr '[:lower:]' '[:upper:]' <<< ${kernel_name:0:1})${kernel_name:1}"
+            display_name="$(tr '[:lower:]' '[:upper:]' <<< "${kernel_name:0:1}")${kernel_name:1}"
             [ "$display_name" = "Default" ] && display_name="Stable"
             
-            cat > /boot/loader/entries/arch-$kernel_name.conf << EOF
+            cat > /boot/loader/entries/arch-"$kernel_name".conf << EOF
 title   Arch Linux ($display_name)
 linux   /vmlinuz-$kernel_pkg
 $MICROCODE_PARAM
@@ -851,7 +850,6 @@ EOF
         else
             LIMINE_CONF_PATH="/boot/limine/limine.conf"
             mkdir -p /boot/limine
-            BOOT_PARTITION="$BOOT_PARTITION"
         fi
         
         # Determine if /boot is on a separate partition
@@ -896,7 +894,7 @@ EOF
             [ -z "$kernel_name" ] && kernel_name="default"
             
             # Capitalize first letter for better display
-            display_name="$(tr '[:lower:]' '[:upper:]' <<< ${kernel_name:0:1})${kernel_name:1}"
+            display_name="$(tr '[:lower:]' '[:upper:]' <<< "${kernel_name:0:1}")${kernel_name:1}"
             [ "$display_name" = "Default" ] && display_name="Stable"
             
             cat >> "$LIMINE_CONF_PATH" << EOF
