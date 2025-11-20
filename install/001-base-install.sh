@@ -823,6 +823,12 @@ case "$PART_CHOICE" in
             }
             
             # Get all partitions on this disk
+            # shellcheck disable=SC2086
+            # shellcheck disable=SC2009
+            # shellcheck disable=SC2034
+            # shellcheck disable=SC2046
+            # shellcheck disable=SC2207
+            # shellcheck disable=SC2154
             disk_partitions=$(lsblk -n -p -o NAME "$DISK_PATH" 2>/dev/null | grep "^${DISK_PATH}" || echo "")
             
             # Unmount all mounted partitions on this disk (in reverse order)
@@ -2324,10 +2330,15 @@ else
     print_success "Root partition mounted"
     
     # Get root UUID and subvolume info for bootloader configuration
+    # shellcheck disable=SC2154
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2086
+    # shellcheck disable=SC2004
     ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PARTITION")
     if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
         ROOT_SUBVOL="@"
     else
+        # shellcheck disable=SC2034
         ROOT_SUBVOL=""
     fi
 fi

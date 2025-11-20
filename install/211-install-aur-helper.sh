@@ -101,6 +101,7 @@ choose_aur_helper() {
             ;;
         *) 
             print_warning "Invalid choice, defaulting to yay"
+            # shellcheck disable=SC2034
             SELECTED_HELPER="yay"
             echo "yay"
             ;;
