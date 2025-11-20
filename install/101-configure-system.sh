@@ -35,6 +35,136 @@ fi
 # shellcheck disable=SC1091
 source "$LIB_DIR/config-functions.sh"
 
+# Keyboard layout selection function
+select_keymap() {
+    local keymap=""
+    local keymap_file=""
+    local valid_keymap=false
+    
+    echo ""
+    print_info "Keyboard Layout Selection"
+    echo ""
+    echo "Choose your keyboard layout:"
+    echo "  ${CYAN}1)${NC} US (qwerty)"
+    echo "  ${CYAN}2)${NC} UK (qwerty)"
+    echo "  ${CYAN}3)${NC} German (qwertz)"
+    echo "  ${CYAN}4)${NC} French (azerty)"
+    echo "  ${CYAN}5)${NC} Spanish (qwerty)"
+    echo "  ${CYAN}6)${NC} Italian (qwerty)"
+    echo "  ${CYAN}7)${NC} Portuguese (qwerty)"
+    echo "  ${CYAN}8)${NC} Russian (йцукен)"
+    echo "  ${CYAN}9)${NC} Japanese"
+    echo "  ${CYAN}10)${NC} Korean"
+    echo "  ${CYAN}11)${NC} Chinese"
+    echo "  ${CYAN}12)${NC} Other (manual entry)"
+    echo ""
+    
+    while ! $valid_keymap; do
+        read -r -p "Select keyboard layout [1-12]: " KEYMAP_CHOICE
+        
+        case "$KEYMAP_CHOICE" in
+            1) keymap="us" ;;
+            2) keymap="uk" ;;
+            3) keymap="de" ;;
+            4) keymap="fr" ;;
+            5) keymap="es" ;;
+            6) keymap="it" ;;
+            7) keymap="pt" ;;
+            8) keymap="ru" ;;
+            9) keymap="jp" ;;
+            10) keymap="kr" ;;
+            11) keymap="cn" ;;
+            12)
+                echo ""
+                print_info "Manual Keyboard Layout Entry"
+                echo "Enter the keymap name (e.g., us, de, fr, es, etc.)"
+                echo "Available keymaps can be found in /usr/share/kbd/keymaps/"
+                echo ""
+                read -r -p "Enter keymap: " keymap
+                
+                # Validate manual entry
+                if [ -z "$keymap" ]; then
+                    print_error "Keymap cannot be empty"
+                    continue
+                fi
+                
+                # Check if keymap file exists
+                keymap_file="/usr/share/kbd/keymaps/${keymap}.map.gz"
+                if [ ! -f "$keymap_file" ]; then
+                    print_error "Keymap '$keymap' not found"
+                    print_info "Available keymaps (first 20):"
+                    find /usr/share/kbd/keymaps -name "*.map.gz" | head -20 | sed 's|.*/||; s|\.map\.gz||' | sort
+                    echo ""
+                    continue
+                fi
+                ;;
+            *)
+                print_error "Invalid selection. Please choose 1-12."
+                continue
+                ;;
+        esac
+        
+        # For predefined selections, validate the keymap exists
+        if [ "$KEYMAP_CHOICE" != "12" ]; then
+            keymap_file="/usr/share/kbd/keymaps/${keymap}.map.gz"
+            if [ ! -f "$keymap_file" ]; then
+                print_error "Keymap '$keymap' not found in system"
+                print_warning "This may indicate missing keymap packages"
+                print_info "Continuing anyway, but keyboard may not work correctly"
+                # Don't set valid_keymap=true here, let user try again
+                continue
+            fi
+        fi
+        
+        # Try to load the keymap to verify it works
+        print_info "Testing keymap '$keymap'..."
+        if loadkeys "$keymap" 2>/dev/null; then
+            print_success "Keymap '$keymap' loaded successfully"
+            valid_keymap=true
+            KEYMAP="$keymap"
+        else
+            print_error "Failed to load keymap '$keymap'"
+            print_info "This keymap may not be available or may be corrupted"
+            
+            # For predefined selections, offer fallback options
+            if [ "$KEYMAP_CHOICE" != "12" ]; then
+                echo ""
+                print_info "Available fallback options:"
+                case "$KEYMAP_CHOICE" in
+                    1) echo "  - us (standard US)" ;;
+                    2) echo "  - gb (Great Britain)" ;;
+                    3) echo "  - de (German)" ;;
+                    4) echo "  - fr (French)" ;;
+                    5) echo "  - es (Spanish)" ;;
+                    6) echo "  - it (Italian)" ;;
+                    7) echo "  - pt (Portuguese)" ;;
+                    8) echo "  - ru (Russian)" ;;
+                    9) echo "  - jp106 (Japanese 106-key)" ;;
+                    10) echo "  - kr104 (Korean 104-key)" ;;
+                    11) echo "  - cn (Chinese)" ;;
+                esac
+                
+                read -r -p "Try a different keymap? (y/n): " TRY_DIFFERENT
+                if [[ $TRY_DIFFERENT =~ ^[Nn]$ ]]; then
+                    print_warning "Using '$keymap' anyway (may not work correctly)"
+                    valid_keymap=true
+                    KEYMAP="$keymap"
+                fi
+            else
+                # For manual entry, always allow continuation
+                read -r -p "Use this keymap anyway? (y/n): " USE_ANYWAY
+                if [[ $USE_ANYWAY =~ ^[Yy]$ ]]; then
+                    print_warning "Using '$keymap' (may not work correctly)"
+                    valid_keymap=true
+                    KEYMAP="$keymap"
+                fi
+            fi
+        fi
+    done
+    
+    print_success "Keyboard layout set to: $KEYMAP"
+}
+
 # Add signal handling for graceful interruption
 setup_cleanup_trap
 
@@ -192,151 +322,37 @@ print_success "Locale: $LOCALE"
 echo ""
 print_info "Keyboard Layout Configuration"
 
-select_keymap() {
-    print_info "The KEYMAP variable defines the console keyboard layout."
-    print_info "Keymaps are located in /usr/share/kbd/keymaps/"
-    echo ""
+# Check if step 01 was completed (base installation done)
+if is_step_completed "01-partitions-ready"; then
+    print_info "Base installation completed, loading saved keyboard configuration..."
     
-    # Common keymaps for selection
-    local common_keymaps=(
-        "us:English (US)"
-        "es:Spanish (Spain)"
-        "fr:French"
-        "de:German"
-        "it:Italian"
-        "pt:Portuguese"
-        "ru:Russian"
-        "br:Portuguese (Brazil)"
-        "la-latin1:Latin American"
-        "uk:United Kingdom"
-        "be:Belgian"
-        "dk:Danish"
-        "no:Norwegian"
-        "se:Swedish"
-        "fi:Finnish"
-        "pl:Polish"
-        "cz:Czech"
-        "hu:Hungarian"
-        "tr:Turkish"
-        "gr:Greek"
-        "il:Hebrew"
-        "jp:Japanese"
-        "kr:Korean"
-    )
-    
-    echo "Common keyboard layouts:"
-    local i=1
-    for keymap_info in "${common_keymaps[@]}"; do
-        local keymap_code="${keymap_info%%:*}"
-        local keymap_desc="${keymap_info#*:}"
-        printf "  %s%2d)%s %s (%s)\n" "$CYAN" "$i" "$NC" "$keymap_code" "$keymap_desc"
-        ((i++))
-    done
-    echo ""
-    printf "  %s99)%s Other (enter manually)\n" "$CYAN" "$NC"
-    echo ""
-    
-    local choice
-    read -r -p "Choose keyboard layout [1-$((${#common_keymaps[@]}+1))] (default: 1): " choice
-    
-    if [ -z "$choice" ]; then
-        choice=1
-    fi
-    
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#common_keymaps[@]}" ]; then
-        KEYMAP="${common_keymaps[$((choice-1))]}"
-        KEYMAP="${KEYMAP%%:*}"
-    elif [ "$choice" = "99" ]; then
-        # Manual entry
-        echo ""
-        print_info "Available keymaps (showing first 20):"
-        local available_keymaps
-        mapfile -t available_keymaps < <(find /usr/share/kbd/keymaps/ -type f -name "*.map.gz" -printf "%P\n" | sed 's|.map.gz$||' | sort | head -20)
-        
-        for i in "${!available_keymaps[@]}"; do
-            printf "  %s\n" "${available_keymaps[$i]}"
-        done
-        echo "  ... (and more)"
-        echo ""
-        
-        while true; do
-            read -r -p "Enter keymap name (e.g., us, es, fr): " KEYMAP
-            if [ -n "$KEYMAP" ] && [ -f "/usr/share/kbd/keymaps/${KEYMAP}.map.gz" ]; then
-                break
-            else
-                print_error "Keymap '$KEYMAP' not found. Please try again."
-            fi
-        done
-    else
-        print_error "Invalid choice. Using default (us)"
-        KEYMAP="us"
-    fi
-    
-    # Load the keymap
-    print_info "Loading keymap: $KEYMAP"
-    if loadkeys "$KEYMAP" 2>/dev/null; then
-        print_success "Keyboard layout set to: $KEYMAP"
-    else
-        print_error "Failed to load keymap '$KEYMAP'"
-        echo ""
-        echo "Options:"
-        echo "  1) Try a different keymap"
-        echo "  2) Continue with default (us) keymap"
-        echo "  3) Cancel installation"
-        echo ""
-        read -r -p "Choose option [1-3]: " KEYMAP_CHOICE
-        
-        case "$KEYMAP_CHOICE" in
-            1)
-                print_info "Returning to keymap selection..."
-                select_keymap
-                return  # Exit this call since select_keymap will call itself again
-                ;;
-            2)
-                print_warning "Using default keymap 'us'"
-                KEYMAP="us"
+    # Load system configuration which includes KEYMAP
+    if load_system_config; then
+        if [ -n "$KEYMAP" ]; then
+            print_info "Using keyboard layout from base installation: $KEYMAP"
+            # Validate the existing keymap
+            if [ -f "/usr/share/kbd/keymaps/${KEYMAP}.map.gz" ]; then
+                print_success "Keymap '$KEYMAP' is valid"
                 if loadkeys "$KEYMAP" 2>/dev/null; then
-                    print_success "Keyboard layout set to: $KEYMAP"
+                    print_success "Keyboard layout loaded: $KEYMAP"
                 else
-                    print_error "Even default keymap 'us' failed to load!"
-                    print_info "This is unusual and may indicate system issues"
-                    read -r -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
-                    if [[ ! $CONTINUE_ANYWAY =~ ^[Yy]$ ]]; then
-                        print_info "Installation cancelled"
-                        exit 1
-                    fi
+                    print_warning "Failed to load keymap '$KEYMAP', selecting new one..."
+                    select_keymap
                 fi
-                ;;
-            3)
-                print_info "Installation cancelled by user"
-                exit 1
-                ;;
-            *)
-                print_error "Invalid choice. Using default (us)"
-                KEYMAP="us"
-                ;;
-        esac
-    fi
-}
-
-# Check if KEYMAP is already set from installation
-if [ -n "$KEYMAP" ]; then
-    print_info "Using keyboard layout from installation: $KEYMAP"
-    # Validate the existing keymap
-    if [ -f "/usr/share/kbd/keymaps/${KEYMAP}.map.gz" ]; then
-        print_success "Keymap '$KEYMAP' is valid"
-        if loadkeys "$KEYMAP" 2>/dev/null; then
-            print_success "Keyboard layout loaded: $KEYMAP"
+            else
+                print_warning "Keymap '$KEYMAP' from base installation not found, selecting new one..."
+                select_keymap
+            fi
         else
-            print_warning "Failed to load keymap '$KEYMAP', selecting new one..."
+            print_warning "KEYMAP not found in saved configuration, selecting..."
             select_keymap
         fi
     else
-        print_warning "Keymap '$KEYMAP' from installation not found, selecting new one..."
+        print_warning "Could not load system configuration, selecting keyboard layout..."
         select_keymap
     fi
 else
-    print_warning "Keyboard layout not found in install info, selecting..."
+    print_warning "Base installation not completed, selecting keyboard layout..."
     select_keymap
 fi
 
@@ -761,7 +777,7 @@ EOF
             print_success "systemd-boot configuration files verified"
             
             # Verify all kernel entries were created
-            local missing_entries=0
+            missing_entries=0
             for kernel_pkg in "${INSTALLED_KERNELS[@]}"; do
                 kernel_name="${kernel_pkg#linux}"
                 kernel_name="${kernel_name#-}"
