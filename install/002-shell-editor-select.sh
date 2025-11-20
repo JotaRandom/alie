@@ -134,7 +134,7 @@ SELECTED_KERNELS=()  # Array of selected kernel packages
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 1: Shell Selection"
+print_step "002: STEP 1: Shell Selection"
 
 print_info "Available shells in official repositories:"
 echo ""
@@ -220,7 +220,7 @@ fi
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 3: Kernel Selection"
+print_step "002: STEP 2: Kernel Selection"
 
 print_info "Select the Linux kernels to install:"
 echo ""
@@ -277,7 +277,7 @@ echo ""
 # ===================================
 smart_clear
 show_alie_banner
-print_step "STEP 2: Text Editor Configuration"
+print_step "002: STEP 3: Text Editor Configuration"
 
 print_info "Base editors (nano and vim) are always installed."
 echo ""
@@ -363,7 +363,7 @@ fi
 # ===================================
 smart_clear
 show_alie_banner
-print_step "Installation Summary"
+print_step "002: STEP 4: Installation Summary"
 
 print_info "Shells to be installed:"
 if [ ${#SELECTED_SHELLS[@]} -eq 0 ]; then
@@ -432,7 +432,7 @@ fi
 # ===================================
 # SAVE CONFIGURATION
 # ===================================
-print_step "Saving Configuration"
+print_step "002: STEP 5: Saving Configuration"
 
 # Create configuration file for 003-system-install.sh to read
 CONFIG_FILE="/tmp/.alie-shell-editor-config"
@@ -479,7 +479,7 @@ save_progress "01b-shell-editor-selected"
 # ===================================
 smart_clear
 show_alie_banner
-print_step "*** Continuing to System Installation..."
+print_step "002: STEP 6: Continuing to System Installation..."
 
 echo ""
 print_success "Configuration complete!"

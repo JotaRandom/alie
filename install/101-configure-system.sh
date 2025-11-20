@@ -35,136 +35,6 @@ fi
 # shellcheck disable=SC1091
 source "$LIB_DIR/config-functions.sh"
 
-# Keyboard layout selection function
-select_keymap() {
-    local keymap=""
-    local keymap_file=""
-    local valid_keymap=false
-    
-    echo ""
-    print_info "Keyboard Layout Selection"
-    echo ""
-    echo "Choose your keyboard layout:"
-    echo "  ${CYAN}1)${NC} US (qwerty)"
-    echo "  ${CYAN}2)${NC} UK (qwerty)"
-    echo "  ${CYAN}3)${NC} German (qwertz)"
-    echo "  ${CYAN}4)${NC} French (azerty)"
-    echo "  ${CYAN}5)${NC} Spanish (qwerty)"
-    echo "  ${CYAN}6)${NC} Italian (qwerty)"
-    echo "  ${CYAN}7)${NC} Portuguese (qwerty)"
-    echo "  ${CYAN}8)${NC} Russian (йцукен)"
-    echo "  ${CYAN}9)${NC} Japanese"
-    echo "  ${CYAN}10)${NC} Korean"
-    echo "  ${CYAN}11)${NC} Chinese"
-    echo "  ${CYAN}12)${NC} Other (manual entry)"
-    echo ""
-    
-    while ! $valid_keymap; do
-        read -r -p "Select keyboard layout [1-12]: " KEYMAP_CHOICE
-        
-        case "$KEYMAP_CHOICE" in
-            1) keymap="us" ;;
-            2) keymap="uk" ;;
-            3) keymap="de" ;;
-            4) keymap="fr" ;;
-            5) keymap="es" ;;
-            6) keymap="it" ;;
-            7) keymap="pt" ;;
-            8) keymap="ru" ;;
-            9) keymap="jp" ;;
-            10) keymap="kr" ;;
-            11) keymap="cn" ;;
-            12)
-                echo ""
-                print_info "Manual Keyboard Layout Entry"
-                echo "Enter the keymap name (e.g., us, de, fr, es, etc.)"
-                echo "Available keymaps can be found in /usr/share/kbd/keymaps/"
-                echo ""
-                read -r -p "Enter keymap: " keymap
-                
-                # Validate manual entry
-                if [ -z "$keymap" ]; then
-                    print_error "Keymap cannot be empty"
-                    continue
-                fi
-                
-                # Check if keymap file exists
-                keymap_file="/usr/share/kbd/keymaps/${keymap}.map.gz"
-                if [ ! -f "$keymap_file" ]; then
-                    print_error "Keymap '$keymap' not found"
-                    print_info "Available keymaps (first 20):"
-                    find /usr/share/kbd/keymaps -name "*.map.gz" | head -20 | sed 's|.*/||; s|\.map\.gz||' | sort
-                    echo ""
-                    continue
-                fi
-                ;;
-            *)
-                print_error "Invalid selection. Please choose 1-12."
-                continue
-                ;;
-        esac
-        
-        # For predefined selections, validate the keymap exists
-        if [ "$KEYMAP_CHOICE" != "12" ]; then
-            keymap_file="/usr/share/kbd/keymaps/${keymap}.map.gz"
-            if [ ! -f "$keymap_file" ]; then
-                print_error "Keymap '$keymap' not found in system"
-                print_warning "This may indicate missing keymap packages"
-                print_info "Continuing anyway, but keyboard may not work correctly"
-                # Don't set valid_keymap=true here, let user try again
-                continue
-            fi
-        fi
-        
-        # Try to load the keymap to verify it works
-        print_info "Testing keymap '$keymap'..."
-        if loadkeys "$keymap" 2>/dev/null; then
-            print_success "Keymap '$keymap' loaded successfully"
-            valid_keymap=true
-            KEYMAP="$keymap"
-        else
-            print_error "Failed to load keymap '$keymap'"
-            print_info "This keymap may not be available or may be corrupted"
-            
-            # For predefined selections, offer fallback options
-            if [ "$KEYMAP_CHOICE" != "12" ]; then
-                echo ""
-                print_info "Available fallback options:"
-                case "$KEYMAP_CHOICE" in
-                    1) echo "  - us (standard US)" ;;
-                    2) echo "  - gb (Great Britain)" ;;
-                    3) echo "  - de (German)" ;;
-                    4) echo "  - fr (French)" ;;
-                    5) echo "  - es (Spanish)" ;;
-                    6) echo "  - it (Italian)" ;;
-                    7) echo "  - pt (Portuguese)" ;;
-                    8) echo "  - ru (Russian)" ;;
-                    9) echo "  - jp106 (Japanese 106-key)" ;;
-                    10) echo "  - kr104 (Korean 104-key)" ;;
-                    11) echo "  - cn (Chinese)" ;;
-                esac
-                
-                read -r -p "Try a different keymap? (y/n): " TRY_DIFFERENT
-                if [[ $TRY_DIFFERENT =~ ^[Nn]$ ]]; then
-                    print_warning "Using '$keymap' anyway (may not work correctly)"
-                    valid_keymap=true
-                    KEYMAP="$keymap"
-                fi
-            else
-                # For manual entry, always allow continuation
-                read -r -p "Use this keymap anyway? (y/n): " USE_ANYWAY
-                if [[ $USE_ANYWAY =~ ^[Yy]$ ]]; then
-                    print_warning "Using '$keymap' (may not work correctly)"
-                    valid_keymap=true
-                    KEYMAP="$keymap"
-                fi
-            fi
-        fi
-    done
-    
-    print_success "Keyboard layout set to: $KEYMAP"
-}
-
 # Add signal handling for graceful interruption
 setup_cleanup_trap
 
@@ -183,7 +53,7 @@ echo ""
 read -r -p "Press Enter to continue or Ctrl+C to exit..."
 
 # Validate environment
-print_step "STEP 1: Environment Validation"
+print_step "101: STEP 1: Environment Validation"
 
 # Verify running as root
 if ! require_root; then
@@ -217,7 +87,7 @@ smart_clear
 # ===================================
 # STEP 2: COLLECT CONFIGURATION
 # ===================================
-print_step "STEP 2: System Configuration"
+print_step "101: STEP 2: System Configuration"
 
 # Hostname
 echo ""
@@ -364,7 +234,7 @@ smart_clear
 # ===================================
 # STEP 3: BOOT CONFIGURATION
 # ===================================
-print_step "STEP 3: Boot Configuration"
+print_step "101: STEP 3: Boot Configuration"
 
 # CPU vendor (from install info or fallback to detection)
 if [ -n "$CPU_VENDOR" ]; then
@@ -517,7 +387,7 @@ smart_clear
 # ===================================
 # STEP 4: TIMEZONE CONFIGURATION
 # ===================================
-print_step "STEP 4: Configuring Timezone"
+print_step "101: STEP 4: Configuring Timezone"
 
 print_info "Setting timezone to $TIMEZONE..."
 ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
@@ -527,7 +397,7 @@ print_success "Timezone configured"
 # ===================================
 # STEP 5: LOCALE CONFIGURATION
 # ===================================
-print_step "STEP 5: Configuring Locale"
+print_step "101: STEP 5: Configuring Locale"
 
 print_info "Generating locale $LOCALE..."
 # Remove duplicates first (escape special characters in locale)
@@ -551,7 +421,7 @@ smart_clear
 # ===================================
 # STEP 6: NETWORK CONFIGURATION
 # ===================================
-print_step "STEP 6: Configuring Network"
+print_step "101: STEP 6: Configuring Network"
 
 print_info "Setting hostname to $HOSTNAME..."
 echo "$HOSTNAME" > /etc/hostname
@@ -572,7 +442,7 @@ smart_clear
 # ===================================
 # STEP 7: ROOT PASSWORD
 # ===================================
-print_step "STEP 7: Root Password"
+print_step "101: STEP 7: Root Password"
 
 print_info "Set a strong password for the root account"
 echo ""
@@ -583,7 +453,7 @@ smart_clear
 # ===================================
 # STEP 8: PACMAN CONFIGURATION
 # ===================================
-print_step "STEP 8: Configuring Package Manager"
+print_step "101: STEP 8: Configuring Package Manager"
 
 print_info "Enabling color output and multilib repository..."
 sed -i 's/#Color/Color/' /etc/pacman.conf
@@ -602,7 +472,7 @@ smart_clear
 # ===================================
 # STEP 9: BOOTLOADER INSTALLATION
 # ===================================
-print_step "STEP 9: Installing Bootloader (${BOOTLOADER:-grub})"
+print_step "101: STEP 9: Installing Bootloader (${BOOTLOADER:-grub})"
 
 # Verify microcode was installed in step 01
 if [ "$MICROCODE_INSTALLED" == "yes" ]; then
@@ -1007,7 +877,7 @@ smart_clear
 # ===================================
 # STEP 9b: CONFIGURE BOOT SYSTEM
 # ===================================
-print_step "STEP 9b: Configuring Boot System"
+print_step "101: STEP 9b: Configuring Boot System"
 
 print_info "Configuring initramfs and bootloader for $ROOT_FS filesystem..."
 
@@ -1027,7 +897,7 @@ fi
 # ===================================
 # STEP 10: AUDIO SYSTEM CONFIGURATION
 # ===================================
-print_step "STEP 10: Audio System Configuration"
+print_step "101: STEP 10: Audio System Configuration"
 
 echo ""
 print_info "Audio Server Selection"
@@ -1179,7 +1049,7 @@ esac
 # ===================================
 # STEP 11: ENABLE SERVICES
 # ===================================
-print_step "STEP 11: Enabling System Services"
+print_step "101: STEP 11: Enabling System Services"
 
 print_info "Enabling NetworkManager..."
 systemctl enable NetworkManager
@@ -1196,7 +1066,7 @@ fi
 # ===================================
 # CONFIGURATION COMPLETE
 # ===================================
-print_step "System Configuration Completed Successfully!"
+print_step "101: System Configuration Completed Successfully!"
 
 # Mark progress
 save_progress "02-system-configured"

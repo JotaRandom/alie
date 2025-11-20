@@ -133,7 +133,7 @@ echo ""
 #   - Falls back to auto-detection if config unavailable
 #   - Detects mounted partitions and filesystem types
 # ===================================
-print_step "Prerequisites Check"
+print_step "003: STEP 1: Prerequisites Check"
 
 # Check if running from live environment
 if ! grep -q "archiso" /proc/cmdline 2>/dev/null; then
@@ -241,7 +241,7 @@ read -r -p "Press Enter to continue with mirror optimization..."
 #   - HTTPS-only mirrors prevent man-in-the-middle attacks
 #   - Mirror updates ensure latest package databases
 # ===================================
-print_step "STEP 8: Optimizing Package Mirrors"
+print_step "003: STEP 2: Optimizing Package Mirrors"
 
 print_info "Installing archlinux-keyring for package verification..."
 if ! pacman -S --needed --noconfirm archlinux-keyring; then
@@ -314,7 +314,7 @@ read -r -p "Press Enter to continue with base system installation..."
 #   - -K: Initialize pacman keyring (required for new installations)
 #   - Target directory: /mnt (mounted root partition)
 # ===================================
-print_step "STEP 9: Installing Base System"
+print_step "003: STEP 3: Installing Base System"
 
 print_info "Installing essential packages..."
 echo "This will take several minutes depending on your connection..."
@@ -448,7 +448,7 @@ print_success "Base system installed!"
 # STEP 9b: CONFIGURE EDITORS (if selected)
 # ===================================
 if [ "${CONFIGURE_NANO:-false}" = "true" ] || [ "${CONFIGURE_VIM:-false}" = "true" ]; then
-    print_step "STEP 9b: Configuring Text Editors"
+    print_step "003: STEP 4: Configuring Text Editors"
     
     # Get configs directory
     CONFIGS_DIR="$(dirname "$SCRIPT_DIR")/configs"
@@ -544,7 +544,7 @@ fi
 # ===================================
 # STEP 10: GENERATE FSTAB
 # ===================================
-print_step "STEP 10: Generating fstab"
+print_step "003: STEP 5: Generating fstab"
 
 print_info "Generating filesystem table with UUIDs..."
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -556,7 +556,7 @@ cat /mnt/etc/fstab
 # ===================================
 # STEP 11: SAVE CONFIGURATION
 # ===================================
-print_step "STEP 11: Saving Installation Info"
+print_step "003: STEP 6: Saving Installation Info"
 
 # Update configuration with installation completion
 MICROCODE_INSTALLED="${MICROCODE_PKG:+yes}"
@@ -590,7 +590,7 @@ smart_clear
 # ===================================
 # SYSTEM CONFIGURATION CHOICE
 # ===================================
-print_step "STEP 12: System Configuration Method"
+print_step "003: STEP 7: System Configuration Method"
 
 echo ""
 print_info "Choose how to continue with system configuration:"
