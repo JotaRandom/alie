@@ -23,7 +23,10 @@ deploy_config() {
     template_path="$configs_dir/$template"
     
     if [ ! -f "$template_path" ]; then
-        print_error "Template not found: $template_path"
+        print_error_detailed "Template not found: $template_path" \
+            "Configuration template is required for deployment" \
+            "Check if the configs directory structure is complete" \
+            "Run: find configs/ -name '$template' -type f"
         return 1
     fi
     
@@ -81,7 +84,10 @@ deploy_config_direct() {
     local source_path="$configs_dir/$source"
     
     if [ ! -f "$source_path" ]; then
-        print_error "Configuration file not found: $source_path"
+        print_error_detailed "Configuration file not found: $source_path" \
+            "Source configuration file is required for deployment" \
+            "Verify the configs directory contains all necessary files" \
+            "Run: ls -la configs/$source"
         return 1
     fi
     
@@ -114,7 +120,10 @@ execute_config_script() {
     script_path="$configs_dir/$script"
     
     if [ ! -f "$script_path" ]; then
-        print_error "Configuration script not found: $script_path"
+        print_error_detailed "Configuration script not found: $script_path" \
+            "The requested configuration script is missing" \
+            "Check if all configuration scripts are present in the configs directory" \
+            "Run: find configs/ -name '$script' -type f -executable"
         return 1
     fi
     
@@ -129,7 +138,10 @@ execute_config_script() {
         print_success "Configuration script executed successfully"
         return 0
     else
-        print_error "Configuration script failed with exit code: $?"
+        print_error_detailed "Configuration script failed with exit code: $?" \
+            "The configuration script encountered an error during execution" \
+            "Check the script output above for specific error details" \
+            "Review the script at: $script_path"
         return 1
     fi
 }
@@ -144,7 +156,10 @@ list_configs() {
     if [ -n "$category" ]; then
         local category_dir="$configs_dir/$category"
         if [ ! -d "$category_dir" ]; then
-            print_error "Category not found: $category"
+            print_error_detailed "Category not found: $category" \
+                "The specified configuration category does not exist" \
+                "Check available categories in the configs directory" \
+                "Run: ls -la configs/"
             return 1
         fi
         
@@ -166,7 +181,10 @@ validate_sudoers() {
     local file="$1"
     
     if [ ! -f "$file" ]; then
-        print_error "File not found: $file"
+        print_error_detailed "File not found: $file" \
+            "Cannot validate sudoers configuration - file does not exist" \
+            "Ensure the sudoers file exists before validation" \
+            "Run: ls -la $file"
         return 1
     fi
     
@@ -176,7 +194,10 @@ validate_sudoers() {
         print_success "[OK] Sudoers syntax is valid"
         return 0
     else
-        print_error "[ERROR] Sudoers syntax is invalid!"
+        print_error_detailed "Sudoers syntax is invalid" \
+            "The sudoers configuration file contains syntax errors" \
+            "Invalid sudoers can prevent sudo from working, locking out administrative access" \
+            "Check syntax with: visudo -c -f $file"
         return 1
     fi
 }
@@ -187,7 +208,10 @@ validate_doas() {
     local file="$1"
     
     if [ ! -f "$file" ]; then
-        print_error "File not found: $file"
+        print_error_detailed "File not found: $file" \
+            "Cannot validate doas configuration - file does not exist" \
+            "Ensure the doas configuration file exists before validation" \
+            "Run: ls -la $file"
         return 1
     fi
     
@@ -197,7 +221,10 @@ validate_doas() {
         print_success "[OK] Doas syntax is valid"
         return 0
     else
-        print_error "[ERROR] Doas syntax is invalid!"
+        print_error_detailed "Doas syntax is invalid" \
+            "The doas configuration file contains syntax errors" \
+            "Invalid doas configuration can prevent doas from working, locking out administrative access" \
+            "Check syntax with: doas -C $file"
         return 1
     fi
 }
@@ -213,7 +240,10 @@ show_config_diff() {
     local template_path="$configs_dir/$template"
     
     if [ ! -f "$template_path" ]; then
-        print_error "Template not found: $template_path"
+        print_error_detailed "Template not found: $template_path" \
+            "Cannot compare configurations - template file is missing" \
+            "Ensure the template exists in the configs directory" \
+            "Run: find configs/ -name '$template' -type f"
         return 1
     fi
     

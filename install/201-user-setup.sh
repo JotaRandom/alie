@@ -160,7 +160,10 @@ configure_sudo_family() {
     if ! deploy_config "sudo/sudoers-user-${template_suffix}.template" \
         "$user_sudoers_file" \
         "USERNAME=$USERNAME"; then
-        print_error "Failed to deploy user sudoers configuration"
+        print_error_detailed "Failed to deploy user sudoers configuration" \
+            "The sudoers configuration template could not be processed or deployed" \
+            "This prevents the user from having proper sudo privileges" \
+            "Check template file: configs/sudo/sudoers-user-${template_suffix}.template"
         return 1
     fi
     
@@ -177,7 +180,10 @@ configure_sudo_family() {
     print_info "Deploying global sudo defaults..."
     if ! deploy_config_direct "sudo/sudoers-defaults-${template_suffix}" \
         "$sudo_config_file" "440"; then
-        print_error "Failed to deploy sudo defaults"
+        print_error_detailed "Failed to deploy sudo defaults" \
+            "The global sudo defaults configuration could not be deployed" \
+            "This may cause sudo to use less secure default settings" \
+            "Check template file: configs/sudo/sudoers-defaults-${template_suffix}"
         return 1
     fi
     
@@ -192,7 +198,10 @@ configure_sudo_family() {
             print_info "Note: sudo configured as backup for maximum compatibility"
         fi
     else
-        print_error "[ERROR] Sudoers configuration is invalid!"
+        print_error_detailed "[ERROR] Sudoers configuration is invalid!" \
+            "The generated sudoers configuration contains syntax errors" \
+            "This prevents sudo from working and could leave the system without privilege escalation" \
+            "Check sudoers syntax with: visudo -c"
         print_info "Removing invalid configurations..."
         rm -f "$user_sudoers_file" "$sudo_config_file"
         return 1
@@ -212,7 +221,10 @@ configure_doas() {
     if ! deploy_config "sudo/doas.conf.template" \
         "$doas_conf" \
         "USERNAME=$USERNAME"; then
-        print_error "Failed to deploy doas configuration"
+        print_error_detailed "Failed to deploy doas configuration" \
+            "The doas configuration template could not be processed or deployed" \
+            "This prevents the user from having proper doas privileges" \
+            "Check template file: configs/sudo/doas.conf.template"
         return 1
     fi
     
@@ -226,7 +238,10 @@ configure_doas() {
     if validate_doas "$doas_conf"; then
         print_success "[OK] doas configuration syntax is valid (modular config)"
     else
-        print_error "[ERROR] doas configuration has syntax errors!"
+        print_error_detailed "[ERROR] doas configuration has syntax errors!" \
+            "The generated doas configuration contains syntax errors" \
+            "This prevents doas from working and could leave the system without privilege escalation" \
+            "Check doas syntax manually or review the template"
         print_info "Showing configuration for debugging:"
         cat "$doas_conf"
         print_info "Removing invalid configuration..."
@@ -345,7 +360,10 @@ configure_run0() {
     
     # Verify systemd is active and has run0
     if ! command -v run0 &>/dev/null; then
-        print_error "run0 not found! This requires systemd v254+"
+        print_error_detailed "run0 not found! This requires systemd v254+" \
+            "The systemd run0 command is not available on this system" \
+            "run0 requires systemd version 254 or higher for secure privilege escalation" \
+            "Check systemd version with: systemctl --version"
         print_info "Falling back to sudo configuration..."
         PRIV_TOOL="sudo"
         configure_sudo_family
@@ -449,13 +467,19 @@ create_desktop_user() {
         
         # Validate username
         if [ -z "$USERNAME" ]; then
-            print_error "Username cannot be empty"
+            print_error_detailed "Username cannot be empty" \
+                "A username is required to create the desktop user account" \
+                "Without a username, the user setup cannot proceed" \
+                "Please enter a valid username when prompted"
             continue
         fi
         
         # Comprehensive username validation
         if ! [[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
-            print_error "Invalid username: $USERNAME"
+            print_error_detailed "Invalid username: $USERNAME" \
+                "The username does not meet system requirements for validity" \
+                "Invalid usernames can cause login issues and system problems" \
+                "Use only lowercase letters, numbers, underscores, and hyphens (max 32 chars)"
             print_info "Username requirements:"
             echo "  - Must start with a lowercase letter or underscore"
             echo "  - Can contain only lowercase letters, numbers, underscores, and hyphens"
@@ -469,7 +493,10 @@ create_desktop_user() {
         
         for reserved in "${RESERVED_USERS[@]}"; do
             if [ "$USERNAME" = "$reserved" ]; then
-                print_error "Username '$USERNAME' is reserved by the system"
+                print_error_detailed "Username '$USERNAME' is reserved by the system" \
+                    "This username is reserved for system use and cannot be used for a regular user" \
+                    "Using reserved usernames can cause conflicts and security issues" \
+                    "Choose a different username that is not in the system reserved list"
                 is_reserved=true
                 break
             fi
@@ -583,7 +610,10 @@ configure_user_shell() {
         # Configure shell-specific settings using centralized function
         configure_shell_for_user "$username" "$selected_name"
     else
-        print_error "Failed to change shell"
+        print_error_detailed "Failed to change shell" \
+            "The user's default shell could not be changed to the selected option" \
+            "The user may experience issues with shell-specific features and configuration" \
+            "Check shell availability with: chsh -l, or change manually with: chsh -s <shell>"
         return 1
     fi
 }

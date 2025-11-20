@@ -98,13 +98,18 @@ read -r -p "Enter hostname: " HOSTNAME
 
 # Validate inputs
 if [ -z "$HOSTNAME" ]; then
-    print_error "Hostname cannot be empty"
+    print_error_detailed "Hostname cannot be empty" \
+        "A hostname is required to identify your computer on the network" \
+        "Enter a valid hostname (e.g., 'arch-desktop', 'my-laptop')" \
+        "Use only letters, numbers, and hyphens. Must start/end with alphanumeric character"
     exit 1
 fi
 
 if ! [[ "$HOSTNAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; then
-    print_error "Invalid hostname. Use only letters, numbers, and hyphens"
-    print_info "Hostname must start and end with alphanumeric character"
+    print_error_detailed "Invalid hostname format: '$HOSTNAME'" \
+        "Hostname must follow RFC standards" \
+        "Use only letters, numbers, and hyphens. Cannot start or end with hyphen" \
+        "Examples: 'arch-linux', 'workstation-01', 'server'"
     exit 1
 fi
 
@@ -127,7 +132,10 @@ print_info "For a complete list, check: /usr/share/zoneinfo/"
 read -r -p "Enter timezone (e.g., America/New_York): " TIMEZONE
 
 if [ -z "$TIMEZONE" ]; then
-    print_error "Timezone cannot be empty"
+    print_error_detailed "Timezone cannot be empty" \
+        "System clock requires a valid timezone for proper timekeeping" \
+        "Choose from available timezones or use 'America/New_York' format" \
+        "Run: timedatectl list-timezones | grep -i america"
     exit 1
 fi
 
@@ -138,16 +146,18 @@ TIMEZONE="${TIMEZONE%/}"      # Remove trailing /
 
 # Validate timezone format (Region/City or Region/Subregion/City)
 if ! [[ "$TIMEZONE" =~ ^[A-Z][a-zA-Z_]+/[A-Z][a-zA-Z_]+(/[A-Z][a-zA-Z_]+)?$ ]]; then
-    print_error "Invalid timezone format: $TIMEZONE"
-    print_info "Expected format: Region/City (e.g., America/New_York)"
+    print_error_detailed "Invalid timezone format: $TIMEZONE" \
+        "Timezone must be in Region/City format (e.g., America/New_York)" \
+        "First letter of each component must be capitalized" \
+        "Run: timedatectl list-timezones | head -20"
     exit 1
 fi
 
     if [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
-    print_error "Invalid timezone '$TIMEZONE'"
-    print_info "Available regions:"
-    # List top-level region directories in /usr/share/zoneinfo safely
-    find /usr/share/zoneinfo -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null | grep -v "^[a-z]" | head -20
+    print_error_detailed "Timezone '$TIMEZONE' not found on system" \
+        "The specified timezone is not available in the zoneinfo database" \
+        "Check spelling and format. Use: timedatectl list-timezones" \
+        "Common examples: America/New_York, Europe/London, Asia/Tokyo"
     exit 1
 fi
 
@@ -168,14 +178,19 @@ read -r -p "Enter locale (default: en_US.UTF-8): " LOCALE
 LOCALE=${LOCALE:-en_US.UTF-8}
 
 if [ -z "$LOCALE" ]; then
-    print_error "Locale cannot be empty"
+    print_error_detailed "Locale cannot be empty" \
+        "System language and regional settings require a valid locale" \
+        "Choose from available locales (e.g., en_US.UTF-8, es_ES.UTF-8)" \
+        "Run: localectl list-locales | grep -i utf"
     exit 1
 fi
 
 # Sanitize locale input - must match pattern xx_YY.UTF-8 or xx_YY.utf8
 if ! [[ "$LOCALE" =~ ^[a-z]{2,3}_[A-Z]{2}\.([Uu][Tt][Ff]-?8)$ ]]; then
-    print_error "Invalid locale format: $LOCALE"
-    print_info "Expected format: xx_YY.UTF-8 (e.g., en_US.UTF-8)"
+    print_error_detailed "Invalid locale format: $LOCALE" \
+        "Locale must be in xx_YY.UTF-8 format (e.g., en_US.UTF-8, es_ES.UTF-8)" \
+        "Language code (xx) and country code (YY) required, followed by .UTF-8" \
+        "Run: localectl list-locales | head -10"
     exit 1
 fi
 
@@ -248,11 +263,17 @@ else
         CPU_VENDOR="amd"
         print_success "Detected AMD CPU"
     else
-        print_error "Could not auto-detect CPU vendor"
+        print_error_detailed "Could not auto-detect CPU vendor" \
+            "CPU vendor detection is needed for proper microcode installation" \
+            "Microcode updates are critical for security and stability" \
+            "Check /proc/cpuinfo or specify vendor manually (intel/amd)"
         read -r -p "Enter CPU vendor (intel/amd): " CPU_VENDOR
         
         if [ "$CPU_VENDOR" != "intel" ] && [ "$CPU_VENDOR" != "amd" ]; then
-            print_error "CPU vendor must be 'intel' or 'amd'"
+            print_error_detailed "CPU vendor must be 'intel' or 'amd'" \
+                "Only Intel and AMD CPUs are supported for microcode updates" \
+                "Invalid vendor selection prevents proper security updates" \
+                "Choose 'intel' for Intel processors or 'amd' for AMD processors"
             exit 1
         fi
     fi
@@ -294,7 +315,10 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
                 TARGET_DISK="/dev/$TARGET_DISK"
                 
                 if [ -z "$TARGET_DISK" ] || [ "$TARGET_DISK" = "/dev/" ]; then
-                    print_error "Disk name cannot be empty"
+                    print_error_detailed "Disk name cannot be empty" \
+                        "Bootloader installation requires a valid target disk" \
+                        "Without a target disk, the system cannot boot properly" \
+                        "Enter a valid disk path like /dev/sda or /dev/nvme0n1"
                     echo ""
                     read -r -p "Try again or exit? (t/e): " RETRY_CHOICE
                     if [[ $RETRY_CHOICE =~ ^[Ee]$ ]]; then
@@ -305,7 +329,10 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
                 fi
                 
                 if [ ! -b "$TARGET_DISK" ]; then
-                    print_error "$TARGET_DISK is not a valid block device"
+                    print_error_detailed "$TARGET_DISK is not a valid block device" \
+                        "The specified disk does not exist or is not accessible" \
+                        "Bootloader cannot be installed on non-existent hardware" \
+                        "Run: lsblk -d -o NAME,SIZE,TYPE,MODEL to see available disks"
                     print_info "Available disks:"
                     lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk | while read -r line; do
                         echo "  /dev/$(echo "$line" | awk '{print $1}')"
@@ -339,7 +366,10 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
             TARGET_DISK="/dev/$TARGET_DISK"
             
             if [ -z "$TARGET_DISK" ] || [ "$TARGET_DISK" = "/dev/" ]; then
-                print_error "Disk name cannot be empty"
+                print_error_detailed "Disk name cannot be empty" \
+                    "BIOS bootloader installation requires a valid target disk" \
+                    "Without specifying a disk, GRUB cannot be installed for BIOS boot" \
+                    "Enter a valid disk path like /dev/sda or /dev/nvme0n1"
                 echo ""
                 read -r -p "Try again or exit? (t/e): " RETRY_CHOICE
                 if [[ $RETRY_CHOICE =~ ^[Ee]$ ]]; then
@@ -350,7 +380,10 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
             fi
             
             if [ ! -b "$TARGET_DISK" ]; then
-                print_error "$TARGET_DISK is not a valid block device"
+                print_error_detailed "$TARGET_DISK is not a valid block device" \
+                    "The specified disk for BIOS bootloader does not exist" \
+                    "GRUB BIOS installation requires a valid physical disk" \
+                    "Run: lsblk -d -o NAME,SIZE,TYPE to list available disks"
                 print_info "Available disks:"
                 lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk | while read -r line; do
                     echo "  /dev/$(echo "$line" | awk '{print $1}')"
@@ -373,7 +406,10 @@ if [ "$BOOT_MODE" == "BIOS" ]; then
 else
     # UEFI mode - verify /boot is mounted
     if ! mountpoint -q /boot 2>/dev/null; then
-        print_error "/boot is not mounted!"
+        print_error_detailed "/boot is not mounted!" \
+            "UEFI installation requires EFI partition mounted at /boot" \
+            "Without /boot mounted, bootloader files cannot be installed" \
+            "Mount your EFI partition: mount /dev/efi-partition /boot"
         print_info "UEFI installation requires EFI partition mounted at /boot"
         print_info "Please mount it before continuing"
         exit 1
@@ -463,7 +499,10 @@ print_info "Synchronizing package databases..."
 if retry_command 3 "pacman -Syu --noconfirm"; then
     print_success "Package database synchronized"
 else
-    print_error "Failed to synchronize package database"
+    print_error_detailed "Failed to synchronize package database" \
+        "Package database sync is required before installing software" \
+        "Without updated package info, installations may fail or be insecure" \
+        "Check internet connection and mirror status: ping archlinux.org"
     print_warning "Continuing anyway, but you may have issues later"
 fi
 
@@ -490,7 +529,10 @@ if [ "$BOOT_MODE" != "UEFI" ] && [ -n "$ROOT_PARTITION" ]; then
     TARGET_DISK="${TARGET_DISK%%p[0-9]*}"     # Handle NVMe partitions (e.g., /dev/nvme0n1p3 -> /dev/nvme0n1)
     print_info "Target disk for BIOS bootloader: $TARGET_DISK"
 elif [ "$BOOT_MODE" != "UEFI" ]; then
-    print_error "Cannot determine target disk for BIOS bootloader installation"
+    print_error_detailed "Cannot determine target disk for BIOS bootloader installation" \
+        "ROOT_PARTITION is not set, cannot identify target disk for GRUB" \
+        "BIOS boot requires knowing which disk to install the bootloader to" \
+        "Check partitioning step or set ROOT_PARTITION manually"
     print_info "ROOT_PARTITION is not set"
     exit 1
 fi
@@ -512,7 +554,10 @@ case "${BOOTLOADER:-grub}" in
                 if grub-install --target=i386-efi --boot-directory=/boot --efi-directory=/boot/efi "$TARGET_DISK"; then
                     print_success "GRUB installed successfully (UEFI i386 mode) on $TARGET_DISK"
                 else
-                    print_error "GRUB UEFI installation failed on both x86_64 and i386 targets!"
+                    print_error_detailed "GRUB UEFI installation failed on both x86_64 and i386 targets!" \
+                        "Neither x86_64-efi nor i386-efi GRUB installation succeeded" \
+                        "System may not boot without a working bootloader" \
+                        "Check EFI partition mounting and try manual GRUB installation"
                     exit 1
                 fi
             fi
@@ -522,7 +567,10 @@ case "${BOOTLOADER:-grub}" in
             if grub-install --target=i386-pc "$TARGET_DISK"; then
                 print_success "GRUB installed successfully (BIOS mode) on $TARGET_DISK"
             else
-                print_error "GRUB BIOS installation failed!"
+                print_error_detailed "GRUB BIOS installation failed!" \
+                    "GRUB could not be installed for BIOS boot mode" \
+                    "System will not be bootable without a working bootloader" \
+                    "Verify disk is valid and try alternative bootloader (Limine)"
                 exit 1
             fi
         fi
@@ -532,7 +580,10 @@ case "${BOOTLOADER:-grub}" in
         
     "systemd-boot")
         if [ "$BOOT_MODE" != "UEFI" ]; then
-            print_error "systemd-boot requires UEFI boot mode!"
+            print_error_detailed "systemd-boot requires UEFI boot mode!" \
+                "systemd-boot only works with UEFI firmware, not legacy BIOS" \
+                "Wrong bootloader selection for current firmware type" \
+                "Use GRUB or Limine for BIOS systems, or enable UEFI in firmware"
             print_info "Please select GRUB or Limine for BIOS systems"
             exit 1
         fi
@@ -541,7 +592,10 @@ case "${BOOTLOADER:-grub}" in
         if bootctl install; then
             print_success "systemd-boot installed successfully"
         else
-            print_error "systemd-boot installation failed!"
+            print_error_detailed "systemd-boot installation failed!" \
+                "bootctl install command did not succeed" \
+                "UEFI bootloader installation failed, system may not boot" \
+                "Check EFI partition and try alternative bootloader (GRUB)"
             exit 1
         fi
         
@@ -668,7 +722,10 @@ EOF
                 print_warning "$missing_entries kernel boot entries missing"
             fi
         else
-            print_error "systemd-boot configuration files missing!"
+            print_error_detailed "systemd-boot configuration files missing!" \
+                "Required boot configuration files were not created" \
+                "System will not boot without proper systemd-boot configuration" \
+                "Check /boot/loader/ directory and recreate configuration manually"
             exit 1
         fi
         ;;
@@ -692,7 +749,10 @@ EOF
                     if efibootmgr --create --disk "$ESP_DISK" --part "$ESP_PARTITION" --label "Arch Linux Limine" --loader '\EFI\BOOT\BOOTX64.EFI' --unicode; then
                         print_success "UEFI boot entry created for Limine"
                     else
-                        print_error "Failed to create UEFI boot entry!"
+                        print_error_detailed "Failed to create UEFI boot entry!" \
+                            "efibootmgr could not add Limine to UEFI boot manager" \
+                            "System may not boot automatically into Limine" \
+                            "Boot entry may need to be created manually in firmware"
                         print_warning "You may need to create the boot entry manually after installation"
                     fi
                 else
@@ -700,7 +760,10 @@ EOF
                     print_info "Limine files are installed, but you may need to create NVRAM entry manually"
                 fi
             else
-                print_error "Limine installation failed!"
+                print_error_detailed "Limine installation failed!" \
+                    "limine-install command did not succeed for UEFI" \
+                    "UEFI bootloader installation failed, system may not boot" \
+                    "Check EFI partition mounting and try alternative bootloader"
                 exit 1
             fi
         else
@@ -716,11 +779,17 @@ EOF
                 if limine bios-install "$TARGET_DISK"; then
                     print_success "Limine BIOS bootloader installed to $TARGET_DISK"
                 else
-                    print_error "Limine BIOS installation failed!"
+                    print_error_detailed "Limine BIOS installation failed!" \
+                        "limine bios-install command did not succeed" \
+                        "BIOS bootloader installation failed, system may not boot" \
+                        "Verify target disk and try alternative bootloader (GRUB)"
                     exit 1
                 fi
             else
-                print_error "Failed to copy limine-bios.sys!"
+                print_error_detailed "Failed to copy limine-bios.sys!" \
+                    "BIOS bootloader file could not be copied to /boot" \
+                    "Without this file, Limine BIOS installation cannot proceed" \
+                    "Check if limine package is installed: pacman -Q limine"
                 exit 1
             fi
         fi
@@ -860,13 +929,19 @@ EOF
         if [ -f "$LIMINE_CONF_PATH" ]; then
             print_success "Limine configuration file verified at $LIMINE_CONF_PATH"
         else
-            print_error "Limine configuration file missing!"
+            print_error_detailed "Limine configuration file missing!" \
+                "limine.conf was not created in the expected location" \
+                "System will not boot without proper Limine configuration" \
+                "Check configuration file creation and recreate manually if needed"
             exit 1
         fi
         ;;
         
     *)
-        print_error "Unknown bootloader: ${BOOTLOADER:-grub}"
+        print_error_detailed "Unknown bootloader: ${BOOTLOADER:-grub}" \
+            "The specified bootloader is not supported by ALIE" \
+            "Unsupported bootloader prevents system boot configuration" \
+            "Use 'grub', 'systemd-boot', or 'limine' instead"
         print_info "Supported bootloaders: grub, systemd-boot, limine"
         exit 1
         ;;
@@ -885,7 +960,10 @@ print_info "Configuring initramfs and bootloader for $ROOT_FS filesystem..."
 if configure_boot_system; then
     print_success "Boot system configured successfully"
 else
-    print_error "Failed to configure boot system!"
+    print_error_detailed "Failed to configure boot system!" \
+        "Boot system configuration (initramfs + bootloader) did not complete" \
+        "System may not boot correctly without proper configuration" \
+        "Check mkinitcpio.conf and GRUB configuration manually"
     print_warning "The system may not boot correctly without proper initramfs configuration"
     print_info "You may need to manually configure mkinitcpio.conf and regenerate initramfs"
     read -r -p "Continue anyway? (y/N): " CONTINUE_BOOT_CONFIG
@@ -930,7 +1008,10 @@ case "$AUDIO_SERVER" in
             deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
             print_success "PipeWire configurations deployed"
         else
-            print_error "Failed to install PipeWire"
+            print_error_detailed "Failed to install PipeWire" \
+                "PipeWire audio system installation failed, preventing audio configuration" \
+                "Check package database and network connectivity for package installation" \
+                "pacman -Syu; pacman -S pipewire pipewire-alsa wireplumber"
             exit 1
         fi
         ;;
@@ -944,12 +1025,18 @@ case "$AUDIO_SERVER" in
             deploy_config_direct "audio/asound.conf" "/etc/asound.conf" "644"
             print_success "ALSA configuration deployed"
         else
-            print_error "Failed to install PulseAudio"
+            print_error_detailed "Failed to install PulseAudio" \
+                "PulseAudio audio system installation failed, preventing audio configuration" \
+                "Check package database and network connectivity for package installation" \
+                "pacman -Syu; pacman -S pulseaudio pulseaudio-alsa"
             exit 1
         fi
         ;;
     *)
-        print_error "Invalid selection"
+        print_error_detailed "Invalid selection" \
+            "The selected audio system option is not valid" \
+            "Choose 1 for PipeWire (recommended) or 2 for PulseAudio" \
+            "echo 'Available options: 1) PipeWire, 2) PulseAudio'"
         exit 1
         ;;
 esac
@@ -1041,7 +1128,10 @@ case "$GST_OPTION" in
         print_info "Skipping GStreamer plugins"
         ;;
     *)
-        print_error "Invalid selection"
+        print_error_detailed "Invalid selection" \
+            "The selected GStreamer option is not valid" \
+            "Choose 1-5 for GStreamer plugin installation options" \
+            "echo 'Available options: 1) Full, 2) Essential, 3) Minimal, 4) Custom, 5) Skip'"
         exit 1
         ;;
 esac

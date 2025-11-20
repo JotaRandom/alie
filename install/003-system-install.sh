@@ -9,7 +9,7 @@
 #   Final step in the 3-phase installation sequence
 #
 # ARCHITECTURAL ROLE:
-#   - Third and final script in the installation sequence (001 → 002 → 003)
+#   - Third and final script in the installation sequence (001 -> 002 -> 003)
 #   - Executes pacstrap to install base system into mounted partitions
 #   - Configures system files (fstab, editor configs) for the new installation
 #   - Prepares system for chroot-based configuration and bootloader setup
@@ -137,15 +137,19 @@ print_step "003: STEP 1: Prerequisites Check"
 
 # Check if running from live environment
 if ! grep -q "archiso" /proc/cmdline 2>/dev/null; then
-    print_error "This script should be run from the Arch Linux installation media"
+    print_error_detailed "This script should be run from the Arch Linux installation media" \
+        "The system installation script requires the live environment for package installation" \
+        "Running from an installed system would overwrite the running OS" \
+        "Boot from Arch Linux installation media and run this script"
     exit 1
 fi
 
 # Check if root partition is mounted
 if ! mountpoint -q /mnt 2>/dev/null; then
-    print_error "Root partition not mounted at /mnt"
-    print_info "Please run 001-base-install.sh first to partition and mount the system"
-    print_info "Or manually mount your partitions and run this script again"
+    print_error_detailed "Root partition not mounted at /mnt" \
+        "The system installation requires the target root partition to be mounted" \
+        "This script installs packages to the mounted filesystem at /mnt" \
+        "Run 001-base-install.sh first to partition and mount, or manually mount partitions"
     exit 1
 fi
 
@@ -245,16 +249,20 @@ print_step "003: STEP 2: Optimizing Package Mirrors"
 
 print_info "Installing archlinux-keyring for package verification..."
 if ! pacman -S --needed --noconfirm archlinux-keyring; then
-    print_error "Failed to install archlinux-keyring"
-    print_warning "Package verification may fail..."
+    print_error_detailed "Failed to install archlinux-keyring" \
+        "Package verification keys are required for secure package installation" \
+        "Without proper keys, package signature verification will fail" \
+        "Check network connection and try: pacman -S --needed archlinux-keyring"
 else
     print_success "archlinux-keyring installed"
 fi
 
 print_info "Installing reflector..."
 if ! pacman -S --needed --noconfirm reflector; then
-    print_error "Failed to install reflector"
-    print_warning "Continuing with default mirrorlist..."
+    print_error_detailed "Failed to install reflector" \
+        "Mirror optimization is required for reliable package downloads" \
+        "Slow or unreliable mirrors can cause installation timeouts and failures" \
+        "Check network connection and try: pacman -S --needed reflector"
 else
     print_info "Fetching fastest mirrors (this may take a minute)..."
     echo "Using automatic country detection and selecting 20 fastest HTTPS mirrors..."
@@ -392,8 +400,10 @@ AVAILABLE_SPACE_MB=$(df -BM /mnt | awk 'NR==2 {print $4}' | sed 's/M//')
 print_info "Available space on /mnt: ${AVAILABLE_SPACE_MB} MB"
 
 if [ "$AVAILABLE_SPACE_MB" -lt 2048 ]; then
-    print_error "Insufficient space on /mnt! Need at least 2GB, have ${AVAILABLE_SPACE_MB}MB"
-    print_error "Installation cannot proceed"
+    print_error_detailed "Insufficient space on /mnt! Need at least 2GB, have ${AVAILABLE_SPACE_MB}MB" \
+        "Base system installation requires minimum 2GB for essential packages" \
+        "Smaller partitions will fail during package installation phase" \
+        "Increase partition size or choose a different disk with more space"
     exit 1
 elif [ "$AVAILABLE_SPACE_MB" -lt 5120 ]; then
     smart_clear
@@ -416,12 +426,10 @@ set -e
 
 if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
     smart_clear
-    print_error "pacstrap failed with exit code $PACSTRAP_EXIT_CODE"
-    print_info "This could be due to:"
-    echo "  - Network connectivity issues"
-    echo "  - Mirror problems"
-    echo "  - Insufficient disk space"
-    echo "  - Package signing errors"
+    print_error_detailed "pacstrap failed with exit code $PACSTRAP_EXIT_CODE" \
+        "Package installation failed during base system setup" \
+        "This could be due to network issues, mirror problems, or disk space" \
+        "Check network connection, available space, and mirror status"
     echo ""
     read -r -p "Retry pacstrap? (Y/n): " RETRY_PACSTRAP
     
@@ -433,11 +441,17 @@ if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
         set -e
         
         if [ $PACSTRAP_EXIT_CODE -ne 0 ]; then
-            print_error "pacstrap failed again. Cannot continue."
+            print_error_detailed "pacstrap failed again. Cannot continue." \
+                "Base system installation has failed permanently" \
+                "The target system cannot be created without successful package installation" \
+                "Check network, mirrors, and disk space before retrying the entire installation"
             exit 1
         fi
     else
-        print_error "Installation cancelled by user"
+        print_error_detailed "Installation cancelled by user" \
+            "Base system installation was aborted at user request" \
+            "The target partitions may contain partial installation that should be cleaned" \
+            "Re-run the installation script to start fresh or manually clean partitions"
         exit 1
     fi
 fi
@@ -617,7 +631,10 @@ case "$CONFIG_METHOD" in
         if cp -r "$(dirname "$SCRIPT_DIR")" /mnt/root/alie-scripts; then
             print_success "Scripts copied successfully"
         else
-            print_error "Failed to copy scripts"
+            print_error_detailed "Failed to copy scripts" \
+                "ALIE scripts are required for automatic system configuration" \
+                "Without the scripts, chroot configuration cannot proceed automatically" \
+                "Check disk space and permissions, or use manual configuration method"
             print_warning "Falling back to manual configuration"
             CONFIG_METHOD="2"
         fi
@@ -643,7 +660,10 @@ case "$CONFIG_METHOD" in
                 echo ""
                 print_warning "Remember to remove the installation media before rebooting!"
             else
-                print_error "System configuration failed!"
+                print_error_detailed "System configuration failed!" \
+                    "Automatic system configuration in chroot environment failed" \
+                    "Timezone, locale, hostname, or bootloader configuration was not completed" \
+                    "Use manual configuration method or check chroot environment"
                 print_warning "Falling back to manual configuration instructions"
                 CONFIG_METHOD="2"
             fi
@@ -655,7 +675,10 @@ case "$CONFIG_METHOD" in
         ;;
         
     *)
-        print_error "Invalid selection, defaulting to manual configuration"
+        print_error_detailed "Invalid selection, defaulting to manual configuration" \
+            "Configuration method selection requires a valid numeric choice" \
+            "Manual configuration provides more control but requires manual commands" \
+            "Choose option 1 for automatic or 2 for manual configuration method"
         CONFIG_METHOD="2"
         ;;
 esac

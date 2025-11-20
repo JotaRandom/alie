@@ -3,15 +3,15 @@
 # Ensures all .sh files have execute permissions
 # Run this script to verify and fix permissions if needed
 
-set -e
+set -eou pipefail
 
-echo "🔍 Checking execute permissions on shell scripts..."
+echo "[INFO] Checking execute permissions on shell scripts..."
 
 # Get list of all .sh files in the repository
 sh_files=$(git ls-files "*.sh")
 
 if [ -z "$sh_files" ]; then
-    echo "✅ No .sh files found to check"
+    echo "[OK] No .sh files found to check"
     exit 0
 fi
 
@@ -26,20 +26,20 @@ for file in $sh_files; do
 done
 
 if [ -n "$needs_fix" ]; then
-    echo "⚠️  Found .sh files without execute permissions:"
+    echo "[WARNING] Found .sh files without execute permissions:"
     for file in $needs_fix; do
         perms=$(git ls-files --stage "$file" | awk '{print $1}')
         echo "   $file (current perms: $perms)"
     done
     echo ""
-    echo "🔧 Fixing permissions..."
+    echo "[FIX] Fixing permissions..."
     for file in $needs_fix; do
         git update-index --chmod=+x "$file"
-        echo "   ✅ Fixed: $file"
+        echo "   [OK] Fixed: $file"
     done
     echo ""
-    echo "📝 Remember to commit these permission changes:"
+    echo "[NOTE] Remember to commit these permission changes:"
     echo "   git commit -m \"Fix execute permissions on shell scripts\""
 else
-    echo "✅ All shell scripts have correct execute permissions"
+    echo "[OK] All shell scripts have correct execute permissions"
 fi

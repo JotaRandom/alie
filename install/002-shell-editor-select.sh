@@ -9,7 +9,7 @@
 #   Optional step that can be skipped for minimal installations
 #
 # ARCHITECTURAL ROLE:
-#   - Second script in the 3-phase installation sequence (001 → 002 → 003)
+#   - Second script in the 3-phase installation sequence (001 -> 002 -> 003)
 #   - Enhances user experience with preferred tools and configurations
 #   - Configures editors with syntax highlighting and modern features
 #   - Prepares configuration for the base system installation
@@ -493,7 +493,9 @@ if [ -f "$SCRIPT_DIR/003-system-install.sh" ]; then
     echo ""
     bash "$SCRIPT_DIR/003-system-install.sh"
 else
-    print_error "003-system-install.sh not found in $SCRIPT_DIR"
-    print_info "Please run it manually: bash install/003-system-install.sh"
+    print_error_detailed "003-system-install.sh not found in $SCRIPT_DIR" \
+        "System installation script is required to continue the installation process" \
+        "This script performs the actual base system installation with pacstrap" \
+        "Ensure all ALIE scripts are present: ls -la install/"
     exit 1
 fi

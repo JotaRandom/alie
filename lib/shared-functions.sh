@@ -151,8 +151,34 @@ print_warning() {
 
 # Print error message in red (to stderr)
 # Usage: print_error "Failed to mount partition"
+# DEPRECATED: Use print_error_detailed() instead for comprehensive error reporting
+# TODO: Remove this function in future version - currently kept for legacy compatibility
 print_error() {
     echo -e "${RED}[ERROR] ${NC}$1" >&2
+}
+
+# Print descriptive error with context and suggestions
+# Usage: print_error_detailed "Failed to mount partition" "Check if partition exists" "Try: lsblk" "Or: fdisk -l"
+# RECOMMENDED: Use this function for all new error reporting - provides context, suggestions, and commands
+print_error_detailed() {
+    local error_msg="$1"
+    local context="${2:-}"
+    local suggestion="${3:-}"
+    local command_hint="${4:-}"
+
+    echo -e "${RED}[ERROR] ${NC}$error_msg" >&2
+
+    if [ -n "$context" ]; then
+        echo -e "${YELLOW}[CONTEXT] ${NC}$context" >&2
+    fi
+
+    if [ -n "$suggestion" ]; then
+        echo -e "${CYAN}[SUGGESTION] ${NC}$suggestion" >&2
+    fi
+
+    if [ -n "$command_hint" ]; then
+        echo -e "${GREEN}[TRY] ${NC}$command_hint" >&2
+    fi
 }
 
 # Print step header with decorative line
@@ -200,7 +226,10 @@ retry_command() {
                 sleep "$wait_time"
                 attempt=$((attempt + 1))
             else
-                print_error "Command failed after $max_attempts attempts"
+                print_error_detailed "Command failed after $max_attempts attempts" \
+                    "The command did not succeed despite multiple retry attempts" \
+                    "Check system logs and network connectivity if applicable" \
+                    "Verify command syntax and required dependencies are installed"
                 return 1
             fi
         fi
@@ -230,8 +259,14 @@ wait_for_operation() {
         elapsed=$((elapsed + interval))
     done
 
-    print_error "Operation timed out after ${timeout}s"
-    print_error "Check command was: $check_command"
+    print_error_detailed "Operation timed out after ${timeout}s" \
+        "The expected operation did not complete within the specified time limit" \
+        "This may indicate network issues, service problems, or system overload" \
+        "Check system logs and verify the operation can complete successfully"
+    print_error_detailed "Check command was: $check_command" \
+        "This was the command used to verify operation completion" \
+        "Run this command manually to debug the issue" \
+        "Ensure all required services and dependencies are running"
     return 1
 }
 
@@ -250,7 +285,10 @@ verify_chroot() {
 
     # Method 1: Check if root is mounted (most reliable)
     if ! grep -qs '/proc' /proc/mounts; then
-        print_error "Not running in chroot environment!"
+        print_error_detailed "Not running in chroot environment!" \
+            "This script requires chroot context to modify the installed system safely" \
+            "Chroot provides isolation and prevents accidental changes to the host system" \
+            "Run: arch-chroot /mnt /bin/bash, then execute this script from within chroot"
         print_info "This script must be run from within arch-chroot"
         return 1
     fi
@@ -272,7 +310,10 @@ verify_chroot() {
     read -r -p "Continue anyway? (y/N): " CONTINUE
 
     if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
-        print_error "Aborted by user"
+        print_error_detailed "Aborted by user" \
+            "User chose not to continue when chroot environment verification was uncertain" \
+            "This prevents potential system corruption from running scripts in wrong context" \
+            "Ensure you're running from within arch-chroot before proceeding"
         return 1
     fi
 
@@ -284,7 +325,10 @@ verify_chroot() {
 # Returns 0 if root, exits script with error if not root
 require_root() {
     if [ "$EUID" -ne 0 ]; then
-        print_error "This script must be run as root!"
+        print_error_detailed "This script must be run as root!" \
+            "System installation and partitioning require root privileges" \
+            "These operations modify disk partitions and system files that need elevated access" \
+            "Run: sudo bash $0"
         print_info "Please run with: sudo bash $0"
         exit 1
     fi
@@ -295,7 +339,10 @@ require_root() {
 # Returns 0 if non-root, exits script with error if root
 require_non_root() {
     if [ "$EUID" -eq 0 ]; then
-        print_error "Do not run this script as root!"
+        print_error_detailed "Do not run this script as root!" \
+            "This script is designed for regular user configuration and should not run as root" \
+            "Running as root could modify system files inappropriately or create security issues" \
+            "Run: bash $0 (as your regular user, not with sudo)"
         print_info "Run as your regular user: bash $0"
         exit 1
     fi
@@ -304,7 +351,10 @@ require_non_root() {
 # Verify system is Arch Linux - exits if not
 verify_arch_linux() {
     if [ ! -f /etc/arch-release ]; then
-        print_error "This doesn't appear to be an Arch Linux system"
+        print_error_detailed "This doesn't appear to be an Arch Linux system" \
+            "This script is specifically designed for Arch Linux and its derivatives" \
+            "Running on other distributions may cause compatibility issues or system damage" \
+            "Verify you're running on Arch Linux or a compatible derivative"
         print_info "This script is designed for Arch Linux only"
         exit 1
     fi
@@ -314,7 +364,10 @@ verify_arch_linux() {
 verify_not_chroot() {
     # Compare device numbers of / and /proc/1/root/.
     if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] 2>/dev/null; then
-        print_error "This script should not be run in chroot"
+        print_error_detailed "This script should not be run in chroot" \
+            "This script is for post-installation configuration on the running system" \
+            "Running in chroot would configure the wrong system or cause conflicts" \
+            "Exit chroot and boot into the installed system first"
         print_info "Exit chroot and boot into the installed system first"
         exit 1
     fi
@@ -323,7 +376,10 @@ verify_not_chroot() {
 # Verify internet connectivity - exits if no internet
 verify_internet() {
     if ! check_internet; then
-        print_error "No internet connection detected"
+        print_error_detailed "No internet connection detected" \
+            "Internet connection is required for package downloads and system updates" \
+            "Installation cannot proceed without network access to Arch Linux repositories" \
+            "Check network cables, WiFi connection, or run: ping -c 3 archlinux.org"
         print_info "Internet connection is required to continue"
         exit 1
     fi
@@ -337,23 +393,29 @@ require_desktop_user() {
         load_install_info
     fi
     
-    # Validate DESKTOP_USER exists in config
     if [ -z "${DESKTOP_USER:-}" ]; then
-        print_error "DESKTOP_USER not found in install info"
-        print_info "This script requires the desktop installation to be completed first"
+        print_error_detailed "DESKTOP_USER not found in install info" \
+            "This script requires the desktop installation to be completed first" \
+            "Run the user setup scripts (201-user-setup.sh) before this script" \
+            "Check: cat /root/.alie-install-info | grep DESKTOP_USER"
         exit 1
     fi
     
     # Verify user exists on system
     if ! id "$DESKTOP_USER" &>/dev/null; then
-        print_error "User '$DESKTOP_USER' does not exist on this system"
+        print_error_detailed "User '$DESKTOP_USER' does not exist on this system" \
+            "The specified desktop user was not found in the user database" \
+            "Create the user first or check the DESKTOP_USER variable" \
+            "Run: useradd -m -G wheel $DESKTOP_USER && passwd $DESKTOP_USER"
         exit 1
     fi
     
     # Verify we're running as the desktop user
     if [ "$USER" != "$DESKTOP_USER" ]; then
-        print_error "This script must be run as user '$DESKTOP_USER'"
-        print_info "Please run: su - $DESKTOP_USER -c 'bash $0'"
+        print_error_detailed "This script must be run as user '$DESKTOP_USER'" \
+            "Currently running as: $USER" \
+            "Switch to the correct user before running this script" \
+            "Run: su - $DESKTOP_USER -c 'bash $0'"
         exit 1
     fi
     
@@ -691,8 +753,14 @@ wait_for_internet() {
                 sleep 3
                 attempt=$((attempt + 1))
             else
-                print_error "Could not establish internet connection after $max_attempts attempts"
-                print_error "Please check your network configuration"
+                print_error_detailed "Could not establish internet connection after $max_attempts attempts" \
+                    "Network connectivity could not be established despite multiple attempts" \
+                    "This prevents package installation and system updates from proceeding" \
+                    "Check network configuration, cables, or WiFi settings"
+                print_error_detailed "Please check your network configuration" \
+                    "Verify network interface is up, IP address is assigned, and DNS is working" \
+                    "Common solutions: check cables, restart network service, or configure WiFi" \
+                    "Run: ip addr show, ping 8.8.8.8, or nmtui for network configuration"
                 return 1
             fi
         fi
@@ -740,7 +808,10 @@ safe_unmount() {
                 print_success "Force unmounted $mount_point"
                 return 0
             else
-                print_error "Failed to unmount $mount_point"
+                print_error_detailed "Failed to unmount $mount_point" \
+                    "The filesystem could not be unmounted gracefully or forcefully" \
+                    "This may leave the system in an inconsistent state or prevent further operations" \
+                    "Check if processes are using files on this mount point with: lsof $mount_point"
                 return 1
             fi
         fi
@@ -770,7 +841,11 @@ install_packages() {
         print_success "Packages installed successfully"
         return 0
     else
-        print_error "Failed to install packages: ${packages[*]}"
+        print_error_detailed \
+            "Failed to install packages: ${packages[*]}" \
+            "Package installation failed after multiple retry attempts, preventing system setup completion." \
+            "Check network connectivity, package repository status, and disk space." \
+            "run_privileged 'pacman -Syu --needed ${packages[*]}' or check: run_privileged 'pacman -Ss ${packages[*]}'"
         return 1
     fi
 }
@@ -787,7 +862,11 @@ update_package_db() {
         print_success "Package database updated"
         return 0
     else
-        print_error "Failed to update package database"
+        print_error_detailed \
+            "Failed to update package database" \
+            "Package database update failed, preventing access to latest package information and security updates." \
+            "Check internet connection and mirror status." \
+            "run_privileged 'pacman -Syy' or check mirrors: run_privileged 'pacman-mirrors --fasttrack'"
         return 1
     fi
 }
@@ -1121,7 +1200,11 @@ change_user_shell() {
     shell_path=$(get_shell_path "$shell_name")
     
     if [ -z "$shell_path" ]; then
-        print_error "Unknown shell: $shell_name"
+        print_error_detailed \
+            "Unknown shell: $shell_name" \
+            "The specified shell is not supported by the system." \
+            "Choose from supported shells (bash, zsh, fish, dash, tcsh, ksh, nushell)." \
+            "echo 'Supported shells: bash zsh fish dash tcsh ksh nushell'"
         return 1
     fi
     
@@ -1131,7 +1214,11 @@ change_user_shell() {
         print_success "Shell changed to: $shell_path"
         return 0
     else
-        print_error "Failed to change shell for $username"
+        print_error_detailed \
+            "Failed to change shell for $username" \
+            "Could not set the user's default shell, affecting login environment." \
+            "Check user exists and shell is installed." \
+            "id $username && which $shell_path && chsh -s $shell_path $username"
         return 1
     fi
 }
@@ -1201,7 +1288,11 @@ ensure_packages_installed() {
         print_success "Packages installed successfully"
         return 0
     else
-        print_error "Failed to install packages: ${packages_to_install[*]}"
+        print_error_detailed \
+            "Failed to install packages: ${packages_to_install[*]}" \
+            "Required packages could not be installed, preventing system functionality." \
+            "Check package names and repository availability." \
+            "run_privileged 'pacman -Ss ${packages_to_install[*]}' or run_privileged 'pacman -Syu'"
         return 1
     fi
 }
@@ -1288,7 +1379,11 @@ aur_install() {
     helper=$(get_aur_helper)
 
     if [ -z "$helper" ]; then
-        print_error "No AUR helper available"
+        print_error_detailed \
+            "No AUR helper available" \
+            "Cannot install AUR packages without a package manager (yay, paru, or pacman)." \
+            "Install an AUR helper first or use pacman for official repositories only." \
+            "run_privileged 'pacman -S yay' or run_privileged 'pacman -S paru'"
         return 1
     fi
 
@@ -1305,7 +1400,11 @@ aur_install() {
             sudo pacman -S --needed --noconfirm "${packages[@]}"
             ;;
         *)
-            print_error "Unknown package manager: $helper"
+            print_error_detailed \
+                "Unknown package manager: $helper" \
+                "The detected AUR helper is not supported by this system." \
+                "Install a supported AUR helper (yay, paru) or use pacman." \
+                "run_privileged 'pacman -S yay' or run_privileged 'pacman -S paru'"
             return 1
             ;;
     esac
@@ -1321,7 +1420,11 @@ aur_update() {
     helper=$(get_aur_helper)
 
     if [ -z "$helper" ]; then
-        print_error "No AUR helper available"
+        print_error_detailed \
+            "No AUR helper available" \
+            "Cannot update system without a package manager (yay, paru, or pacman)." \
+            "Install an AUR helper first or use pacman for official repositories only." \
+            "run_privileged 'pacman -S yay' or run_privileged 'pacman -S paru'"
         return 1
     fi
 
@@ -1338,7 +1441,11 @@ aur_update() {
             sudo pacman -Syu --noconfirm
             ;;
         *)
-            print_error "Unknown package manager: $helper"
+            print_error_detailed \
+                "Unknown package manager: $helper" \
+                "The detected AUR helper is not supported by this system." \
+                "Install a supported AUR helper (yay, paru) or use pacman." \
+                "run_privileged 'pacman -S yay' or run_privileged 'pacman -S paru'"
             return 1
             ;;
     esac
@@ -1355,7 +1462,11 @@ aur_search() {
     helper=$(get_aur_helper)
 
     if [ -z "$helper" ]; then
-        print_error "No AUR helper available"
+        print_error_detailed \
+            "No AUR helper available" \
+            "Cannot search packages without a package manager (yay, paru, or pacman)." \
+            "Install an AUR helper first or use pacman for official repositories only." \
+            "run_privileged 'pacman -S yay' or run_privileged 'pacman -S paru'"
         return 1
     fi
 
@@ -1373,7 +1484,11 @@ aur_search() {
             pacman -Ss "$search_term"
             ;;
         *)
-            print_error "Unknown package manager: $helper"
+            print_error_detailed \
+                "Unknown package manager: $helper" \
+                "The detected AUR helper is not supported by this system." \
+                "Install a supported AUR helper (yay, paru) or use pacman." \
+                "run_privileged 'pacman -S yay' or run_privileged 'pacman -S paru'"
             return 1
             ;;
     esac
@@ -1400,7 +1515,11 @@ aur_install_with_retry() {
         print_info "Installing: $package"
         
         if ! aur_install "$package"; then
-            print_error "Failed to install: $package"
+            print_error_detailed \
+                "Failed to install: $package" \
+                "Individual package installation failed during retry attempt." \
+                "Check package availability and dependencies." \
+                "run_privileged 'pacman -Ss $package' or run_privileged 'pacman -Si $package'"
             failed_packages+=("$package")
             ((failed_count++))
         else
@@ -1416,8 +1535,16 @@ aur_install_with_retry() {
         print_warning "Failed packages: ${failed_packages[*]}"
         return 2  # Partial success
     else
-        print_error "All packages failed to install"
-        print_error "Failed packages: ${failed_packages[*]}"
+        print_error_detailed \
+            "All packages failed to install" \
+            "No packages could be installed despite retry attempts." \
+            "Check network, repositories, and package availability." \
+            "run_privileged 'pacman -Syu' or check: run_privileged 'pacman -Ss ${packages[*]}'"
+        print_error_detailed \
+            "Failed packages: ${failed_packages[*]}" \
+            "These packages could not be installed from any source." \
+            "Verify package names and check AUR repository status." \
+            "run_privileged 'pacman -Ss ${failed_packages[*]}' or visit: https://aur.archlinux.org/"
         return 1
     fi
 }
@@ -1788,7 +1915,11 @@ configure_dracut() {
     local dracut_conf="/etc/dracut.conf"
     
     if [ ! -f "$dracut_conf" ]; then
-        print_error "dracut.conf not found at $dracut_conf"
+        print_error_detailed \
+            "dracut.conf not found at $dracut_conf" \
+            "Cannot configure initramfs without dracut configuration file." \
+            "Ensure dracut is installed and configuration file exists." \
+            "run_privileged 'pacman -S dracut' or check: ls -la $dracut_conf"
         return 1
     fi
     
@@ -1823,7 +1954,11 @@ configure_dracut() {
     if dracut --regenerate-all --force; then
         print_success "Initramfs regenerated successfully with dracut"
     else
-        print_error "Failed to regenerate initramfs with dracut"
+        print_error_detailed \
+            "Failed to regenerate initramfs with dracut" \
+            "Initramfs regeneration failed, preventing proper system boot." \
+            "Check dracut configuration and filesystem modules." \
+            "run_privileged 'dracut --regenerate-all --force' or check: run_privileged 'journalctl -xe' for details"
         return 1
     fi
 }
@@ -1835,7 +1970,11 @@ configure_mkinitcpio() {
     local mkinitcpio_conf="/etc/mkinitcpio.conf"
     
     if [ ! -f "$mkinitcpio_conf" ]; then
-        print_error "mkinitcpio.conf not found at $mkinitcpio_conf"
+        print_error_detailed \
+            "mkinitcpio.conf not found at $mkinitcpio_conf" \
+            "Cannot configure initramfs without mkinitcpio configuration file." \
+            "Ensure mkinitcpio is installed and configuration file exists." \
+            "run_privileged 'pacman -S mkinitcpio' or check: ls -la $mkinitcpio_conf"
         return 1
     fi
     
@@ -1850,7 +1989,11 @@ configure_mkinitcpio() {
     
     # Add filesystem modules to MODULES array if not already present
     if ! grep -q "^MODULES=" "$mkinitcpio_conf"; then
-        print_error "MODULES line not found in mkinitcpio.conf"
+        print_error_detailed \
+            "MODULES line not found in mkinitcpio.conf" \
+            "Cannot configure initramfs modules without proper configuration file structure." \
+            "Ensure mkinitcpio.conf is valid or reinstall mkinitcpio package." \
+            "run_privileged 'pacman -S mkinitcpio' or check: grep -n 'MODULES' $mkinitcpio_conf"
         return 1
     fi
     
@@ -1868,7 +2011,11 @@ configure_mkinitcpio() {
     if mkinitcpio -P; then
         print_success "Initramfs regenerated successfully"
     else
-        print_error "Failed to regenerate initramfs"
+        print_error_detailed \
+            "Failed to regenerate initramfs" \
+            "Initramfs regeneration failed, preventing proper system boot." \
+            "Check filesystem modules and mkinitcpio configuration." \
+            "run_privileged 'mkinitcpio -P' or check: run_privileged 'journalctl -xe' for details"
         return 1
     fi
 }
@@ -1879,7 +2026,11 @@ configure_grub_defaults() {
     local grub_default="/etc/default/grub"
 
     if [ ! -f "$grub_default" ]; then
-        print_error "GRUB default config not found at $grub_default"
+        print_error_detailed \
+            "GRUB default config not found at $grub_default" \
+            "Cannot configure bootloader without GRUB configuration file." \
+            "Ensure GRUB is installed and configuration file exists." \
+            "run_privileged 'pacman -S grub' or check: ls -la $grub_default"
         return 1
     fi
 
@@ -1967,7 +2118,11 @@ configure_grub_defaults() {
     if grub-mkconfig -o /boot/grub/grub.cfg; then
         print_success "GRUB configuration regenerated successfully"
     else
-        print_error "Failed to regenerate GRUB configuration"
+        print_error_detailed \
+            "Failed to regenerate GRUB configuration" \
+            "GRUB configuration update failed, may cause boot issues." \
+            "Check GRUB installation and configuration syntax." \
+            "run_privileged 'grub-mkconfig -o /boot/grub/grub.cfg' or check: run_privileged 'grub-install --target=i386-pc /dev/sdX'"
         return 1
     fi
 }
@@ -1993,12 +2148,20 @@ configure_boot_system() {
     # Configure initramfs with filesystem modules
     if [ "$initramfs_generator" = "dracut" ]; then
         if ! configure_dracut "$root_fs"; then
-            print_error "Failed to configure dracut"
+            print_error_detailed \
+                "Failed to configure dracut" \
+                "Initramfs configuration failed, preventing proper system boot." \
+                "Check dracut installation and filesystem support." \
+                "run_privileged 'pacman -S dracut' or run_privileged 'dracut --regenerate-all --force'"
             return 1
         fi
     else
         if ! configure_mkinitcpio "$root_fs"; then
-            print_error "Failed to configure mkinitcpio"
+            print_error_detailed \
+                "Failed to configure mkinitcpio" \
+                "Initramfs configuration failed, preventing proper system boot." \
+                "Check mkinitcpio installation and filesystem support." \
+                "run_privileged 'pacman -S mkinitcpio' or run_privileged 'mkinitcpio -P'"
             return 1
         fi
     fi
@@ -2328,20 +2491,59 @@ setup_cleanup_trap() {
     cleanup() {
         local exit_code=$?
         local line_number=${BASH_LINENO[1]:-${BASH_LINENO[0]}}  # Use caller line number
+        local error_timestamp
+        error_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
         # Only show cleanup message if there was an error
         if [ "$exit_code" -ne 0 ]; then
             echo "" >&2
+            echo "===============================================================================" >&2
+            echo "                           *** SCRIPT ERROR ***" >&2
+            echo "===============================================================================" >&2
+            echo "" >&2
+
             print_error "Script failed with exit code: $exit_code"
+            print_error "Error timestamp: $error_timestamp"
             print_error "Error occurred at line: $line_number"
             print_error "Function: ${FUNCNAME[1]:-main}"
             print_error "File: ${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
             echo "" >&2
 
+            # Show system information
+            print_error "System info:"
+            echo "  - Hostname: $(hostname 2>/dev/null || echo 'unknown')" >&2
+            echo "  - User: $(whoami 2>/dev/null || echo 'unknown')" >&2
+            echo "  - PID: $$" >&2
+            echo "  - Shell: $SHELL" >&2
+            echo "  - Working directory: $(pwd 2>/dev/null || echo 'unknown')" >&2
+            echo "" >&2
+
             # Show last few commands if available
             if [ -n "${BASH_COMMAND:-}" ]; then
-                print_error "Last command: $BASH_COMMAND"
+                print_error "Last command executed: $BASH_COMMAND"
+                echo "" >&2
             fi
+
+            # Show error context based on exit code
+            case "$exit_code" in
+                1) print_error "Error type: General error (exit code 1)" ;;
+                2) print_error "Error type: Misuse of shell builtins (exit code 2)" ;;
+                126) print_error "Error type: Command cannot execute (exit code 126)" ;;
+                127) print_error "Error type: Command not found (exit code 127)" ;;
+                128) print_error "Error type: Invalid argument to exit (exit code 128)" ;;
+                130) print_error "Error type: Script terminated by Ctrl+C (exit code 130)" ;;
+                139) print_error "Error type: Segmentation fault (exit code 139)" ;;
+                *) print_error "Error type: Unknown exit code $exit_code" ;;
+            esac
+            echo "" >&2
+
+            # Troubleshooting suggestions
+            print_error "Troubleshooting suggestions:"
+            echo "  - Check system logs: journalctl -xe" >&2
+            echo "  - Verify disk space: df -h" >&2
+            echo "  - Check network: ping -c 3 8.8.8.8" >&2
+            echo "  - Review error messages above for specific issues" >&2
+            echo "" >&2
 
             # Cleanup mounted partitions
             if [ -n "${MOUNTED_PARTITIONS:-}" ]; then
@@ -2368,8 +2570,11 @@ setup_cleanup_trap() {
                 rm -rf "$AUR_BUILD_DIR" 2>/dev/null || true
             fi
 
-            print_warning "Cleanup complete"
-            print_warning "Check the error messages above for details"
+            echo "" >&2
+            echo "===============================================================================" >&2
+            print_warning "Cleanup complete - check error details above"
+            print_warning "For help, visit: https://github.com/JotaRandom/ALIE/issues"
+            echo "===============================================================================" >&2
         fi
     }
 
@@ -2386,75 +2591,108 @@ select_keymap() {
     print_info "The KEYMAP variable defines the console keyboard layout."
     print_info "Keymaps are located in /usr/share/kbd/keymaps/"
     echo ""
-    
-    # Common keymaps for selection
+
+    # Common keymaps with layout variants
     local common_keymaps=(
-        "us:English (US)"
-        "es:Spanish (Spain)"
-        "fr:French"
-        "de:German"
-        "it:Italian"
-        "pt:Portuguese"
-        "ru:Russian"
-        "br:Portuguese (Brazil)"
-        "la-latin1:Latin American"
-        "uk:United Kingdom"
-        "be:Belgian"
-        "dk:Danish"
-        "no:Norwegian"
-        "se:Swedish"
-        "fi:Finnish"
-        "pl:Polish"
-        "cz:Czech"
-        "hu:Hungarian"
-        "tr:Turkish"
-        "gr:Greek"
-        "il:Hebrew"
-        "jp:Japanese"
-        "kr:Korean"
+        "us:English (US) - QWERTY"
+        "es:Spanish (Spain) - QWERTY"
+        "fr:French - AZERTY"
+        "de:German - QWERTZ"
+        "it:Italian - QWERTY"
+        "pt:Portuguese - QWERTY"
+        "ru:Russian - JCUKEN"
+        "br:Portuguese (Brazil) - QWERTY"
+        "la-latin1:Latin American - QWERTY"
+        "uk:United Kingdom - QWERTY"
+        "be:Belgian - AZERTY"
+        "dk:Danish - QWERTY"
+        "no:Norwegian - QWERTY"
+        "se:Swedish - QWERTY"
+        "fi:Finnish - QWERTY"
+        "pl:Polish - QWERTY"
+        "cz:Czech - QWERTZ"
+        "hu:Hungarian - QWERTZ"
+        "tr:Turkish - QWERTY"
+        "gr:Greek - QWERTY"
+        "il:Hebrew - QWERTY"
+        "jp:Japanese - QWERTY"
+        "kr:Korean - QWERTY"
     )
-    
-    echo "Common keyboard layouts:"
+
+    echo "==============================================================================="
+    echo "                           KEYBOARD LAYOUTS"
+    echo "==============================================================================="
+    echo ""
+    echo "Common keyboard layouts (with layout variants):"
+    echo ""
+
     local i=1
     for keymap_info in "${common_keymaps[@]}"; do
         local keymap_code="${keymap_info%%:*}"
         local keymap_desc="${keymap_info#*:}"
-        printf "  %s%2d)%s %s (%s)\n" "$CYAN" "$i" "$NC" "$keymap_code" "$keymap_desc"
+        printf "  %s%2d)%s %-6s - %s\n" "$CYAN" "$i" "$NC" "$keymap_code" "$keymap_desc"
         ((i++))
     done
+
     echo ""
+    echo "==============================================================================="
     printf "  %s99)%s Other (enter manually)\n" "$CYAN" "$NC"
     echo ""
-    
+    echo "Variants / Variantes:"
+    echo "  - QWERTY: Standard US/UK layout"
+    echo "  - AZERTY: French/Belgian layout"
+    echo "  - QWERTZ: German/Czech layout"
+    echo "  - JCUKEN: Russian layout"
+    echo "  - Bopomofo: Chinese phonetic"
+    echo ""
+    echo "  - QWERTY: Distribución estándar US/UK"
+    echo "  - AZERTY: Distribución francés/belga"
+    echo "  - QWERTZ: Distribución alemán/checa"
+    echo "  - JCUKEN: Distribución rusa"
+    echo "  - Bopomofo: Fonética china"
+    echo ""
+
     local choice
-    read -r -p "Choose keyboard layout [1-$((${#common_keymaps[@]}+1))] (default: 1): " choice
-    
+    read -r -p "Choose keyboard layout / Elija distribución de teclado [1-$((${#common_keymaps[@]}+1))] (default: 1): " choice
+
     if [ -z "$choice" ]; then
         choice=1
     fi
-    
+
     if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#common_keymaps[@]}" ]; then
         KEYMAP="${common_keymaps[$((choice-1))]}"
         KEYMAP="${KEYMAP%%:*}"
     elif [ "$choice" = "99" ]; then
         # Manual entry
         echo ""
+        echo "==============================================================================="
+        echo "                           MANUAL ENTRY"
+        echo "==============================================================================="
+        echo ""
         print_info "Available keymaps (showing first 20):"
+        echo ""
+
         local available_keymaps
         mapfile -t available_keymaps < <(find /usr/share/kbd/keymaps/ -type f -name "*.map.gz" -printf "%P\n" | sed 's|.map.gz$||' | sort | head -20)
-        
+
         for i in "${!available_keymaps[@]}"; do
             printf "  %s\n" "${available_keymaps[$i]}"
         done
-        echo "  ... (and more)"
         echo ""
-        
+        echo "  ... (and more / y más / 等)"
+        echo ""
+
         while true; do
-            read -r -p "Enter keymap name (e.g., us, es, fr): " KEYMAP
+            echo "==============================================================================="
+            read -r -p "Enter keymap name / Ingrese nombre del mapa (e.g., us, es, fr): " KEYMAP
             if [ -n "$KEYMAP" ] && [ -f "/usr/share/kbd/keymaps/${KEYMAP}.map.gz" ]; then
                 break
             else
-                print_error "Keymap '$KEYMAP' not found. Please try again."
+                print_error_detailed \
+                    "Keymap '$KEYMAP' not found. Please try again." \
+                    "The specified keyboard layout is not available in the system." \
+                    "Choose from available keymaps or check spelling." \
+                    "find /usr/share/kbd/keymaps/ -name '*.map.gz' | head -10"
             fi
         done
     else
@@ -2467,7 +2705,11 @@ select_keymap() {
     if loadkeys "$KEYMAP" 2>/dev/null; then
         print_success "Keyboard layout set to: $KEYMAP"
     else
-        print_error "Failed to load keymap '$KEYMAP'"
+        print_error_detailed \
+            "Failed to load keymap '$KEYMAP'" \
+            "The keyboard layout could not be loaded, affecting console input." \
+            "Try a different keymap or continue with default." \
+            "loadkeys us (to test default) or check available: localectl list-keymaps"
         echo ""
         echo "Options:"
         echo "  1) Try a different keymap"
@@ -2488,7 +2730,11 @@ select_keymap() {
                 if loadkeys "$KEYMAP" 2>/dev/null; then
                     print_success "Keyboard layout set to: $KEYMAP"
                 else
-                    print_error "Even default keymap 'us' failed to load!"
+                    print_error_detailed \
+                        "Even default keymap 'us' failed to load!" \
+                        "System keyboard configuration is broken, preventing proper console input." \
+                        "This indicates deeper system issues that need investigation." \
+                        "Check kbd package: run_privileged 'pacman -S kbd' or verify system integrity"
                     print_info "This is unusual and may indicate system issues"
                     read -r -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
                     if [[ ! $CONTINUE_ANYWAY =~ ^[Yy]$ ]]; then
@@ -2520,7 +2766,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo ""
     echo -e "${YELLOW}Available functions:${NC}"
     echo "  [+] Color definitions: RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, NC"
-    echo "  [+] print_info, print_success, print_warning, print_error, print_step"
+    echo "  [+] print_info, print_success, print_warning, print_error [DEPRECATED], print_step"
+    echo "  [+] print_error_detailed (recommended for comprehensive error reporting)"
     echo "  [+] retry_command, wait_for_operation"
     echo "  [+] verify_chroot, require_root, require_non_root"
     echo "  [+] show_alie_banner, show_warning_banner"

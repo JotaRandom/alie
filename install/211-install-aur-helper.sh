@@ -139,14 +139,20 @@ install_aur_helper() {
     
     print_info "Cloning $repo_name repository from AUR..."
     if ! git clone "https://aur.archlinux.org/$repo_name.git" "$AUR_BUILD_DIR"; then
-        print_error "Failed to clone $repo_name repository"
+        print_error_detailed "Failed to clone $repo_name repository" \
+            "The git clone operation failed, preventing AUR helper installation" \
+            "This could be due to network issues, repository unavailability, or git problems" \
+            "Check internet connection and try again, or check AUR status at: https://aur.archlinux.org"
         print_info "Please check your internet connection and try again"
         return 1
     fi
     
     # Verify clone was successful
     if [ ! -d "$AUR_BUILD_DIR" ] || [ ! -f "$AUR_BUILD_DIR/PKGBUILD" ]; then
-        print_error "$repo_name repository clone incomplete or corrupted"
+        print_error_detailed "$repo_name repository clone incomplete or corrupted" \
+            "The cloned repository is missing essential files or is corrupted" \
+            "This prevents building the AUR helper and completing the installation" \
+            "Try removing the directory and cloning again, or check AUR repository status"
         return 1
     fi
     
@@ -161,14 +167,20 @@ install_aur_helper() {
     
     # Build and install
     if ! (cd "$AUR_BUILD_DIR" && makepkg -si --noconfirm); then
-        print_error "Failed to build or install $repo_name"
+        print_error_detailed "Failed to build or install $repo_name" \
+            "The makepkg build process failed, preventing AUR helper installation" \
+            "This could be due to missing dependencies, compilation errors, or system issues" \
+            "Check the build output above for specific error messages and missing dependencies"
         print_info "Check the output above for errors"
         return 1
     fi
     
     # Verify installation
     if ! command -v "$helper" &>/dev/null; then
-        print_error "$helper installation failed - command not found after install"
+        print_error_detailed "$helper installation failed - command not found after install" \
+            "The AUR helper was built but is not available in PATH after installation" \
+            "This prevents using the AUR helper for package management" \
+            "Check if the package was installed correctly and PATH configuration"
         return 1
     fi
     
@@ -483,13 +495,19 @@ verify_internet
 # Verify base-devel and git are installed
 print_info "Checking required packages..."
 if ! is_package_installed "base-devel"; then
-    print_error "base-devel is not installed"
+    print_error_detailed "base-devel is not installed" \
+        "The base-devel package group is required for building AUR packages" \
+        "Without it, AUR helper compilation and AUR package installation will fail" \
+        "Install with: run_privileged 'pacman -S --needed base-devel'"
     print_info "Please install it first: run_privileged 'pacman -S --needed base-devel'"
     exit 1
 fi
 
 if ! command -v git &>/dev/null; then
-    print_error "git is not installed"
+    print_error_detailed "git is not installed" \
+        "Git is required for cloning AUR repositories and managing package sources" \
+        "Without git, AUR helper installation and AUR package management cannot proceed" \
+        "Install with: run_privileged 'pacman -S git'"
     print_info "Please install it first: run_privileged 'pacman -S git'"
     exit 1
 fi
@@ -605,6 +623,9 @@ if install_aur_helper "$selected_helper" "$use_binary"; then
         print_info "Debug packages enabled - will be built automatically with -debug suffix"
     fi
 else
-    print_error "Failed to install $selected_helper"
+    print_error_detailed "Failed to install $selected_helper" \
+        "The AUR helper installation process failed completely" \
+        "This leaves the system without AUR package management capabilities" \
+        "Check the error messages above and ensure all prerequisites are met"
     exit 1
 fi

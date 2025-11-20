@@ -9,7 +9,7 @@
 #   as the foundation for the entire ALIE installation process.
 #
 # ARCHITECTURAL ROLE:
-#   - First script in the 3-phase installation sequence (001 → 002 → 003)
+#   - First script in the 3-phase installation sequence (001 -> 002 -> 003)
 #   - Establishes the physical storage foundation for the new system
 #   - Critical prerequisite for all subsequent installation steps
 #   - Handles both automatic and manual partitioning workflows
@@ -138,10 +138,16 @@ if [ "$NETWORK_OK" = false ]; then
                     print_success "Ethernet connection established!"
                     NETWORK_OK=true
                 else
-                    print_error "Failed to establish connection. Check cable connection."
+                    print_error_detailed "Failed to establish connection. Check cable connection." \
+                        "Ethernet interface configuration failed despite being brought up" \
+                        "This could be due to faulty cable, switch issues, or DHCP problems" \
+                        "Check cable connection, try different port, or use wireless instead"
                 fi
             else
-                print_error "Network interface did not come up. Check cable connection."
+                print_error_detailed "Network interface did not come up. Check cable connection." \
+                    "The network interface failed to obtain an IP address" \
+                    "This prevents internet access required for package installation" \
+                    "Verify cable is connected, try different port, or configure manually"
             fi
             ;;
         2)
@@ -151,7 +157,10 @@ if [ "$NETWORK_OK" = false ]; then
             read -r -p "Enter wireless interface name (e.g., wlan0): " WIFI_IFACE
             
             if [ -z "$WIFI_IFACE" ]; then
-                print_error "No interface specified"
+                print_error_detailed "No interface specified" \
+                    "Wireless interface name is required for WiFi configuration" \
+                    "Without specifying an interface, wireless setup cannot proceed" \
+                    "Run 'ip link show' to see available wireless interfaces"
             else
                 print_info "Scanning networks on $WIFI_IFACE..."
                 ip link set "$WIFI_IFACE" up 2>/dev/null || true
@@ -192,7 +201,10 @@ if [ "$NETWORK_OK" = false ]; then
             exit 0
             ;;
         *)
-            print_error "Invalid option"
+            print_error_detailed "Invalid option" \
+                "Network configuration menu requires a valid numeric choice" \
+                "Choose from the available options (1-4) shown above" \
+                "Review the menu options and enter a valid number"
             exit 1
             ;;
     esac
@@ -404,11 +416,10 @@ robust_unmount() {
         fi
     fi
     
-    # Strategy 5: Final attempt with timeout
-    print_error "All unmount strategies failed for $description"
-    print_warning "This may leave the partition in an inconsistent state"
-    print_info "You may need to manually unmount after installation"
-    return 1
+    print_error_detailed "All unmount strategies failed for $description" \
+        "The partition could not be unmounted after trying multiple strategies including normal unmount, lazy unmount, and killing processes" \
+        "This may leave the partition in an inconsistent state and could cause installation issues" \
+        "Try: umount -l $mount_point && swapoff $partition 2>/dev/null || true"
 }
 
 # Function to robustly unmount a partition (finds mount point automatically)
@@ -443,9 +454,10 @@ run_critical_command() {
         return 0
     else
         local exit_code=$?
-        print_error "$description failed with exit code: $exit_code"
-        print_error "Command that failed: $command"
-        print_error "This usually indicates a problem with disk access or parted"
+        print_error_detailed "$description failed with exit code: $exit_code" \
+            "The critical partitioning command failed, which usually indicates a problem with disk access, parted installation, or disk hardware" \
+            "This prevents proper disk partitioning and may leave the disk in an inconsistent state" \
+            "Try running the command manually: $command"
         return $exit_code
     fi
 }
@@ -456,7 +468,10 @@ validate_parted() {
     
     # Check if parted is installed
     if ! command -v parted &>/dev/null; then
-        print_error "parted is not installed"
+        print_error_detailed "parted is not installed" \
+            "Parted is required for automatic disk partitioning and validation, but is not available on the system" \
+            "Install parted to enable automatic partitioning features" \
+            "pacman -S parted"
         print_info "Install parted with: pacman -S parted"
         exit 1
     fi
@@ -468,7 +483,10 @@ validate_parted() {
     
     # Test basic parted functionality with help command (safe, doesn't require device)
     if ! parted --help >/dev/null 2>&1; then
-        print_error "parted basic functionality test failed"
+        print_error_detailed "parted basic functionality test failed" \
+            "Parted is installed but not working correctly, which may cause partitioning failures" \
+            "Check parted installation or try reinstalling it" \
+            "pacman -S parted"
         print_info "There may be an issue with parted installation"
         exit 1
     fi
@@ -523,7 +541,10 @@ configure_home_partitioning() {
             if [ "$ROOT_SIZE" -eq 0 ]; then
                 print_warning "Size cannot be 0. Did you change your mind?"
             else
-                print_error "Invalid size: $ROOT_SIZE. Must be a positive integer."
+                print_error_detailed "Invalid size: $ROOT_SIZE. Must be a positive integer." \
+                    "The root partition size must be a valid positive number in GB" \
+                    "Enter a number greater than 0 (e.g., 64, 128, 256)" \
+                    "echo 'Example: 64 for 64GB root partition'"
             fi
             retry_count=$((retry_count + 1))
             if [ "$retry_count" -lt 3 ]; then
@@ -537,7 +558,10 @@ configure_home_partitioning() {
                     return
                 fi
             else
-                print_error "Too many invalid attempts. Installation cancelled."
+                print_error_detailed "Too many invalid attempts. Installation cancelled." \
+                    "Maximum retry attempts exceeded for root partition sizing" \
+                    "Restart the installation and provide valid partition sizes" \
+                    "bash $(dirname \"$0\")/001-base-install.sh"
                 exit 1
             fi
         else
@@ -547,7 +571,10 @@ configure_home_partitioning() {
     
     # Validate root size
     if ! [[ "$ROOT_SIZE" =~ ^[0-9]+$ ]] || [ "$ROOT_SIZE" -lt 1 ]; then
-        print_error "Invalid root size: $ROOT_SIZE"
+        print_error_detailed "Invalid root size: $ROOT_SIZE" \
+            "Root partition size must be a positive integer representing GB" \
+            "Enter a number like 64, 128, or 256 for the root partition size" \
+            "echo 'Minimum recommended: 64GB for reliable system operation'"
         print_info "Root size must be a positive integer (GB)"
         exit 1
     fi
@@ -565,7 +592,10 @@ configure_home_partitioning() {
     
     # Check available space
     if [ "$ROOT_SIZE" -gt "$AVAILABLE_FOR_ROOT" ]; then
-        print_error "Root size ${ROOT_SIZE}GB exceeds available space ${AVAILABLE_FOR_ROOT}GB"
+        print_error_detailed "Root size ${ROOT_SIZE}GB exceeds available space ${AVAILABLE_FOR_ROOT}GB" \
+            "The requested root partition size is larger than the available disk space after EFI/swap allocation" \
+            "Reduce the root partition size or choose a different disk with more space" \
+            "echo \"Available: ${AVAILABLE_FOR_ROOT}GB, Requested: ${ROOT_SIZE}GB\""
         exit 1
     fi
     
@@ -608,12 +638,18 @@ configure_home_partitioning() {
         HOME_SIZE="$HOME_SIZE_INPUT"
         # Validate new size
         if ! [[ "$HOME_SIZE" =~ ^[0-9]+$ ]] || [ "$HOME_SIZE" -lt 1 ]; then
-            print_error "Invalid /home size: $HOME_SIZE"
+            print_error_detailed "Invalid /home size: $HOME_SIZE" \
+                "/home partition size must be a positive integer representing GB" \
+                "Enter a number like 100, 200, or 500 for the /home partition size" \
+                "echo 'Recommended: at least 50GB for user data and applications'"
             print_info "/home size must be a positive integer (GB)"
             exit 1
         fi
         if [ "$HOME_SIZE" -gt "$((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))" ]; then
-            print_error "/home size ${HOME_SIZE}GB exceeds available space"
+            print_error_detailed "/home size ${HOME_SIZE}GB exceeds available space" \
+                "The requested /home partition size is larger than the remaining disk space after root allocation" \
+                "Reduce the /home partition size or increase the root partition size" \
+                "echo \"Available for /home: $((DISK_SIZE_GB - RESERVED_SPACE - ROOT_SIZE))GB\""
             exit 1
         fi
         print_info "Using custom /home size: ${HOME_SIZE}GB"
@@ -669,13 +705,19 @@ case "$PART_CHOICE" in
         print_info "Selected disk: $DISK_NAME"
         
         if [ -z "$DISK_NAME" ]; then
-            print_error "No disk specified"
+            print_error_detailed "No disk specified" \
+                "A target disk must be selected for automatic partitioning" \
+                "Enter a valid disk name like sda, nvme0n1, or vda" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             exit 1
         fi
         
         # Validate disk name format (more restrictive)
         if ! [[ "$DISK_NAME" =~ ^(sd[a-z]|nvme[0-9]+n[0-9]+|vd[a-z]|hd[a-z]|mmcblk[0-9]+)$ ]]; then
-            print_error "Invalid disk name format: $DISK_NAME"
+            print_error_detailed "Invalid disk name format: $DISK_NAME" \
+                "Disk name must follow standard Linux naming conventions" \
+                "Use names like sda, nvme0n1, vda, hda, or mmcblk0 (without /dev/ prefix)" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             print_info "Accepted formats: sda, /dev/sda, nvme0n1, /dev/nvme0n1, vda, hda, mmcblk0, etc."
             print_info "You can include /dev/ prefix or not - both formats work"
             print_info "Available disks:"
@@ -688,7 +730,10 @@ case "$PART_CHOICE" in
         
         # CRITICAL: Validate disk exists and is not system disk
         if [ ! -b "$DISK_PATH" ]; then
-            print_error "$DISK_PATH is not a valid block device"
+            print_error_detailed "$DISK_PATH is not a valid block device" \
+                "The specified disk does not exist or is not accessible" \
+                "Check the disk name and ensure the device is properly connected" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             print_info "Available disks:"
             lsblk -d -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep disk
             exit 1
@@ -696,7 +741,10 @@ case "$PART_CHOICE" in
         
         # Check if disk is readable
         if ! dd if="$DISK_PATH" of=/dev/null bs=512 count=1 2>/dev/null; then
-            print_error "Cannot read from disk $DISK_PATH"
+            print_error_detailed "Cannot read from disk $DISK_PATH" \
+                "The disk exists but cannot be read, possibly due to hardware failure or permissions" \
+                "Check disk connections, try a different disk, or test with dd if=$DISK_PATH of=/dev/null bs=512 count=1" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL,ROTA"
             print_info "The disk may be faulty or not properly connected"
             exit 1
         fi
@@ -768,7 +816,10 @@ case "$PART_CHOICE" in
                     attempt=$((attempt + 1))
                 done
                 
-                print_error "Failed to unmount $partition after $max_attempts attempts"
+                print_error_detailed "Failed to unmount $partition after $max_attempts attempts" \
+                    "The partition could not be unmounted despite multiple attempts using different methods" \
+                    "This may prevent partitioning from succeeding. Try manual unmounting or check for processes using the partition" \
+                    "fuser -m $partition; umount -l $partition; swapoff $partition 2>/dev/null || true"
                 return 1
             }
             
@@ -788,7 +839,10 @@ case "$PART_CHOICE" in
             for part in $(swapon --show --noheadings 2>/dev/null | awk '{print $1}' | grep "^${DISK_PATH}"); do
                 print_info "Deactivating swap on $part..."
                 if ! swapoff "$part" 2>/dev/null; then
-                    print_error "Failed to deactivate swap on $part"
+                    print_error_detailed "Failed to deactivate swap on $part" \
+                        "Swap partition deactivation failed, which may prevent disk partitioning" \
+                        "Try manual swap deactivation or check if the partition is still in use" \
+                        "swapoff $part || echo 'Swap deactivation failed'"
                     unmount_failed=true
                 else
                     print_success "Successfully deactivated swap on $part"
@@ -798,7 +852,10 @@ case "$PART_CHOICE" in
             if [ "$unmount_failed" = false ]; then
                 print_success "Successfully unmounted all partitions and deactivated swap on $DISK_PATH"
             else
-                print_error "Some partitions could not be unmounted after multiple attempts"
+                print_error_detailed "Some partitions could not be unmounted after multiple attempts" \
+                    "Partition unmounting failed, which will prevent disk partitioning from succeeding" \
+                    "Manually unmount partitions and deactivate swap before retrying the installation" \
+                    "umount -l /path/to/mountpoint && swapoff /dev/partition"
                 print_info "This may cause partitioning to fail. Please manually unmount partitions and try again."
                 print_info "You can try: umount -l /path/to/mountpoint && swapoff /dev/partition"
                 exit 1
@@ -806,7 +863,10 @@ case "$PART_CHOICE" in
             
             # Double-check that everything is clean now
             if mount | grep -q "^$DISK_PATH" || swapon --show | grep -q "^$DISK_PATH"; then
-                print_error "Disk $DISK_PATH is still in use after cleanup attempts"
+                print_error_detailed "Disk $DISK_PATH is still in use after cleanup attempts" \
+                    "The disk remains mounted or has active swap despite cleanup efforts" \
+                    "Manually resolve these mount/swap issues before proceeding with partitioning" \
+                    "mount | grep $DISK_PATH; swapon --show | grep $DISK_PATH"
                 print_info "Remaining mounts:"
                 mount | grep "^$DISK_PATH" || echo "No mounts found"
                 print_info "Remaining swap:"
@@ -839,20 +899,29 @@ case "$PART_CHOICE" in
         fi
         
         if [ "$DISK_PATH" = "$ROOT_DISK" ]; then
-            print_error "Cannot partition the disk where the current system is running!"
+            print_error_detailed "Cannot partition the disk where the current system is running!" \
+                "Attempting to partition the system disk would destroy the running operating system" \
+                "Select a different disk for installation that is not currently in use by the system" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             print_info "This would destroy the running system. Choose a different disk."
             print_info "System is running from: $ROOT_DISK"
             exit 1
         fi
         
         if [ -n "$BOOT_DISK" ] && [ "$DISK_PATH" = "$BOOT_DISK" ]; then
-            print_error "Cannot partition the disk containing /boot!"
+            print_error_detailed "Cannot partition the disk containing /boot!" \
+                "The /boot partition is on this disk, partitioning it would make the system unbootable" \
+                "Choose a different disk that does not contain the system's boot partition" \
+                "findmnt -n -o SOURCE /boot"
             print_info "Boot partition is on: $BOOT_DISK"
             exit 1
         fi
         
         if [ -n "$LIVE_DISK" ] && [ "$DISK_PATH" = "$LIVE_DISK" ]; then
-            print_error "Cannot partition the live USB disk!"
+            print_error_detailed "Cannot partition the live USB disk!" \
+                "This is the Arch Linux live USB you're currently running from" \
+                "Select a different target disk for installation, not the live USB" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL | grep -v \"$LIVE_DISK\""
             print_info "Arch Linux live system is running from: $LIVE_DISK"
             exit 1
         fi
@@ -863,7 +932,10 @@ case "$PART_CHOICE" in
         print_info "Disk size: ${DISK_SIZE_GB}GB"
         
         if [ "$DISK_SIZE_GB" -lt 20 ]; then
-            print_error "Disk too small: ${DISK_SIZE_GB}GB"
+            print_error_detailed "Disk too small: ${DISK_SIZE_GB}GB" \
+                "The selected disk is smaller than the minimum recommended size for Arch Linux installation" \
+                "Choose a disk with at least 20GB capacity for a basic installation" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL | grep -E '([2-9][0-9]+|1[2-9][0-9]*)GB'"
             print_info "Minimum recommended size is 20GB for a basic Arch Linux installation"
             exit 1
         fi
@@ -875,12 +947,19 @@ case "$PART_CHOICE" in
         lsblk "$DISK_PATH"
         echo ""
 
-        print_error "[DANGER] FINAL WARNING: This will DESTROY ALL DATA on $DISK_PATH!"
+        print_error_detailed "[DANGER] FINAL WARNING: This will DESTROY ALL DATA on $DISK_PATH!" \
+            "Disk partitioning will permanently erase all existing data on the selected disk" \
+            "This operation cannot be undone - all files, operating systems, and partitions will be lost" \
+            "Ensure you have backed up important data and selected the correct disk before proceeding" \
+            "Type 'DESTROY-ALL-DATA' exactly as shown to confirm this destructive operation"
         print_info "Disk: $DISK_PATH (${DISK_SIZE_GB}GB)"
         read -r -p "Type 'DESTROY-ALL-DATA' to confirm: " CONFIRM_WIPE
         
         if [ "$CONFIRM_WIPE" != "DESTROY-ALL-DATA" ]; then
-            print_error "Partitioning cancelled - confirmation failed"
+            print_error_detailed "Partitioning cancelled - confirmation failed" \
+                "You did not type the exact confirmation phrase required for destructive operations" \
+                "Type 'DESTROY-ALL-DATA' in uppercase exactly as shown to confirm disk wiping" \
+                "echo 'Type: DESTROY-ALL-DATA'"
             exit 1
         fi
 
@@ -888,8 +967,8 @@ case "$PART_CHOICE" in
         smart_clear
         show_alie_banner
         print_step "001: STEP 4a: Configuration"
-        print_info "✓ Disk confirmed: $DISK_PATH (${DISK_SIZE_GB}GB)"
-        print_info "✓ Data destruction confirmed"
+        print_info "[OK] Disk confirmed: $DISK_PATH (${DISK_SIZE_GB}GB)"
+        print_info "[OK] Data destruction confirmed"
         echo ""
         print_info "Now configuring your Arch Linux installation..."
         echo ""
@@ -915,7 +994,10 @@ case "$PART_CHOICE" in
         
         # Enhanced swap validation
         if ! [[ "$SWAP_SIZE" =~ ^[0-9]+$ ]] || [ "$SWAP_SIZE" -lt 1 ]; then
-            print_error "Invalid swap size: $SWAP_SIZE"
+            print_error_detailed "Invalid swap size: $SWAP_SIZE" \
+                "Swap partition size must be a positive integer representing GB" \
+                "Enter a number like 2, 4, 8, or 16 for the swap partition size" \
+                "echo 'Recommended: RAM size + 2GB, minimum 128MB'"
             print_info "Swap size must be a positive integer (GB)"
             exit 1
         fi
@@ -1189,7 +1271,10 @@ case "$PART_CHOICE" in
         echo "  - Disk available: ${DISK_SIZE_GB}GB"
         echo ""
         if [ "$TOTAL_RESERVED" -gt "$DISK_SIZE_GB" ]; then
-            print_error "Insufficient disk space!"
+            print_error_detailed "Insufficient disk space!" \
+                "The total space required for all partitions exceeds the disk capacity" \
+                "Reduce partition sizes or choose a larger disk for installation" \
+                "echo \"Required: ${TOTAL_RESERVED}GB, Available: ${DISK_SIZE_GB}GB\""
             print_info "Required: ${TOTAL_RESERVED}GB, Available: ${DISK_SIZE_GB}GB"
             exit 1
         fi
@@ -1198,7 +1283,10 @@ case "$PART_CHOICE" in
         read -r -p "Type 'YES' in uppercase to confirm partitioning: " FINAL_CONFIRM
         
         if [ "$FINAL_CONFIRM" != "YES" ]; then
-            print_error "Partitioning cancelled - confirmation failed"
+            print_error_detailed "Partitioning cancelled - confirmation failed" \
+                "You did not type 'YES' in uppercase to confirm the partitioning operation" \
+                "Type 'YES' in uppercase exactly as shown to proceed with partitioning" \
+                "echo 'Type: YES'"
             exit 1
         fi
         
@@ -1250,7 +1338,10 @@ case "$PART_CHOICE" in
         
         # Verify disk is still available after wipe
         if [ ! -b "$DISK_PATH" ]; then
-            print_error "Disk $DISK_PATH became unavailable after wipe!"
+            print_error_detailed "Disk $DISK_PATH became unavailable after wipe!" \
+                "The disk device disappeared after attempting to wipe partition signatures" \
+                "Check disk connections, try a different disk, or the disk may be faulty" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             exit 1
         fi
         print_success "Disk wipe completed successfully"
@@ -1419,7 +1510,10 @@ case "$PART_CHOICE" in
         done
 
         if (( PARTITION_COUNT == 0 )); then
-            print_error "No partitions were created on $DISK_PATH after 10 attempts"
+            print_error_detailed "No partitions were created on $DISK_PATH after 10 attempts" \
+                "Partition creation failed despite multiple attempts, possibly due to disk issues or parted problems" \
+                "Check disk health, try manual partitioning, or use a different disk" \
+                "parted $DISK_PATH print"
             print_info "Current disk layout:"
             lsblk "$DISK_PATH"
             print_info "This may indicate a problem with parted or disk access"
@@ -1498,7 +1592,10 @@ case "$PART_CHOICE" in
             if [ -b "$part" ] && (mountpoint -q "$part" 2>/dev/null || mount | grep -q "^$part"); then
                 print_warning "Partition $part is mounted, unmounting..."
                 umount "$part" 2>/dev/null || umount -l "$part" 2>/dev/null || {
-                    print_error "Failed to unmount $part"
+                    print_error_detailed "Failed to unmount $part" \
+                        "Partition is still mounted and cannot be unmounted before formatting" \
+                        "Manually unmount the partition or check what processes are using it" \
+                        "fuser -m $part; umount -l $part"
                     exit 1
                 }
             fi
@@ -1621,14 +1718,20 @@ case "$PART_CHOICE" in
         read -r -p "Enter disk to partition (e.g., sda or /dev/sda, nvme0n1 or /dev/nvme0n1): " DISK_NAME
         
         if [ -z "$DISK_NAME" ]; then
-            print_error "No disk specified"
+            print_error_detailed "No disk specified" \
+                "A target disk must be selected for manual partitioning" \
+                "Enter a valid disk name like sda, nvme0n1, or vda" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             exit 1
         fi
         
         DISK_PATH="/dev/$DISK_NAME"
         
         if [ ! -b "$DISK_PATH" ]; then
-            print_error "$DISK_PATH is not a valid block device"
+            print_error_detailed "$DISK_PATH is not a valid block device" \
+                "The specified disk does not exist or is not accessible for manual partitioning" \
+                "Check the disk name and ensure the device is properly connected" \
+                "lsblk -d -o NAME,SIZE,TYPE,MODEL"
             exit 1
         fi
         
@@ -1661,7 +1764,10 @@ case "$PART_CHOICE" in
             2) fdisk "$DISK_PATH" ;;
             3) parted "$DISK_PATH" ;;
             *)
-                print_error "Invalid choice"
+                print_error_detailed "Invalid choice" \
+                    "The selected partitioning tool option is not valid" \
+                    "Choose 1 for cfdisk, 2 for fdisk, or 3 for parted" \
+                    "echo 'Available options: 1) cfdisk, 2) fdisk, 3) parted'"
                 exit 1
                 ;;
         esac
@@ -1684,7 +1790,10 @@ case "$PART_CHOICE" in
                     if mount | grep -q "^$EFI_PARTITION"; then
                         print_warning "Partition $EFI_PARTITION is mounted, unmounting..."
                         if ! robust_unmount_partition "$EFI_PARTITION" "EFI partition"; then
-                            print_error "Failed to unmount $EFI_PARTITION"
+                            print_error_detailed "Failed to unmount $EFI_PARTITION" \
+                                "EFI partition is still mounted and cannot be unmounted for formatting" \
+                                "Manually unmount the EFI partition or check what processes are using it" \
+                                "fuser -m $EFI_PARTITION; umount -l $EFI_PARTITION"
                             exit 1
                         fi
                     fi
@@ -1718,7 +1827,10 @@ case "$PART_CHOICE" in
                         if mount | grep -q "^$BIOS_BOOT_PARTITION"; then
                             print_warning "Partition $BIOS_BOOT_PARTITION is mounted, unmounting..."
                             if ! robust_unmount_partition "$BIOS_BOOT_PARTITION" "BIOS boot partition"; then
-                                print_error "Failed to unmount $BIOS_BOOT_PARTITION"
+                                print_error_detailed "Failed to unmount $BIOS_BOOT_PARTITION" \
+                                    "BIOS boot partition is still mounted and cannot be unmounted for formatting" \
+                                    "Manually unmount the BIOS boot partition or check what processes are using it" \
+                                    "fuser -m $BIOS_BOOT_PARTITION; umount -l $BIOS_BOOT_PARTITION"
                                 exit 1
                             fi
                         fi
@@ -1736,7 +1848,10 @@ case "$PART_CHOICE" in
                         if mount | grep -q "^$BOOT_PARTITION"; then
                             print_warning "Partition $BOOT_PARTITION is mounted, unmounting..."
                             if ! robust_unmount_partition "$BOOT_PARTITION" "boot partition"; then
-                                print_error "Failed to unmount $BOOT_PARTITION"
+                                print_error_detailed "Failed to unmount $BOOT_PARTITION" \
+                                    "Boot partition is still mounted and cannot be unmounted for formatting" \
+                                    "Manually unmount the boot partition or check what processes are using it" \
+                                    "fuser -m $BOOT_PARTITION; umount -l $BOOT_PARTITION"
                                 exit 1
                             fi
                         fi
@@ -1783,7 +1898,10 @@ case "$PART_CHOICE" in
                 if mount | grep -q "^$ROOT_PARTITION"; then
                     print_warning "Partition $ROOT_PARTITION is mounted, unmounting..."
                     if ! robust_unmount_partition "$ROOT_PARTITION" "root partition"; then
-                        print_error "Failed to unmount $ROOT_PARTITION"
+                        print_error_detailed "Failed to unmount $ROOT_PARTITION" \
+                            "Root partition is still mounted and cannot be unmounted for formatting" \
+                            "Manually unmount the root partition or check what processes are using it" \
+                            "fuser -m $ROOT_PARTITION; umount -l $ROOT_PARTITION"
                         exit 1
                     fi
                 fi
@@ -1817,7 +1935,10 @@ case "$PART_CHOICE" in
                     if mount | grep -q "^$HOME_PARTITION"; then
                         print_warning "Partition $HOME_PARTITION is mounted, unmounting..."
                         if ! robust_unmount_partition "$HOME_PARTITION" "/home partition"; then
-                            print_error "Failed to unmount $HOME_PARTITION"
+                            print_error_detailed "Failed to unmount $HOME_PARTITION" \
+                                "/home partition is still mounted and cannot be unmounted for formatting" \
+                                "Manually unmount the /home partition or check what processes are using it" \
+                                "fuser -m $HOME_PARTITION; umount -l $HOME_PARTITION"
                             exit 1
                         fi
                     fi
@@ -1854,7 +1975,10 @@ case "$PART_CHOICE" in
         ;;
         
     *)
-        print_error "Invalid option"
+        print_error_detailed "Invalid option" \
+            "The selected partitioning option is not valid" \
+            "Choose 1 for automatic partitioning, 2 for manual partitioning, 3 for existing partitions, or 4 to cancel" \
+            "echo 'Available options: 1) Automatic, 2) Manual, 3) Use existing, 4) Cancel'"
         exit 1
         ;;
 esac
@@ -1907,57 +2031,90 @@ fi
 print_info "Validating partitions..."
 
 if [ -z "$ROOT_PARTITION" ] || [ -z "$SWAP_PARTITION" ]; then
-    print_error "Root and swap partitions are required"
+    print_error_detailed "Root and swap partitions are required" \
+        "Both root (/) and swap partitions must be specified for the installation to proceed" \
+        "Ensure you have created and specified both root and swap partitions" \
+        "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [ "$BOOT_MODE" == "UEFI" ] && [ -z "$EFI_PARTITION" ]; then
-    print_error "EFI partition is required for UEFI boot"
+    print_error_detailed "EFI partition is required for UEFI boot" \
+        "UEFI systems require a dedicated EFI System Partition for booting" \
+        "Create an EFI System Partition (typically 512MB-1GB, FAT32, type EF00)" \
+        "parted /dev/sdX mkpart primary fat32 1MiB 513MiB; parted /dev/sdX set 1 esp on"
     exit 1
 fi
 
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ -z "$BIOS_BOOT_PARTITION" ]; then
-    print_error "BIOS boot partition is required for GPT on BIOS systems"
+    print_error_detailed "BIOS boot partition is required for GPT on BIOS systems" \
+        "BIOS systems with GPT partition tables need a BIOS boot partition for GRUB" \
+        "Create a BIOS boot partition (8MB, no filesystem, type EF02)" \
+        "parted /dev/sdX mkpart primary 1MiB 9MiB; parted /dev/sdX set 1 bios_grub on"
     exit 1
 fi
 
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ] && [ -z "$BOOT_PARTITION" ]; then
-    print_error "Boot partition is required for MBR on BIOS systems"
+    print_error_detailed "Boot partition is required for MBR on BIOS systems" \
+        "BIOS systems with MBR partition tables need a boot partition for the bootloader" \
+        "Create a boot partition (typically 512MB-1GB, FAT32) as the first partition" \
+        "parted /dev/sdX mkpart primary fat32 1MiB 513MiB; parted /dev/sdX set 1 boot on"
     exit 1
 fi
 
 if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ "$PARTITION_SCHEME" != "btrfs-subvolumes" ] && [ -z "$HOME_PARTITION" ]; then
-    print_error "/home partition path is required"
+    print_error_detailed "/home partition path is required" \
+        "A separate /home partition was requested but no partition path was specified" \
+        "Specify the /home partition device path or choose single partition layout" \
+        "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [ ! -b "$ROOT_PARTITION" ]; then
-    print_error "$ROOT_PARTITION is not a valid block device"
+    print_error_detailed "$ROOT_PARTITION is not a valid block device" \
+        "The specified root partition does not exist or is not accessible" \
+        "Check the partition path and ensure the partition exists" \
+        "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [ ! -b "$SWAP_PARTITION" ]; then
-    print_error "$SWAP_PARTITION is not a valid block device"
+    print_error_detailed "$SWAP_PARTITION is not a valid block device" \
+        "The specified swap partition does not exist or is not accessible" \
+        "Check the partition path and ensure the swap partition exists" \
+        "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [ "$BOOT_MODE" == "UEFI" ] && [ ! -b "$EFI_PARTITION" ]; then
-    print_error "$EFI_PARTITION is not a valid block device"
+    print_error_detailed "$EFI_PARTITION is not a valid block device" \
+        "The specified EFI partition does not exist or is not accessible" \
+        "Check the partition path and ensure the EFI partition exists and is properly formatted as FAT32" \
+        "lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "GPT" ] && [ ! -b "$BIOS_BOOT_PARTITION" ]; then
-    print_error "$BIOS_BOOT_PARTITION is not a valid block device"
+    print_error_detailed "$BIOS_BOOT_PARTITION is not a valid block device" \
+        "The specified BIOS boot partition does not exist or is not accessible" \
+        "Check the partition path and ensure the BIOS boot partition exists (no filesystem needed)" \
+        "lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [ "$BOOT_MODE" == "BIOS" ] && [ "$PARTITION_TABLE" == "MBR" ] && [ ! -b "$BOOT_PARTITION" ]; then
-    print_error "$BOOT_PARTITION is not a valid block device"
+    print_error_detailed "$BOOT_PARTITION is not a valid block device" \
+        "The specified boot partition does not exist or is not accessible" \
+        "Check the partition path and ensure the boot partition exists and is formatted as FAT32" \
+        "lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT"
     exit 1
 fi
 
 if [[ $HAS_HOME =~ ^[Yy]$ ]] && [ "$PARTITION_SCHEME" != "btrfs-subvolumes" ] && [ ! -b "$HOME_PARTITION" ]; then
-    print_error "$HOME_PARTITION is not a valid block device"
+    print_error_detailed "$HOME_PARTITION is not a valid block device" \
+        "The specified /home partition does not exist or is not accessible" \
+        "Check the partition path and ensure the /home partition exists" \
+        "lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT"
     exit 1
 fi
 

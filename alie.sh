@@ -131,7 +131,10 @@ show_manual_menu() {
             exit 0
             ;;
         *)
-            print_error "Invalid option"
+            print_error_detailed "Invalid option" \
+                "The selected menu choice is not recognized in manual mode" \
+                "Manual mode allows selecting any installation step" \
+                "Choose a valid script number from the list above"
             exit 1
             ;;
     esac
@@ -139,21 +142,28 @@ show_manual_menu() {
     # Validate permissions
     if [ "$NEEDS_ROOT" = true ]; then
         if ! check_root; then
-            print_error "This script requires root privileges"
-            print_info "Run with: sudo bash $0 --manual"
+            print_error_detailed "This script requires root privileges" \
+                "Manual mode scripts may require system-level access" \
+                "Root privileges are needed for system modifications" \
+                "Run with: sudo bash $0 --manual"
             exit 1
         fi
     else
         if check_root; then
-            print_error "This script must NOT be run as root"
-            print_info "Run as regular user: bash $0 --manual"
+            print_error_detailed "This script must NOT be run as root" \
+                "Manual mode scripts may require user-level execution" \
+                "Running as root could cause permission or configuration issues" \
+                "Run as regular user: bash $0 --manual"
             exit 1
         fi
     fi
     
     # Verify script exists
     if [ ! -f "$RUN_SCRIPT" ]; then
-        print_error "Script not found: $RUN_SCRIPT"
+        print_error_detailed "Script not found: $RUN_SCRIPT" \
+            "The requested installation script is missing from the install directory" \
+            "Check if the script exists and has correct permissions" \
+            "Run: ls -la install/ | grep $RUN_SCRIPT"
         exit 1
     fi
     
@@ -232,7 +242,10 @@ case "$ENV" in
                         read -r -p "Are you sure? (yes/no): " confirm
                         if [ "${confirm:-}" = "yes" ]; then
                             if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
-                                print_error "$NEXT_STEP_NAME not found in $INSTALL_DIR"
+            print_error_detailed "$NEXT_STEP_NAME not found in $INSTALL_DIR" \
+                "Cannot proceed to next installation step" \
+                "Check if all installation scripts are present in the install directory" \
+                "Run: ls -la $INSTALL_DIR"
                                 exit 1
                             fi
                             bash "$INSTALL_DIR/$NEXT_STEP_NAME"
@@ -241,7 +254,10 @@ case "$ENV" in
                             print_info "Cancelled. Continuing with base installation."
                         fi
                     else
-                        print_error "Invalid option"
+                        print_error_detailed "Invalid menu option selected" \
+                            "The installation menu requires a valid numeric choice to proceed" \
+                            "Choose from the available options (1-4) shown above" \
+                            "Review the menu options and enter a valid number"
                         exit 1
                     fi
                     ;;
@@ -262,7 +278,10 @@ case "$ENV" in
                     exit 0
                     ;;
                 *)
-                    print_error "Invalid option"
+                    print_error_detailed "Invalid menu option selected" \
+                        "The installation menu requires a valid numeric choice to proceed" \
+                        "Choose from the available options (1-4) shown above" \
+                        "Review the menu options and enter a valid number"
                     exit 1
                     ;;
             esac
@@ -287,15 +306,20 @@ case "$ENV" in
         
         # Run base installation
         if ! check_root; then
-            print_error "This script must be run as root in the live environment."
-            print_info "Run: sudo bash $0"
+            print_error_detailed "This script must be run as root in the live environment" \
+                "Base installation requires root privileges to partition disks and install system files" \
+                "Running without root access would fail at the first partitioning or mounting step" \
+                "Run: sudo bash $0"
             exit 1
         fi
         
         print_info "Starting base installation..."
         
         if [ ! -f "$INSTALL_DIR/001-base-install.sh" ]; then
-            print_error "001-base-install.sh not found in $INSTALL_DIR"
+            print_error_detailed "001-base-install.sh not found in $INSTALL_DIR" \
+                "Base installation script is required to start the installation process" \
+                "Ensure all ALIE scripts are present in the install directory" \
+                "Run: ls -la $INSTALL_DIR/001-base-install.sh"
             exit 1
         fi
         
@@ -331,7 +355,10 @@ case "$ENV" in
                 read -r -p "Are you sure? (yes/no): " confirm
                 if [ "${confirm:-}" = "yes" ]; then
                     if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
-                        print_error "$NEXT_STEP_NAME not found in $INSTALL_DIR"
+                        print_error_detailed "$NEXT_STEP_NAME not found in $INSTALL_DIR" \
+                            "Cannot proceed to next installation step" \
+                            "The required installation script is missing from the install directory" \
+                            "Check if all installation scripts are present: ls -la $INSTALL_DIR"
                         exit 1
                     fi
                     bash "$INSTALL_DIR/$NEXT_STEP_NAME"
@@ -361,14 +388,20 @@ case "$ENV" in
         
         # Run system configuration
         if ! check_root; then
-            print_error "This script must be run as root in chroot."
+            print_error_detailed "Root privileges required for chroot system configuration" \
+                "System configuration scripts must run as root to modify system files" \
+                "This prevents permission errors when configuring timezone, locale, and bootloader" \
+                "Run: sudo bash $0"
             exit 1
         fi
         
         print_info "Starting system configuration..."
         
         if [ ! -f "$INSTALL_DIR/101-configure-system.sh" ]; then
-            print_error "101-configure-system.sh not found in $INSTALL_DIR"
+            print_error_detailed "101-configure-system.sh not found in $INSTALL_DIR" \
+                "System configuration script is required for chroot environment setup" \
+                "This script configures timezone, locale, hostname, and bootloader" \
+                "Ensure the script exists: ls -la $INSTALL_DIR/101-configure-system.sh"
             exit 1
         fi
         
@@ -404,7 +437,10 @@ case "$ENV" in
                 read -r -p "Are you sure? (yes/no): " confirm
                 if [ "${confirm:-}" = "yes" ]; then
                     if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
-                        print_error "$NEXT_STEP_NAME not found in $INSTALL_DIR"
+                        print_error_detailed "$NEXT_STEP_NAME not found in $INSTALL_DIR" \
+                            "Cannot proceed to next installation step" \
+                            "Check if all installation scripts are present in the install directory" \
+                            "Run: ls -la $INSTALL_DIR"
                         exit 1
                     fi
                     bash "$INSTALL_DIR/$NEXT_STEP_NAME"
@@ -438,15 +474,20 @@ case "$ENV" in
         
         # Run user setup
         if ! check_root; then
-            print_error "This script must be run as root."
-            print_info "Run: sudo bash $0"
+            print_error_detailed "Root privileges required for user setup" \
+                "User setup scripts must run as root to create users and configure system privileges" \
+                "This prevents permission errors when setting up sudo and user groups" \
+                "Run: sudo bash $0"
             exit 1
         fi
         
         print_info "Starting user setup..."
         
         if [ ! -f "$INSTALL_DIR/201-user-setup.sh" ]; then
-            print_error "201-user-setup.sh not found in $INSTALL_DIR"
+            print_error_detailed "201-user-setup.sh not found in $INSTALL_DIR" \
+                "User setup script is required to create desktop user and configure privileges" \
+                "This script sets up sudo, user groups, and basic user environment" \
+                "Verify script exists: ls -la $INSTALL_DIR/201-user-setup.sh"
             exit 1
         fi
         
@@ -505,14 +546,21 @@ case "$ENV" in
                             print_info "Cancelled. Choose another option."
                         fi
                     else
-                        print_error "Invalid option"
+                        print_error_detailed "Invalid menu option selected" \
+                            "The installation menu requires a valid numeric choice to proceed" \
+                            "Choose from the available options (1-5) shown above" \
+                            "Review the menu options and enter a valid number"
                         exit 1
                     fi
                     ;;
                 3) NEXT_SCRIPT="220-desktop-select.sh"; NEEDS_ROOT=true ;;
                 4) NEXT_SCRIPT="231-desktop-tools.sh"; NEEDS_ROOT=true ;;
                 5) print_info "Exiting..."; exit 0 ;;
-                *) print_error "Invalid option"; exit 1 ;;
+                *) print_error_detailed "Invalid menu option selected" \
+                    "The installation menu requires a valid numeric choice to proceed" \
+                    "Choose from the available options (1-5) shown above" \
+                    "Review the menu options and enter a valid number"
+                exit 1 ;;
             esac
         elif [ "$STEP" -ge "5" ]; then
             print_success "AUR helper installed. Ready for CLI tools."
@@ -547,13 +595,20 @@ case "$ENV" in
                             print_info "Cancelled. Choose another option."
                         fi
                     else
-                        print_error "Invalid option"
+                        print_error_detailed "Invalid option" \
+                            "The selected menu option is not valid for the current installation state" \
+                            "Choose from the available options shown in the menu above" \
+                            "Review the menu and select a valid numeric option"
                         exit 1
                     fi
                     ;;
                 3) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
                 4) print_info "Exiting..."; exit 0 ;;
-                *) print_error "Invalid option"; exit 1 ;;
+                *) print_error_detailed "Invalid menu option selected" \
+                    "The installation menu requires a valid numeric choice to proceed" \
+                    "Choose from the available options (1-4) shown above" \
+                    "Review the menu options and enter a valid number"
+                exit 1 ;;
             esac
         else
             echo "Available actions:"
@@ -587,7 +642,10 @@ case "$ENV" in
                             print_info "Cancelled. Choose another option."
                         fi
                     else
-                        print_error "Invalid option"
+                        print_error_detailed "Invalid menu option selected" \
+                            "The installation menu requires a valid numeric choice to proceed" \
+                            "Choose from the available options (1-5) shown above" \
+                            "Review the menu options and enter a valid number"
                         exit 1
                     fi
                     ;;
@@ -598,7 +656,10 @@ case "$ENV" in
                     exit 0
                     ;;
                 *)
-                    print_error "Invalid option"
+                    print_error_detailed "Invalid menu option selected" \
+                        "The installation menu requires a valid numeric choice to proceed" \
+                        "Choose from the available options (1-5) shown above" \
+                        "Review the menu options and enter a valid number"
                     exit 1
                     ;;
             esac
@@ -607,14 +668,19 @@ case "$ENV" in
         # Check if needs root privileges
         if [[ "$NEEDS_ROOT" == "true" ]]; then
             if ! check_root; then
-                print_error "This script requires root privileges. Please run with sudo."
+                print_error_detailed "Root privileges required for this installation step" \
+                    "The selected script requires root access to modify system files and install packages" \
+                    "Running as regular user would cause permission errors during installation" \
+                    "Run: sudo bash $0"
                 exit 1
             fi
         else
             # Verify not running as root for user scripts
             if check_root; then
-                print_error "User scripts must be run as a regular user, not root."
-                print_info "Exit root and run: bash $0"
+                print_error_detailed "User scripts must run as regular user, not root" \
+                    "The selected script is designed to run as a regular user to avoid security risks" \
+                    "Running installation scripts as root unnecessarily can cause permission issues" \
+                    "Exit root shell and run: bash $0"
                 exit 1
             fi
         fi
@@ -622,7 +688,10 @@ case "$ENV" in
         print_info "Starting $NEXT_SCRIPT..."
         
         if [ ! -f "$INSTALL_DIR/$NEXT_SCRIPT" ]; then
-            print_error "$NEXT_SCRIPT not found in $INSTALL_DIR"
+            print_error_detailed "$NEXT_SCRIPT not found in $INSTALL_DIR" \
+                "The selected installation script is missing from the install directory" \
+                "Cannot proceed with the requested installation step" \
+                "Check script availability: find $INSTALL_DIR -name '*.sh' -type f"
             exit 1
         fi
         
@@ -630,7 +699,10 @@ case "$ENV" in
         ;;
         
     "unknown")
-        print_error "Unable to detect environment."
+        print_error_detailed "Unable to detect current environment" \
+            "ALIE cannot determine if you're in live CD, chroot, or installed system" \
+            "This prevents running the wrong scripts which could damage your system" \
+            "Check your current environment and run the appropriate script manually"
         echo ""
         print_info "Please run the appropriate script manually:"
         echo "  - From live CD: 001-base-install.sh -> (002-shell-editor-select.sh) -> 003-system-install.sh"
