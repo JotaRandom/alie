@@ -2346,7 +2346,9 @@ setup_cleanup_trap() {
             # Cleanup mounted partitions
             if [ -n "${MOUNTED_PARTITIONS:-}" ]; then
                 print_info "Cleaning up mounted partitions..."
-                for mount_point in "${MOUNTED_PARTITIONS[@]}"; do
+                # Unmount in reverse order (last mounted first)
+                for ((i=${#MOUNTED_PARTITIONS[@]}-1; i>=0; i--)); do
+                    mount_point="${MOUNTED_PARTITIONS[$i]}"
                     if mountpoint -q "$mount_point" 2>/dev/null; then
                         print_info "Unmounting $mount_point..."
                         umount "$mount_point" 2>/dev/null || umount -l "$mount_point" 2>/dev/null || true
