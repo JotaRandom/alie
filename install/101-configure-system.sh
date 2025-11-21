@@ -744,6 +744,7 @@ EOF
         if [ -n "${SELECTED_KERNELS:-}" ]; then
             # Use selected kernels from installation
             read -r -a INSTALLED_KERNELS <<< "$SELECTED_KERNELS"
+            print_info "Using selected kernels: ${INSTALLED_KERNELS[*]}"
         else
             # Auto-detect installed kernels (include more variants)
             for kernel in linux linux-zen linux-hardened linux-lts linux-zen-git linux-hardened-git linux-mainline linux-mainline-git; do
@@ -754,6 +755,7 @@ EOF
             # Fallback to linux if none detected
             if [ ${#INSTALLED_KERNELS[@]} -eq 0 ]; then
                 INSTALLED_KERNELS=("linux")
+                print_warning "No kernels detected, using fallback: linux"
             fi
         fi
         
@@ -761,11 +763,20 @@ EOF
         
         # Ensure kernel files exist in /boot
         for kernel_pkg in "${INSTALLED_KERNELS[@]}"; do
+            print_info "Processing kernel: $kernel_pkg"
+            
             if [ ! -f "/boot/vmlinuz-$kernel_pkg" ]; then
                 print_warning "Kernel file /boot/vmlinuz-$kernel_pkg not found, copying from /usr/lib/modules/$kernel_pkg/vmlinuz"
                 if [ -f "/usr/lib/modules/$kernel_pkg/vmlinuz" ]; then
-                    cp "/usr/lib/modules/$kernel_pkg/vmlinuz" "/boot/vmlinuz-$kernel_pkg"
-                    print_success "Kernel file copied: vmlinuz-$kernel_pkg"
+                    if cp "/usr/lib/modules/$kernel_pkg/vmlinuz" "/boot/vmlinuz-$kernel_pkg"; then
+                        print_success "Kernel file copied: vmlinuz-$kernel_pkg"
+                    else
+                        print_error_detailed "Failed to copy kernel file" \
+                            "cp command failed for kernel $kernel_pkg" \
+                            "System may not boot without kernel file" \
+                            "Check disk space and permissions"
+                        exit 1
+                    fi
                 else
                     print_error_detailed "Kernel file not found in /usr/lib/modules/$kernel_pkg/vmlinuz" \
                         "Cannot copy kernel file to /boot for Limine configuration" \
@@ -773,6 +784,8 @@ EOF
                         "Check if kernel package $kernel_pkg is properly installed"
                     exit 1
                 fi
+            else
+                print_info "Kernel file already exists: /boot/vmlinuz-$kernel_pkg"
             fi
             
             if [ ! -f "/boot/initramfs-$kernel_pkg.img" ]; then
@@ -786,33 +799,45 @@ EOF
                         "mkinitcpio -p $kernel_pkg"
                     exit 1
                 fi
+            else
+                print_info "Initramfs file already exists: /boot/initramfs-$kernel_pkg.img"
             fi
         done
         
         # Copy microcode files if available
-        if pacman -Q intel-ucode &>/dev/null && [ ! -f "/boot/intel-ucode.img" ]; then
-            print_info "Copying Intel microcode..."
-            if cp /usr/lib/firmware/intel-ucode.img /boot/intel-ucode.img 2>/dev/null; then
-                print_success "Intel microcode copied"
+        if pacman -Q intel-ucode &>/dev/null; then
+            if [ ! -f "/boot/intel-ucode.img" ]; then
+                print_info "Copying Intel microcode..."
+                if cp /usr/lib/firmware/intel-ucode.img /boot/intel-ucode.img 2>/dev/null; then
+                    print_success "Intel microcode copied"
+                else
+                    print_warning "Failed to copy Intel microcode from /usr/lib/firmware"
+                fi
             else
-                print_warning "Failed to copy Intel microcode"
+                print_info "Intel microcode already exists"
             fi
         fi
         
-        if pacman -Q amd-ucode &>/dev/null && [ ! -f "/boot/amd-ucode.img" ]; then
-            print_info "Copying AMD microcode..."
-            if cp /usr/lib/firmware/amd-ucode.img /boot/amd-ucode.img 2>/dev/null; then
-                print_success "AMD microcode copied"
+        if pacman -Q amd-ucode &>/dev/null; then
+            if [ ! -f "/boot/amd-ucode.img" ]; then
+                print_info "Copying AMD microcode..."
+                if cp /usr/lib/firmware/amd-ucode.img /boot/amd-ucode.img 2>/dev/null; then
+                    print_success "AMD microcode copied"
+                else
+                    print_warning "Failed to copy AMD microcode from /usr/lib/firmware"
+                fi
             else
-                print_warning "Failed to copy AMD microcode"
+                print_info "AMD microcode already exists"
             fi
         fi
         
         # Install Limine bootloader
+        print_info "BOOT_MODE is: $BOOT_MODE"
         if [ "$BOOT_MODE" == "UEFI" ]; then
             print_info "Creating EFI boot directory..."
             mkdir -p /boot/EFI/BOOT
             mkdir -p /boot/limine
+            print_info "Running limine-install /boot/EFI/BOOT"
             if limine-install /boot/EFI/BOOT; then
                 print_success "Limine files installed successfully (UEFI mode)"
                 
@@ -824,6 +849,7 @@ EOF
                 ESP_DISK=$(findmnt -n -o SOURCE /boot | sed 's/p\?[0-9]\+$//')
                 
                 if [ -n "$ESP_PARTITION" ] && [ -n "$ESP_DISK" ]; then
+                    print_info "Running efibootmgr --create --disk $ESP_DISK --part $ESP_PARTITION --label 'Arch Linux Limine' --loader '\\EFI\\BOOT\\BOOTX64.EFI' --unicode"
                     if efibootmgr --create --disk "$ESP_DISK" --part "$ESP_PARTITION" --label "Arch Linux Limine" --loader '\EFI\BOOT\BOOTX64.EFI' --unicode; then
                         print_success "UEFI boot entry created for Limine"
                     else
@@ -848,10 +874,12 @@ EOF
             # BIOS mode - copy limine-bios.sys and install bootloader
             print_info "Copying Limine BIOS stage 3 code..."
             mkdir -p /boot/limine
+            print_info "Running cp /usr/share/limine/limine-bios.sys /boot/limine/"
             if cp /usr/share/limine/limine-bios.sys /boot/limine/; then
                 print_success "Limine BIOS stage 3 code copied"
                 
                 print_info "Installing Limine BIOS bootloader to $TARGET_DISK..."
+                print_info "Running limine bios-install $TARGET_DISK"
                 # For GPT disks, limine bios-install will auto-detect the BIOS boot partition
                 # For MBR disks, it installs directly to MBR
                 if limine bios-install "$TARGET_DISK"; then
