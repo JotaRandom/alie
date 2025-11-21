@@ -220,8 +220,7 @@ if is_step_completed "01-partitions-ready"; then
                 if loadkeys "$KEYMAP" 2>/dev/null; then
                     print_success "Keyboard layout loaded: $KEYMAP"
                 else
-                    print_warning "Failed to load keymap '$KEYMAP', selecting new one..."
-                    select_keymap
+                    print_warning "Failed to load keymap '$KEYMAP' (expected in chroot), but using saved configuration"
                 fi
             else
                 print_warning "Keymap '$KEYMAP' from base installation not found, selecting new one..."
@@ -542,16 +541,16 @@ case "${BOOTLOADER:-grub}" in
         print_info "Installing GRUB bootloader..."
         
         if [ "$BOOT_MODE" == "UEFI" ]; then
-            print_info "Installing GRUB for UEFI on disk: $TARGET_DISK"
+            print_info "Installing GRUB for UEFI"
             
             # Try x86_64-efi first (most common)
-            if grub-install --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot/efi "$TARGET_DISK"; then
-                print_success "GRUB installed successfully (UEFI x86_64 mode) on $TARGET_DISK"
+            if grub-install --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot; then
+                print_success "GRUB installed successfully (UEFI x86_64 mode)"
             else
                 print_warning "x86_64-efi installation failed, trying i386-efi..."
                 # Fallback to i386-efi if x86_64 fails
-                if grub-install --target=i386-efi --boot-directory=/boot --efi-directory=/boot/efi "$TARGET_DISK"; then
-                    print_success "GRUB installed successfully (UEFI i386 mode) on $TARGET_DISK"
+                if grub-install --target=i386-efi --boot-directory=/boot --efi-directory=/boot; then
+                    print_success "GRUB installed successfully (UEFI i386 mode)"
                 else
                     print_error_detailed "GRUB UEFI installation failed on both x86_64 and i386 targets!" \
                         "Neither x86_64-efi nor i386-efi GRUB installation succeeded" \
@@ -734,6 +733,9 @@ EOF
         
         # Install Limine bootloader
         if [ "$BOOT_MODE" == "UEFI" ]; then
+            print_info "Creating EFI boot directory..."
+            mkdir -p /boot/EFI/BOOT
+            mkdir -p /boot/limine
             if limine-install /boot/EFI/BOOT; then
                 print_success "Limine files installed successfully (UEFI mode)"
                 

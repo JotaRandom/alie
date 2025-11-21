@@ -2496,18 +2496,13 @@ setup_cleanup_trap() {
 
         # Only show cleanup message if there was an error
         if [ "$exit_code" -ne 0 ]; then
-            echo "" >&2
-            echo "===============================================================================" >&2
             echo "                           *** SCRIPT ERROR ***" >&2
-            echo "===============================================================================" >&2
-            echo "" >&2
 
             print_error "Script failed with exit code: $exit_code"
             print_error "Error timestamp: $error_timestamp"
             print_error "Error occurred at line: $line_number"
             print_error "Function: ${FUNCNAME[1]:-main}"
             print_error "File: ${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
-            echo "" >&2
 
             # Show system information
             print_error "System info:"
@@ -2516,12 +2511,9 @@ setup_cleanup_trap() {
             echo "  - PID: $$" >&2
             echo "  - Shell: $SHELL" >&2
             echo "  - Working directory: $(pwd 2>/dev/null || echo 'unknown')" >&2
-            echo "" >&2
-
             # Show last few commands if available
             if [ -n "${BASH_COMMAND:-}" ]; then
                 print_error "Last command executed: $BASH_COMMAND"
-                echo "" >&2
             fi
 
             # Show error context based on exit code
@@ -2535,7 +2527,6 @@ setup_cleanup_trap() {
                 139) print_error "Error type: Segmentation fault (exit code 139)" ;;
                 *) print_error "Error type: Unknown exit code $exit_code" ;;
             esac
-            echo "" >&2
 
             # Troubleshooting suggestions
             print_error "Troubleshooting suggestions:"
@@ -2543,8 +2534,6 @@ setup_cleanup_trap() {
             echo "  - Verify disk space: df -h" >&2
             echo "  - Check network: ping -c 3 8.8.8.8" >&2
             echo "  - Review error messages above for specific issues" >&2
-            echo "" >&2
-
             # Cleanup mounted partitions
             if [ -n "${MOUNTED_PARTITIONS:-}" ]; then
                 print_info "Cleaning up mounted partitions..."
@@ -2571,10 +2560,8 @@ setup_cleanup_trap() {
             fi
 
             echo "" >&2
-            echo "===============================================================================" >&2
             print_warning "Cleanup complete - check error details above"
             print_warning "For help, visit: https://github.com/JotaRandom/ALIE/issues"
-            echo "===============================================================================" >&2
         fi
     }
 
