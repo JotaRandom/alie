@@ -865,28 +865,28 @@ EOF
         fi
         
         cat > "$LIMINE_CONF_PATH" << EOF
-timeout: 5
+TIMEOUT=5
 
-/Arch Linux
-    protocol: linux
+:Arch Linux
+    PROTOCOL=linux
 EOF
         
         # Add microcode module if available
         if pacman -Q intel-ucode &>/dev/null; then
             cat >> "$LIMINE_CONF_PATH" << EOF
-    module_path: ${BOOT_PREFIX}/intel-ucode.img
+    MODULE_PATH=${BOOT_PREFIX}/intel-ucode.img
 EOF
         elif pacman -Q amd-ucode &>/dev/null; then
             cat >> "$LIMINE_CONF_PATH" << EOF
-    module_path: ${BOOT_PREFIX}/amd-ucode.img
+    MODULE_PATH=${BOOT_PREFIX}/amd-ucode.img
 EOF
         fi
         
         # Add kernel and initramfs paths
         cat >> "$LIMINE_CONF_PATH" << EOF
-    path: ${BOOT_PREFIX}/vmlinuz-linux
-    cmdline: $KERNEL_PARAMS
-    module_path: ${BOOT_PREFIX}/initramfs-linux.img
+    KERNEL_PATH=${BOOT_PREFIX}/vmlinuz-linux
+    CMDLINE=$KERNEL_PARAMS
+    MODULE_PATH=${BOOT_PREFIX}/initramfs-linux.img
 EOF
         
         # Add entries for additional kernels if any
@@ -901,25 +901,25 @@ EOF
             
             cat >> "$LIMINE_CONF_PATH" << EOF
 
-/Arch Linux ($display_name)
-    protocol: linux
+:Arch Linux ($display_name)
+    PROTOCOL=linux
 EOF
             
             # Add microcode for additional kernels too
             if pacman -Q intel-ucode &>/dev/null; then
                 cat >> "$LIMINE_CONF_PATH" << EOF
-    module_path: ${BOOT_PREFIX}/intel-ucode.img
+    MODULE_PATH=${BOOT_PREFIX}/intel-ucode.img
 EOF
             elif pacman -Q amd-ucode &>/dev/null; then
                 cat >> "$LIMINE_CONF_PATH" << EOF
-    module_path: ${BOOT_PREFIX}/amd-ucode.img
+    MODULE_PATH=${BOOT_PREFIX}/amd-ucode.img
 EOF
             fi
             
             cat >> "$LIMINE_CONF_PATH" << EOF
-    path: ${BOOT_PREFIX}/vmlinuz-$kernel_pkg
-    cmdline: $KERNEL_PARAMS
-    module_path: ${BOOT_PREFIX}/initramfs-$kernel_pkg.img
+    KERNEL_PATH=${BOOT_PREFIX}/vmlinuz-$kernel_pkg
+    CMDLINE=$KERNEL_PARAMS
+    MODULE_PATH=${BOOT_PREFIX}/initramfs-$kernel_pkg.img
 EOF
         done
         

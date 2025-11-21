@@ -1,7 +1,7 @@
 # Limine configuration template (plain version)
 # This is a backup template for manual Limine configuration
 # Copy this to /boot/limine.conf
-TIMEOUT: 5
+timeout: 5
 
 /Arch Linux
     protocol: linux
