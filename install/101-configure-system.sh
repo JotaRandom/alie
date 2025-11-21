@@ -540,6 +540,9 @@ case "${BOOTLOADER:-grub}" in
     "grub")
         print_info "Installing GRUB bootloader..."
         
+        # Ensure GRUB directory exists
+        mkdir -p /boot/grub
+        
         if [ "$BOOT_MODE" == "UEFI" ]; then
             print_info "Installing GRUB for UEFI"
             
@@ -587,6 +590,8 @@ case "${BOOTLOADER:-grub}" in
         fi
         
         print_info "Installing systemd-boot..."
+        # Ensure systemd-boot directories exist
+        mkdir -p /boot/loader /boot/loader/entries
         if bootctl install; then
             print_success "systemd-boot installed successfully"
         else
@@ -731,6 +736,78 @@ EOF
     "limine")
         print_info "Installing Limine bootloader..."
         
+        # Ensure kernel files are available in /boot
+        print_info "Ensuring kernel files are available in /boot..."
+        
+        # Determine available kernels (expand detection for more variants)
+        INSTALLED_KERNELS=()
+        if [ -n "${SELECTED_KERNELS:-}" ]; then
+            # Use selected kernels from installation
+            read -r -a INSTALLED_KERNELS <<< "$SELECTED_KERNELS"
+        else
+            # Auto-detect installed kernels (include more variants)
+            for kernel in linux linux-zen linux-hardened linux-lts linux-zen-git linux-hardened-git linux-mainline linux-mainline-git; do
+                if pacman -Q "$kernel" &>/dev/null; then
+                    INSTALLED_KERNELS+=("$kernel")
+                fi
+            done
+            # Fallback to linux if none detected
+            if [ ${#INSTALLED_KERNELS[@]} -eq 0 ]; then
+                INSTALLED_KERNELS=("linux")
+            fi
+        fi
+        
+        print_info "Detected ${#INSTALLED_KERNELS[@]} kernel(s): ${INSTALLED_KERNELS[*]}"
+        
+        # Ensure kernel files exist in /boot
+        for kernel_pkg in "${INSTALLED_KERNELS[@]}"; do
+            if [ ! -f "/boot/vmlinuz-$kernel_pkg" ]; then
+                print_warning "Kernel file /boot/vmlinuz-$kernel_pkg not found, copying from /usr/lib/modules/$kernel_pkg/vmlinuz"
+                if [ -f "/usr/lib/modules/$kernel_pkg/vmlinuz" ]; then
+                    cp "/usr/lib/modules/$kernel_pkg/vmlinuz" "/boot/vmlinuz-$kernel_pkg"
+                    print_success "Kernel file copied: vmlinuz-$kernel_pkg"
+                else
+                    print_error_detailed "Kernel file not found in /usr/lib/modules/$kernel_pkg/vmlinuz" \
+                        "Cannot copy kernel file to /boot for Limine configuration" \
+                        "System will not boot without kernel file in /boot" \
+                        "Check if kernel package $kernel_pkg is properly installed"
+                    exit 1
+                fi
+            fi
+            
+            if [ ! -f "/boot/initramfs-$kernel_pkg.img" ]; then
+                print_warning "Initramfs file /boot/initramfs-$kernel_pkg.img not found, regenerating..."
+                if mkinitcpio -p "$kernel_pkg"; then
+                    print_success "Initramfs regenerated: initramfs-$kernel_pkg.img"
+                else
+                    print_error_detailed "Failed to regenerate initramfs for $kernel_pkg" \
+                        "Initramfs generation failed, system cannot boot" \
+                        "Check mkinitcpio configuration and try manual regeneration" \
+                        "mkinitcpio -p $kernel_pkg"
+                    exit 1
+                fi
+            fi
+        done
+        
+        # Copy microcode files if available
+        if pacman -Q intel-ucode &>/dev/null && [ ! -f "/boot/intel-ucode.img" ]; then
+            print_info "Copying Intel microcode..."
+            if cp /usr/lib/firmware/intel-ucode.img /boot/intel-ucode.img 2>/dev/null; then
+                print_success "Intel microcode copied"
+            else
+                print_warning "Failed to copy Intel microcode"
+            fi
+        fi
+        
+        if pacman -Q amd-ucode &>/dev/null && [ ! -f "/boot/amd-ucode.img" ]; then
+            print_info "Copying AMD microcode..."
+            if cp /usr/lib/firmware/amd-ucode.img /boot/amd-ucode.img 2>/dev/null; then
+                print_success "AMD microcode copied"
+            else
+                print_warning "Failed to copy AMD microcode"
+            fi
+        fi
+        
         # Install Limine bootloader
         if [ "$BOOT_MODE" == "UEFI" ]; then
             print_info "Creating EFI boot directory..."
@@ -810,11 +887,92 @@ EOF
             mkdir -p /boot/limine
         fi
         
-        # Copy the plain configuration template and replace placeholders
-        cp "$SCRIPT_DIR/../configs/bootloader/limine.conf.plain" "$LIMINE_CONF_PATH"
-        sed -i "s/YOUR_ROOT_UUID_HERE/$ROOT_UUID/g" "$LIMINE_CONF_PATH"
+        # Generate limine.conf with proper syntax
+        cat > "$LIMINE_CONF_PATH" << EOF
+TIMEOUT=5
+
+:Arch Linux
+    PROTOCOL=linux
+EOF
         
-        print_success "Limine configured using template"
+        # Add microcode module if available
+        if pacman -Q intel-ucode &>/dev/null; then
+            cat >> "$LIMINE_CONF_PATH" << EOF
+    MODULE_PATH=boot:///intel-ucode.img
+EOF
+        elif pacman -Q amd-ucode &>/dev/null; then
+            cat >> "$LIMINE_CONF_PATH" << EOF
+    MODULE_PATH=boot:///amd-ucode.img
+EOF
+        fi
+        
+        # Build kernel parameters
+        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw"
+        
+        # Add rootfstype for filesystem type
+        if [ -n "$ROOT_FS" ]; then
+            KERNEL_PARAMS="$KERNEL_PARAMS rootfstype=$ROOT_FS"
+        fi
+        
+        # Add resume parameter for swap/hibernation
+        if [ -n "$SWAP_PARTITION" ]; then
+            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
+            if [ -n "$SWAP_UUID" ]; then
+                KERNEL_PARAMS="$KERNEL_PARAMS resume=UUID=$SWAP_UUID"
+            fi
+        fi
+        
+        # Add rootflags for Btrfs subvolumes
+        if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
+            KERNEL_PARAMS="$KERNEL_PARAMS rootflags=subvol=@"
+        fi
+        
+        # Add recommended kernel parameters
+        KERNEL_PARAMS="$KERNEL_PARAMS quiet udev.log_priority=3 vt.global_cursor_default=0 loglevel=3"
+        
+        # Add kernel and initramfs paths for default kernel
+        DEFAULT_KERNEL="${INSTALLED_KERNELS[0]}"
+        cat >> "$LIMINE_CONF_PATH" << EOF
+    KERNEL_PATH=boot:///vmlinuz-$DEFAULT_KERNEL
+    CMDLINE=$KERNEL_PARAMS
+    MODULE_PATH=boot:///initramfs-$DEFAULT_KERNEL.img
+EOF
+        
+        # Add entries for additional kernels if any
+        for kernel_pkg in "${INSTALLED_KERNELS[@]:1}"; do
+            kernel_name="${kernel_pkg#linux}"  # Remove "linux" prefix
+            kernel_name="${kernel_name#-}"     # Remove leading dash if present
+            [ -z "$kernel_name" ] && kernel_name="default"
+            
+            # Capitalize first letter for better display
+            display_name="$(tr '[:lower:]' '[:upper:]' <<< "${kernel_name:0:1}")${kernel_name:1}"
+            [ "$display_name" = "Default" ] && display_name="Stable"
+            
+            cat >> "$LIMINE_CONF_PATH" << EOF
+
+:Arch Linux ($display_name)
+    PROTOCOL=linux
+EOF
+            
+            # Add microcode for additional kernels too
+            if pacman -Q intel-ucode &>/dev/null; then
+                cat >> "$LIMINE_CONF_PATH" << EOF
+    MODULE_PATH=boot:///intel-ucode.img
+EOF
+            elif pacman -Q amd-ucode &>/dev/null; then
+                cat >> "$LIMINE_CONF_PATH" << EOF
+    MODULE_PATH=boot:///amd-ucode.img
+EOF
+            fi
+            
+            cat >> "$LIMINE_CONF_PATH" << EOF
+    KERNEL_PATH=boot:///vmlinuz-$kernel_pkg
+    CMDLINE=$KERNEL_PARAMS
+    MODULE_PATH=boot:///initramfs-$kernel_pkg.img
+EOF
+        done
+        
+        print_success "Limine configured with ${#INSTALLED_KERNELS[@]} kernel(s)"
         
         # Verify Limine configuration
         if [ -f "$LIMINE_CONF_PATH" ]; then
