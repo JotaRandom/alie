@@ -800,130 +800,21 @@ EOF
         # Build kernel parameters according to Arch Wiki best practices
         ROOT_UUID=$(get_partition_uuid "$ROOT_PARTITION")
         
-        # Base parameters
-        KERNEL_PARAMS="root=UUID=$ROOT_UUID rw"
-        
-        # Add rootfstype for filesystem type
-        if [ -n "$ROOT_FS" ]; then
-            KERNEL_PARAMS="$KERNEL_PARAMS rootfstype=$ROOT_FS"
-        fi
-        
-        # Add resume parameter for swap/hibernation
-        if [ -n "$SWAP_PARTITION" ]; then
-            SWAP_UUID=$(get_partition_uuid "$SWAP_PARTITION")
-            if [ -n "$SWAP_UUID" ]; then
-                KERNEL_PARAMS="$KERNEL_PARAMS resume=UUID=$SWAP_UUID"
-            fi
-        fi
-        
-        # Add rootflags for Btrfs subvolumes
-        if [ "$ROOT_FS" = "btrfs" ] && [ "$PARTITION_SCHEME" = "btrfs-subvolumes" ]; then
-            KERNEL_PARAMS="$KERNEL_PARAMS rootflags=subvol=@"
-        fi
-        
-        # Add recommended kernel parameters
-        KERNEL_PARAMS="$KERNEL_PARAMS quiet udev.log_priority=3 vt.global_cursor_default=0 loglevel=3"
-        
-        # Determine available kernels (expand detection for more variants)
-        INSTALLED_KERNELS=()
-        if [ -n "${SELECTED_KERNELS:-}" ]; then
-            # Use selected kernels from installation
-            read -r -a INSTALLED_KERNELS <<< "$SELECTED_KERNELS"
-        else
-            # Auto-detect installed kernels (include more variants)
-            for kernel in linux linux-zen linux-hardened linux-lts linux-zen-git linux-hardened-git linux-mainline linux-mainline-git; do
-                if pacman -Q "$kernel" &>/dev/null; then
-                    INSTALLED_KERNELS+=("$kernel")
-                fi
-            done
-            # Fallback to linux if none detected
-            if [ ${#INSTALLED_KERNELS[@]} -eq 0 ]; then
-                INSTALLED_KERNELS=("linux")
-            fi
-        fi
-        
-        print_info "Configuring Limine with ${#INSTALLED_KERNELS[@]} kernel(s): ${INSTALLED_KERNELS[*]}"
-        
         # Determine limine.conf location based on boot mode
         if [ "$BOOT_MODE" == "UEFI" ]; then
             LIMINE_CONF_PATH="/boot/EFI/BOOT/limine.conf"
             mkdir -p /boot/EFI/BOOT
-            BOOT_PARTITION="$EFI_PARTITION"
+            mkdir -p /boot/limine
         else
             LIMINE_CONF_PATH="/boot/limine/limine.conf"
             mkdir -p /boot/limine
         fi
         
-        # Determine if /boot is on a separate partition
-        BOOT_PREFIX="boot():"
-        if [ -n "$BOOT_PARTITION" ] && [ "$BOOT_PARTITION" != "$ROOT_PARTITION" ]; then
-            # /boot is on separate partition, use PARTUUID
-            BOOT_PARTUUID=$(blkid -s PARTUUID -o value "$BOOT_PARTITION" 2>/dev/null)
-            if [ -n "$BOOT_PARTUUID" ]; then
-                BOOT_PREFIX="uuid($BOOT_PARTUUID):"
-            fi
-        fi
+        # Copy the plain configuration template and replace placeholders
+        cp "$SCRIPT_DIR/../configs/bootloader/limine.conf.plain" "$LIMINE_CONF_PATH"
+        sed -i "s/YOUR_ROOT_UUID_HERE/$ROOT_UUID/g" "$LIMINE_CONF_PATH"
         
-        cat > "$LIMINE_CONF_PATH" << EOF
-TIMEOUT=5
-
-:Arch Linux
-    PROTOCOL=linux
-EOF
-        
-        # Add microcode module if available
-        if pacman -Q intel-ucode &>/dev/null; then
-            cat >> "$LIMINE_CONF_PATH" << EOF
-    MODULE_PATH=${BOOT_PREFIX}/intel-ucode.img
-EOF
-        elif pacman -Q amd-ucode &>/dev/null; then
-            cat >> "$LIMINE_CONF_PATH" << EOF
-    MODULE_PATH=${BOOT_PREFIX}/amd-ucode.img
-EOF
-        fi
-        
-        # Add kernel and initramfs paths
-        cat >> "$LIMINE_CONF_PATH" << EOF
-    KERNEL_PATH=${BOOT_PREFIX}/vmlinuz-linux
-    CMDLINE=$KERNEL_PARAMS
-    MODULE_PATH=${BOOT_PREFIX}/initramfs-linux.img
-EOF
-        
-        # Add entries for additional kernels if any
-        for kernel_pkg in "${INSTALLED_KERNELS[@]:1}"; do
-            kernel_name="${kernel_pkg#linux}"  # Remove "linux" prefix
-            kernel_name="${kernel_name#-}"     # Remove leading dash if present
-            [ -z "$kernel_name" ] && kernel_name="default"
-            
-            # Capitalize first letter for better display
-            display_name="$(tr '[:lower:]' '[:upper:]' <<< "${kernel_name:0:1}")${kernel_name:1}"
-            [ "$display_name" = "Default" ] && display_name="Stable"
-            
-            cat >> "$LIMINE_CONF_PATH" << EOF
-
-:Arch Linux ($display_name)
-    PROTOCOL=linux
-EOF
-            
-            # Add microcode for additional kernels too
-            if pacman -Q intel-ucode &>/dev/null; then
-                cat >> "$LIMINE_CONF_PATH" << EOF
-    MODULE_PATH=${BOOT_PREFIX}/intel-ucode.img
-EOF
-            elif pacman -Q amd-ucode &>/dev/null; then
-                cat >> "$LIMINE_CONF_PATH" << EOF
-    MODULE_PATH=${BOOT_PREFIX}/amd-ucode.img
-EOF
-            fi
-            
-            cat >> "$LIMINE_CONF_PATH" << EOF
-    KERNEL_PATH=${BOOT_PREFIX}/vmlinuz-$kernel_pkg
-    CMDLINE=$KERNEL_PARAMS
-    MODULE_PATH=${BOOT_PREFIX}/initramfs-$kernel_pkg.img
-EOF
-        done
-        
-        print_success "Limine configured with ${#INSTALLED_KERNELS[@]} kernel(s)"
+        print_success "Limine configured using template"
         
         # Verify Limine configuration
         if [ -f "$LIMINE_CONF_PATH" ]; then
