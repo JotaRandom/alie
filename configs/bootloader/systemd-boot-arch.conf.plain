@@ -1,0 +1,9 @@
+# systemd-boot entry configuration template (plain version)
+# This is a backup template for manual systemd-boot configuration
+# Copy this to /boot/loader/entries/arch.conf
+
+title   Arch Linux
+linux   /vmlinuz-linux
+initrd  /intel-ucode.img
+initrd  /initramfs-linux.img
+options root=UUID=YOUR_ROOT_UUID_HERE rw quiet udev.log_priority=3 vt.global_cursor_default=0 loglevel=3

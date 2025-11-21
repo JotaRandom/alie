@@ -1,0 +1,10 @@
+# Limine configuration template (plain version)
+# This is a backup template for manual Limine configuration
+# Copy this to /boot/limine.conf
+TIMEOUT: 5
+
+/Arch Linux
+    protocol: linux
+    path: boot():/vmlinuz-linux
+    module_path: boot():/initramfs-linux.img
+    cmdline: root=UUID=YOUR_ROOT_UUID_HERE rw quiet udev.log_priority=3 vt.global_cursor_default=0 loglevel=3
