@@ -1,6 +1,6 @@
 # Scripts de Instalación ALIE
 
-Scripts de instalación automatizada para Linux Mint Arch Edition.
+Scripts de instalación automatizada para Arch Linux con entornos de escritorio y gestores de ventanas personalizables.
 
 ## ⚠️ ADVERTENCIA - ESTADO EXPERIMENTAL
 
@@ -31,8 +31,8 @@ Detecta si estás en:
 
 - **Live CD**: Inicia instalación base
 - **Chroot**: Configura el sistema
-- **Sistema instalado sin escritorio**: Instala entorno de escritorio
-- **Sistema con escritorio**: Instala YAY y paquetes de Mint
+- **Sistema instalado sin GUI**: Ofrece selección de DE/WM
+- **Sistema con escritorio**: Instala herramientas adicionales
 
 El progreso se guarda automáticamente, así que puedes reiniciar entre pasos sin perder el rastro.
 
@@ -52,23 +52,38 @@ bash alie.sh --manual
 ## Estructura de Directorios
 
 ```
-src/
-├── alie.sh                   # Instalador maestro (punto de entrada)
-├── install/                  # Scripts de instalación
-│   ├── 001-base-install.sh    # Instalación del sistema base
-│   ├── 101-configure-system.sh # Configuración del sistema
-│   ├── 201-desktop-install.sh # Entorno de escritorio
-│   ├── 211-install-yay.sh     # Helper YAY AUR
-│   └── 212-install-packages.sh # Paquetes de Linux Mint
-├── lib/                      # Bibliotecas compartidas
-│   └── shared-functions.sh   # Funciones comunes
-└── docs/                     # Documentación
-    ├── CHANGELOG.md          # Historial de cambios
-    ├── GUIA-RAPIDA.md        # Referencia rápida
-    ├── METRICAS.md           # Métricas del proyecto
-    ├── RESUMEN-MODERNIZACION.md # Resumen de modernización
-    └── shared/               # Docs de biblioteca
-        └── SHARED-FUNCTIONS.md # Documentación de funciones
+├── alie.sh                    # Instalador maestro (punto de entrada)
+├── install/                   # Scripts de instalación
+│   ├── 001-base-install.sh    # Particionado y formateo de disco
+│   ├── 002-shell-editor-select.sh # Selección shell/editor (bash/zsh/fish/nushell + nano/vim) (opcional)
+│   ├── 003-system-install.sh  # Instalación base (pacstrap)
+│   ├── 101-configure-system.sh # Configuración del sistema (grub, locale)
+│   ├── 201-user-setup.sh      # Creación de usuario y privilegios
+│   ├── 211-install-aur-helper.sh # Helper AUR (yay/paru)
+│   ├── 212-cli-tools.sh       # Selección interactiva de herramientas CLI
+│   ├── 213-display-server.sh  # Servidor gráfico (X11/Wayland)
+│   ├── 220-desktop-select.sh  # Elegir DE/WM X11/Wayland o saltar
+│   ├── 221-desktop-environment.sh # Entornos de Escritorio
+│   ├── 222-window-manager.sh  # Gestores de Ventanas X11
+│   ├── 223-wayland-wm.sh      # Gestores de Ventanas Wayland
+│   └── 231-desktop-tools.sh   # Aplicaciones adicionales
+├── lib/                       # Bibliotecas compartidas
+│   ├── shared-functions.sh    # Funciones comunes
+│   └── config-functions.sh    # Funciones de despliegue de configuraciones
+├── configs/                   # Archivos de configuración y plantillas
+│   ├── README.md              # Documentación de archivos de configuración
+│   ├── audio/                 # Configuración de audio (ALSA/PipeWire)
+│   ├── display-managers/      # Configs de gestores de pantalla (LightDM/SDDM)
+│   ├── editor/                # Configuraciones de editores de texto (nano/vim)
+│   ├── firewall/              # Configuraciones de firewall (UFW/Firewalld)
+│   ├── network/               # Configuraciones de red (NetworkManager/systemd-resolved)
+│   ├── shell/                 # Configuraciones de shell (bash/zsh/fish/nushell/ksh/tcsh)
+│   ├── sudo/                  # Configuraciones de privilegios Sudo/Doas
+│   └── xorg/                  # Configuraciones de drivers gráficos Xorg
+├── README.en.md               # Documentación en inglés
+├── README.es.md               # Documentación en español
+├── LICENSE                    # Licencia AGPLv3
+└── .gitignore
 ```
 
 ## Scripts Disponibles
@@ -76,11 +91,19 @@ src/
 | # | Script | Ejecutar como | Cuándo |
 |---|--------|---------------|--------|
 | 0 | `alie.sh` | root/usuario | En cualquier momento (detecta automáticamente) |
-| 1 | `install/001-base-install.sh` | root | Desde medio de instalación |
-| 2 | `install/101-configure-system.sh` | root | Dentro de arch-chroot |
-| 3 | `install/201-desktop-install.sh` | root | Después del primer reinicio |
-| 4 | `install/211-install-yay.sh` | usuario | Después de reiniciar con escritorio |
-| 5 | `install/212-install-packages.sh` | usuario | Después de instalar yay |
+| 1 | `001-base-install.sh` | root | Desde medio de instalación |
+| 2 | `002-shell-editor-select.sh` | root | Selección shell/editor (bash/zsh/fish/nushell + nano/vim) (opcional) |
+| 3 | `003-system-install.sh` | root | Desde medio de instalación |
+| 4 | `101-configure-system.sh` | root | Dentro de arch-chroot |
+| 5 | `201-user-setup.sh` | root | Creación de usuario y configuración de privilegios |
+| 6 | `211-install-aur-helper.sh` | usuario | Instalación de helper AUR (yay/paru) |
+| 7 | `212-cli-tools.sh` | usuario | Selección interactiva de herramientas CLI |
+| 8 | `213-display-server.sh` | root | Selección X11/Wayland |
+| 9 | `220-desktop-select.sh` | root | Elegir DE/WM X11/Wayland o saltar |
+| 10 | `221-desktop-environment.sh` | root | Entornos de Escritorio |
+| 11 | `222-window-manager.sh` | root | Gestores de Ventanas X11 |
+| 12 | `223-wayland-wm.sh` | root | Gestores de Ventanas Wayland |
+| 13 | `231-desktop-tools.sh` | root | Aplicaciones adicionales |
 
 ## Proceso Completo
 
@@ -114,12 +137,12 @@ sync
 reboot
 
 # 4. Después del reinicio (como root)
-bash install/201-desktop-install.sh
+bash install/201-user-setup.sh
 reboot
 
 # 5. Después del reinicio (como usuario)
-bash install/211-install-yay.sh
-bash install/212-install-packages.sh
+bash install/211-install-aur-helper.sh
+bash install/212-cli-tools.sh
 reboot
 ```
 
@@ -142,6 +165,23 @@ reboot
 - Detecta modo de arranque (UEFI/BIOS)
 - Verifica conexión a internet antes de instalar
 - Valida entorno (Live USB, chroot, sistema instalado)
+- **Soporte múltiple de shells** - Elige entre Bash, Zsh, Fish o Nushell con configuración completa
+- **Particionado robusto** - Limpieza mejorada de disco con múltiples intentos de desmontaje y gestión de procesos
+
+### Opciones de Shell
+ALIE soporta múltiples entornos de shell con configuración completa:
+
+#### Shells Disponibles
+- **Bash** - Shell Bourne Again de GNU (predeterminado)
+- **Zsh** - Shell Bourne extendido con características avanzadas
+- **Fish** - Shell interactivo amigable con autosugerencias
+- **Nushell** - Shell moderno escrito en Rust con soporte para datos estructurados
+
+#### Características de Configuración de Shell
+- **Detección Automática**: Los scripts detectan y configuran tu shell elegido
+- **Configuración Completa**: Incluye aliases, configuración de PATH y editores
+- **Soporte de Fallback**: Configuración inline si los archivos de configuración no están disponibles
+- **Características Especiales de Nushell**: Manejo de datos estructurados, prompt personalizado, integración con Starship
 
 ## Personalización
 
@@ -165,6 +205,50 @@ Si un script falla:
 1. Lee el mensaje de error
 2. Corrige el problema manualmente
 3. Continúa con el siguiente paso o vuelve a ejecutar
+
+### Problemas de Particionado de Disco
+
+Si el instalador falla con "initialization canceled or failed" después de seleccionar un disco:
+
+**1. Verificar lo Básico del Disco**
+```bash
+# Verificar que el disco existe y es accesible
+lsblk -d /dev/sda  # Reemplaza sda con tu disco
+
+# Verificar si el disco está en uso
+mount | grep /dev/sda
+swapon --show | grep /dev/sda
+```
+
+**2. Probar Comandos de parted Manualmente**
+```bash
+# Probar funcionalidad básica de parted
+sudo parted -s /dev/sda print
+
+# Probar creación de tabla de particiones (prueba)
+sudo parted -s /dev/sda mklabel gpt --dry-run
+```
+
+**3. Limpieza Mejorada de Particiones (v2.0+)**
+ALIE ahora incluye desmontaje robusto de particiones con múltiples estrategias:
+- **Desmontaje normal** - Comando umount estándar
+- **Desmontaje lazy** - umount -l para particiones ocupadas
+- **Detección de procesos** - Encuentra y termina automáticamente procesos que usan particiones
+- **Desmontaje forzado** - umount -f como último recurso
+- **Múltiples intentos** - Hasta 5 intentos con 3 segundos de espera entre reintentos
+
+Si las particiones están temporalmente ocupadas, el instalador manejará automáticamente la limpieza.
+
+**4. Problemas Comunes**
+
+- **Disco no encontrado**: Asegúrate de usar el nombre correcto del disco (sda, nvme0n1, etc.)
+- **Permiso denegado**: Ejecuta el instalador como root
+- **Disco en uso**: Desmonta cualquier partición montada primero
+- **Máquina virtual**: Algunas VMs necesitan configuraciones especiales de disco
+- **Disco USB**: Algunos discos USB no soportan todos los esquemas de particionado
+
+**5. Alternativa: Particionado Manual**
+Si el particionado automático falla, elige la opción 2 en el instalador para particionado manual con cfdisk/fdisk.
 
 ## Contribuciones
 

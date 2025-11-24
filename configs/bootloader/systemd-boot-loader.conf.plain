@@ -1,0 +1,8 @@
+# systemd-boot loader configuration template (plain version)
+# This is a backup template for manual systemd-boot configuration
+# Copy this to /boot/loader/loader.conf
+
+default  arch.conf
+timeout  5
+console-mode max
+editor   no

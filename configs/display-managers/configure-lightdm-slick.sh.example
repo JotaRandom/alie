@@ -1,0 +1,29 @@
+# Ejemplo: qué hace `configure-lightdm-slick.sh`
+
+Este archivo explica y muestra el fragmento que el script intentará asegurar en `/etc/lightdm/lightdm.conf`.
+
+1) El script crea un backup en `/var/backups/alie-configs` si existe el fichero original.
+2) Si no existe, crea un `lightdm.conf` mínimo con:
+
+[Seat:*]
+greeter-session=lightdm-slick-greeter
+
+Además, la configuración del greeter (ejemplo para `lightdm-slick-greeter.conf`) puede verse así:
+
+[Greeter]
+theme-name=Adwaita-dark
+icon-theme-name=Adwaita
+cursor-theme-name=Adwaita
+font-name=Cantarell 11
+background=/usr/share/pixmaps/arch-logo.png
+background-color=#2e3436
+user-background=true
+show-hostname=true
+show-power=true
+show-a11y=true
+show-keyboard=true
+show-clock=true
+clock-format=%H:%M
+show-session=true
+
+Usa este archivo para copiar/pegar el fragmento en `/etc/lightdm/lightdm.conf` si deseas aplicar manualmente.

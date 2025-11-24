@@ -5,13 +5,29 @@
 # This is critical for Linux/Unix execution environments
 *.sh text eol=lf
 
+# CRITICAL: All .sh files MUST have execute permissions (100755)
+# This ensures cross-platform compatibility when developing on Windows
+# and deploying on Linux/Unix systems
+*.sh filter=chmod+x
+
 # Markdown files can use system defaults but prefer LF for consistency
 *.md text eol=lf
 
 # License files should use LF for cross-platform compatibility
 LICENSE text eol=lf
 
-# Configuration files
+# Configuration files in configs/ directory
+# All config files must use LF for Linux compatibility
+configs/**/*.conf text eol=lf
+configs/**/*.template text eol=lf
+configs/**/nanorc text eol=lf
+configs/**/vimrc text eol=lf
+configs/**/bashrc text eol=lf
+configs/**/zshrc text eol=lf
+configs/**/config.fish text eol=lf
+configs/**/*.sh text eol=lf
+
+# Git configuration files
 .gitignore text eol=lf
 .gitattributes text eol=lf
 

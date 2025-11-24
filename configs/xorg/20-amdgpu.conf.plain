@@ -1,0 +1,39 @@
+# AMD GPU Configuration for Xorg
+# File: /etc/X11/xorg.conf.d/20-amdgpu.conf
+# Driver: amdgpu (open source), xf86-video-amdgpu
+
+Section "Device"
+    Identifier  "AMD Graphics"
+    Driver      "amdgpu"
+    
+    # Enable TearFree (prevents screen tearing)
+    Option      "TearFree"    "true"
+    
+    # Enable DRI (Direct Rendering Infrastructure)
+    Option      "DRI"         "3"
+    
+    # Variable refresh rate support (FreeSync)
+    Option      "VariableRefresh" "true"
+    
+    # Acceleration method
+    Option      "AccelMethod" "glamor"
+    
+    # Enable page flipping for better performance
+    Option      "EnablePageFlip" "true"
+    
+    # Color tiling mode (default is optimal)
+    Option      "ColorTiling" "on"
+    Option      "ColorTiling2D" "on"
+EndSection
+
+# Optional: Screen configuration
+Section "Screen"
+    Identifier  "AMD Screen"
+    Device      "AMD Graphics"
+    
+    DefaultDepth 24
+    
+    SubSection "Display"
+        Depth   24
+    EndSubSection
+EndSection

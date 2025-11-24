@@ -1,0 +1,11 @@
+# ALIE - /etc/hosts template
+# Network host resolution
+# Replace {{HOSTNAME}} with actual hostname during installation
+
+127.0.0.1      localhost
+::1            localhost
+127.0.1.1      {{HOSTNAME}}
+
+# Optional: Add custom host entries below
+# 192.168.1.100  myserver
+# 10.0.0.5       database

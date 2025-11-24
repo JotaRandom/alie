@@ -1,0 +1,14 @@
+#!/bin/sh
+# Ejemplo: comandos que aplica `firewalld-basic.sh` (zona public, solo SSH)
+
+# Establecer zona por defecto
+firewall-cmd --set-default-zone=public
+
+# Permitir SSH permanentemente
+firewall-cmd --permanent --zone=public --add-service=ssh
+
+# Recargar para aplicar
+firewall-cmd --reload
+
+# Mostrar configuración activa
+firewall-cmd --list-all

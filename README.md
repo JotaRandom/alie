@@ -1,8 +1,8 @@
 # ALIE Installer
 
-**Automated installation scripts for Arch Linux with Linux Mint's Cinnamon desktop environment.**
+**Automated installation scripts for Arch Linux with customizable desktop environments and window managers.**
 
-> 🚀 Modular, robust, and production-ready installer for creating a Linux Mint-like experience on Arch Linux.
+> 🚀 Modular, robust, and production-ready installer for creating a fully-featured Arch Linux system with your choice of desktop environment or window manager.
 
 ---
 
@@ -27,10 +27,8 @@
 
 **Additional resources:**
 
-- [Quick Reference Guide](docs/GUIA-RAPIDA.md)
-- [Naming Scheme](docs/NAMING-SCHEME.md)
-- [Changelog](docs/CHANGELOG.md)
-- [Shared Functions Documentation](docs/shared/SHARED-FUNCTIONS.md)
+- [Configuration Files Documentation](configs/README.md)
+- [Shared Functions Library](lib/shared-functions.sh)
 
 ---
 
@@ -49,7 +47,7 @@
 ```bash
 # From Arch Live USB
 git clone https://github.com/JotaRandom/ALIE.git
-cd ALIE/src
+cd ALIE
 ```
 
 **2. Run automatic installation**
@@ -74,21 +72,35 @@ Manually select which installation step to execute.
 
 ```
 ├── alie.sh                     # Master installer (entry point)
-├── install/                    # Installation scripts (semantic numbering)
-│   ├── 001-base-install.sh     # Base system (Live USB, root only)
-│   ├── 101-configure-system.sh # System config (chroot, root only)
-│   ├── 201-desktop-install.sh  # Desktop env (installed system, root only)
-│   ├── 211-install-yay.sh      # YAY AUR helper (user only)
-│   └── 212-install-packages.sh # Linux Mint packages (user only)
-├── lib/                        # Shared libraries
-│   └── shared-functions.sh     # Common functions and utilities
-├── docs/                       # Documentation
-│   ├── CHANGELOG.md            # Project history
-│   ├── GUIA-RAPIDA.md          # Quick start guide (Spanish)
-│   ├── SCRIPT-IMPROVEMENTS.md  # Technical improvements log
-│   ├── WIKI-COMPLIANCE.md      # Arch Wiki compliance fixes
-│   └── shared/
-│       └── SHARED-FUNCTIONS.md # Function library documentation
+├── check-permissions.sh       # Permission verification script (Linux/Unix)
+├── check-permissions.ps1      # Permission verification script (Windows)
+├── install/                    # Installation scripts (sequential numbering)
+│   ├── 001-base-install.sh     # Disk partitioning and base system setup
+│   ├── 002-shell-editor-select.sh # Shell/editor selection (bash/zsh/fish/nushell + nano/vim) (OPTIONAL)
+│   ├── 003-system-install.sh   # Base system install (pacstrap)
+│   ├── 101-configure-system.sh # System configuration (chroot, root only)
+│   ├── 201-user-setup.sh       # User creation + privilege config (root only)
+│   ├── 211-install-aur-helper.sh # AUR helper (yay/paru) (user only)
+│   ├── 212-cli-tools.sh        # Interactive CLI tools selection (user only)
+│   ├── 213-display-server.sh   # Graphics server choice (Xorg/Wayland) (root only)
+│   ├── 220-desktop-select.sh   # Choose DE/WM or skip (root only)
+│   ├── 221-desktop-environment.sh # Desktop environments (Cinnamon/GNOME/KDE/XFCE4) (root only)
+│   ├── 222-window-manager.sh   # X11 Window managers (i3/bspwm/Openbox/etc.) (root only)
+│   ├── 223-wayland-wm.sh       # Wayland Window managers (Sway/Hyprland/etc.) (root only)
+│   └── 231-desktop-tools.sh    # Additional applications and tools (root only)
+├── lib/                        # Shared functions and utilities
+│   ├── shared-functions.sh     # Common functions for all scripts
+│   └── config-functions.sh     # Configuration deployment functions
+├── configs/                    # Configuration files and templates
+│   ├── README.md               # Configuration files documentation
+│   ├── audio/                  # Audio configuration (ALSA/PipeWire)
+│   ├── display-managers/       # Display manager configs (LightDM/SDDM)
+│   ├── editor/                 # Text editor configurations (nano/vim)
+│   ├── firewall/               # Firewall configurations (UFW/Firewalld)
+│   ├── network/                # Network configurations (NetworkManager/systemd-resolved)
+│   ├── shell/                  # Shell configurations (bash/zsh/fish/nushell/ksh/tcsh)
+│   ├── sudo/                   # Sudo/Doas privilege configurations
+│   └── xorg/                   # Xorg graphics driver configurations
 ├── README.en.md                # English documentation
 ├── README.es.md                # Spanish documentation
 ├── LICENSE                     # AGPLv3 License
@@ -105,16 +117,47 @@ Scripts use a 3-digit naming scheme `XYZ-script-name.sh`:
 
 #### Examples:
 - `001-base-install.sh` = Live CD (0), root only (0), step 1
+- `002-shell-editor-select.sh` = Live CD (0), root only (0), step 2
+- `003-system-install.sh` = Live CD (0), root only (0), step 3
 - `101-configure-system.sh` = Chroot (1), root only (0), step 1  
 - `211-install-yay.sh` = Installed (2), user only (1), step 1
 - **Y** = Permissions (0=root only, 1=user only, 2=both)
 - **Z** = Step number
 
-See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
+See the Semantic Numbering System section above for details.
 
 ---
 
-## 🔧 Features
+## 🔒 Permission Protection System
+
+**All shell scripts in this repository are protected to maintain execute permissions across platforms.**
+
+### Automatic Protection
+- **Pre-commit hook**: Automatically prevents commits if any `.sh` file lacks execute permissions
+- **Git attributes**: Documents that `.sh` files must have execute permissions
+- **Cross-platform scripts**: `check-permissions.sh` (Linux/Unix) and `check-permissions.ps1` (Windows)
+
+### Manual Verification
+If you suspect permission issues, run the appropriate script:
+
+**Linux/Unix:**
+```bash
+./check-permissions.sh
+```
+
+**Windows:**
+```powershell
+.\check-permissions.ps1
+```
+
+These scripts will automatically detect and fix any permission issues.
+
+### Why This Matters
+- **Cross-platform development**: Windows development, Linux deployment
+- **Zero manual intervention**: Clone and run immediately
+- **Prevention over cure**: Automatic checks prevent accidental permission loss
+
+---
 
 - ✅ **Fully automated** - Auto-detects environment and resumes installation
 - ✅ **Progress tracking** - Saves state, safe to interrupt and resume
@@ -123,33 +166,70 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 - ✅ **Modular design** - Shared functions library for code reuse
 - ✅ **Manual mode** - Run individual steps as needed
 - ✅ **Comprehensive logging** - Clear progress indicators and error messages
+- ✅ **Multiple shell support** - Choose from Bash, Zsh, Fish, or Nushell with full configuration
+- ✅ **Robust partitioning** - Enhanced disk cleanup with multiple unmount attempts and process management
 
 ---
 
 ## 🛠️ What Gets Installed
 
-### Base System (001 + 101)
+### Base System (001-003 + 101)
 - Arch Linux base system
 - GRUB bootloader (UEFI)
 - Network configuration
 - Timezone, locale, hostname setup
 
-### Desktop Environment (201)
-- Cinnamon desktop
-- LightDM display manager
-- Xorg and Mesa drivers
+### User & Privileges (201)
 - Desktop user with sudo privileges
+- Optional shell customization (bash/zsh/fish/nushell)
+- Comprehensive shell configuration with structured data support (Nushell)
 
-### AUR Helper (211)
-- YAY for AUR package management
+### AUR Helper & CLI Tools (211-212)
+- YAY or Paru for AUR package management
+- Interactive CLI tools selection (development, system monitoring, etc.)
 
-### Linux Mint Packages (212)
-- Mint themes, icons, and fonts
-- Nemo file manager with extensions
-- LibreOffice, Firefox, Thunderbird
-- Multimedia apps (Rhythmbox, Celluloid)
-- System tools (Timeshift, CUPS printing)
-- Optional: Laptop optimizations (TLP)
+### Display Server (213)
+- **Choice of**: X11 (Xorg), Wayland, or Both
+- Mesa drivers and graphics support
+
+### Desktop Selection (220)
+**Desktop Environments** (221):
+- Cinnamon (Normal/Mint Mode with LMAE compliance)
+- GNOME (Normal/Full/Complete)
+- KDE Plasma (Normal/Full/Complete)
+- XFCE4
+
+**Window Managers** (222/223):
+- **X11 Window Managers** (222): i3/i3-gaps, bspwm, Openbox, Awesome, Qtile, Xmonad, dwm
+- **Wayland Window Managers** (223): Sway, Hyprland, River, Niri, Labwc, Wlmaker (compositor)
+
+**Or Skip** - Continue without GUI
+
+### Optional Desktop Tools (231)
+- Productivity: LibreOffice suite
+- Multimedia: GIMP, Kdenlive, OBS
+- Internet: Firefox, Thunderbird
+- Development: VS Code, Git tools
+- Gaming: Steam, Lutris, Wine
+- Themes: Linux Mint themes (AUR)
+
+---
+
+## 🐚 Shell Options
+
+ALIE supports multiple shell environments with full configuration:
+
+### Available Shells
+- **Bash** - Default GNU Bourne Again Shell
+- **Zsh** - Extended Bourne Shell with powerful features
+- **Fish** - Friendly Interactive Shell with autosuggestions
+- **Nushell** - Modern shell written in Rust with structured data support
+
+### Shell Configuration Features
+- **Automatic Detection**: Scripts detect and configure your chosen shell
+- **Comprehensive Setup**: Includes aliases, PATH configuration, and editor settings
+- **Fallback Support**: Inline configuration if config files are unavailable
+- **Nushell Special Features**: Structured data handling, custom prompt, Starship integration
 
 ---
 
@@ -157,11 +237,19 @@ See [NAMING-SCHEME.md](docs/NAMING-SCHEME.md) for details.
 
 | Step | Script | Environment | User | Description |
 |------|--------|-------------|------|-------------|
-| 1 | `001-base-install.sh` | Live USB | root | Partition, format, install base |
-| 2 | `101-configure-system.sh` | Chroot | root | Configure system (grub, locale, etc.) |
-| 3 | `201-desktop-install.sh` | Installed | root | Install desktop & create user |
-| 4 | `211-install-yay.sh` | Installed | user | Install YAY AUR helper |
-| 5 | `212-install-packages.sh` | Installed | user | Install Mint packages |
+| 1 | `001-base-install.sh` | Live USB | root | Disk partitioning and formatting |
+| 2 | `002-shell-editor-select.sh` | Live USB | root | Shell & editor selection (bash/zsh/fish/nushell + nano/vim) (OPTIONAL) |
+| 3 | `003-system-install.sh` | Live USB | root | Base system installation (pacstrap) |
+| 4 | `101-configure-system.sh` | Chroot | root | System configuration (grub, locale) |
+| 5 | `201-user-setup.sh` | Installed | root | User creation & privilege config |
+| 6 | `211-install-aur-helper.sh` | Installed | user | AUR helper (yay/paru) installation |
+| 7 | `212-cli-tools.sh` | Installed | user | **Interactive** CLI tools selection |
+| 8 | `213-display-server.sh` | Installed | root | **Interactive** graphics server choice |
+| 9 | `220-desktop-select.sh` | Installed | root | **Interactive** Choose DE/WM or skip |
+| 10 | `221-desktop-environment.sh` | Installed | root | **Interactive** Desktop Environments (Cinnamon/GNOME/KDE/XFCE4) |
+| 11 | `222-window-manager.sh` | Installed | root | **Interactive** X11 Window Managers (i3/bspwm/Openbox/Awesome/Qtile/Xmonad/dwm) |
+| 12 | `223-wayland-wm.sh` | Installed | root | **Interactive** Wayland Window Managers (Sway/Hyprland/River/Niri/Labwc) + Wlmaker compositor |
+| 13 | `231-desktop-tools.sh` | Installed | root | Desktop applications (LibreOffice, GIMP, etc.) |
 
 ---
 
@@ -189,6 +277,78 @@ See [LICENSE](LICENSE) file for details.
 - **Arch Linux** - The base distribution
 - **Linux Mint** - Desktop environment and package inspiration
 - **Community** - Bug reports, suggestions, and contributions
+
+---
+
+## 🔧 Troubleshooting
+
+### Disk Partitioning Issues
+
+If the installer fails with "initialization canceled or failed" after selecting a disk:
+
+**1. Check Disk Basics**
+```bash
+# Verify disk exists and is accessible
+lsblk -d /dev/sda  # Replace sda with your disk
+
+# Check if disk is in use
+mount | grep /dev/sda
+swapon --show | grep /dev/sda
+```
+
+**2. Test parted Commands Manually**
+```bash
+# Test basic parted functionality
+sudo parted -s /dev/sda print
+
+# Test partition table creation (dry run)
+sudo parted -s /dev/sda mklabel gpt --dry-run
+```
+
+**3. Enhanced Partition Cleanup (v2.0+)**
+ALIE now includes robust partition unmounting with multiple strategies:
+- **Normal unmount** - Standard umount command
+- **Lazy unmount** - umount -l for busy partitions
+- **Process detection** - Automatically finds and terminates processes using partitions
+- **Force unmount** - umount -f as last resort
+- **Multiple attempts** - Up to 5 attempts with 3-second delays between retries
+
+If partitions are temporarily busy, the installer will automatically handle cleanup.
+
+**4. Common Issues**
+
+- **Disk not found**: Make sure you're using the correct disk name (sda, nvme0n1, etc.)
+- **Permission denied**: Run installer as root
+- **Disk in use**: Unmount any mounted partitions first
+- **Virtual machine**: Some VMs need special disk configurations
+- **USB drive**: Some USB drives don't support all partitioning schemes
+
+**5. Alternative: Manual Partitioning**
+If automatic partitioning fails, choose option 2 in the installer for manual partitioning with cfdisk/fdisk.
+
+### Permission Issues
+
+If scripts don't have execute permissions after cloning:
+
+**Automatic Fix:**
+```bash
+./check-permissions.sh  # Linux/Unix
+.\check-permissions.ps1  # Windows
+```
+
+**Manual Fix:**
+```bash
+chmod +x *.sh install/*.sh lib/*.sh
+```
+
+### Network Issues
+
+If internet connection fails during installation:
+
+1. Check cable connection (Ethernet)
+2. Run `wifi-menu` for wireless setup
+3. Verify DNS: `ping 8.8.8.8`
+4. Check firewall settings
 
 ---
 

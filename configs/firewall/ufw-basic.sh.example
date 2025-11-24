@@ -1,0 +1,18 @@
+#!/bin/sh
+# Ejemplo: reglas que aplica `ufw-basic.sh`
+# Copia estas líneas y pégalas en un terminal (como root) para aplicar las mismas reglas.
+
+# Políticas por defecto
+ufw default deny incoming
+ufw default allow outgoing
+
+# Permitir SSH (puerto 22)
+ufw allow ssh
+
+# Reglas opcionales (descomentar según necesidad)
+# ufw allow http
+# ufw allow https
+# ufw allow 8080/tcp
+
+# Habilitar firewall (revisar antes de activar)
+# ufw enable

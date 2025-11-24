@@ -2,7 +2,7 @@
 # ALIE Master Installation Script
 # This script detects the environment and runs the appropriate installation script
 #
-# ?????? WARNING: EXPERIMENTAL SCRIPT
+# [WARNING] WARNING: EXPERIMENTAL SCRIPT
 # This script is provided AS-IS without warranties.
 # Review the code before running and use at your own risk.
 # Make sure you have backups of any important data.
@@ -34,12 +34,16 @@ if [ ! -f "$LIB_DIR/shared-functions.sh" ]; then
     exit 1
 fi
 
+# shellcheck source=lib/shared-functions.sh
 source "$LIB_DIR/shared-functions.sh"
 
 # Function to detect environment
 detect_environment() {
     # Check if running in chroot
-    if [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] 2>/dev/null; then
+    local root_stat root_proc_stat
+    root_stat=$(stat -c %d:%i / 2>/dev/null || true)
+    root_proc_stat=$(stat -c %d:%i /proc/1/root/. 2>/dev/null || true)
+    if [ "$root_stat" != "$root_proc_stat" ]; then
         echo "chroot"
         return
     fi
@@ -79,53 +83,58 @@ show_manual_menu() {
     echo ""
     echo "Available installation scripts:"
     echo ""
-    echo "  ${CYAN}1)${NC} Base System Installation (001-base-install.sh)"
-    echo "     ${YELLOW}???${NC} Partition, format, install base system"
-    echo "     ${YELLOW}???${NC} Requires: Live USB environment, root privileges"
+    echo "  ${CYAN}1)${NC} ${YELLOW}Disk Partitioning${NC} ${GREEN}(001-base-install.sh)${NC} - Partition/format disks ${MAGENTA}(Live USB, root)${NC}"
+    echo "  ${CYAN}2)${NC} ${YELLOW}Shell/Editor Selection${NC} ${GREEN}(002-shell-editor-select.sh)${NC} - Select shells/editors ${MAGENTA}(Live USB, root, optional)${NC}"
+    echo "  ${CYAN}3)${NC} ${YELLOW}System Installation${NC} ${GREEN}(003-system-install.sh)${NC} - Install base system with pacstrap ${MAGENTA}(Partitioned, root)${NC}"
+    echo "  ${CYAN}4)${NC} ${YELLOW}System Configuration${NC} ${GREEN}(101-configure-system.sh)${NC} - Configure timezone/locale/hostname/GRUB ${MAGENTA}(Chroot, root)${NC}"
+    echo "  ${CYAN}5)${NC} ${YELLOW}User Setup${NC} ${GREEN}(201-user-setup.sh)${NC} - Create desktop user, sudo/doas, basic tools ${MAGENTA}(Booted system, root)${NC}"
+    echo "  ${CYAN}6)${NC} ${YELLOW}AUR Helper Installation${NC} ${GREEN}(211-install-aur-helper.sh)${NC} - Install yay/paru + optimize makepkg ${MAGENTA}(Booted, user)${NC}"
+    echo "  ${CYAN}7)${NC} ${YELLOW}CLI Tools Selection${NC} ${GREEN}(212-cli-tools.sh)${NC} - Interactive CLI tools/utilities selection ${MAGENTA}(AUR helper, user)${NC}"
+    echo "  ${CYAN}8)${NC} ${YELLOW}Display Server Setup${NC} ${GREEN}(213-display-server.sh)${NC} - Choose Xorg/Wayland/Both ${MAGENTA}(Booted, root)${NC}"
+    echo "  ${CYAN}9)${NC} ${YELLOW}Desktop Selection${NC} ${GREEN}(220-desktop-select.sh)${NC} - Choose DE/WM/Skip ${MAGENTA}(Display server, root)${NC}"
+    echo "  ${CYAN}A)${NC} ${YELLOW}Desktop Environment${NC} ${GREEN}(221-desktop-environment.sh)${NC} - Install Cinnamon/GNOME/KDE/XFCE4 ${MAGENTA}(Desktop selected, root)${NC}"
+    echo "  ${CYAN}B)${NC} ${YELLOW}X11 Window Manager${NC} ${GREEN}(222-window-manager.sh)${NC} - Install i3/bspwm/Openbox/etc ${MAGENTA}(Desktop selected, root)${NC}"
+    echo "  ${CYAN}C)${NC} ${YELLOW}Wayland Window Manager${NC} ${GREEN}(223-wayland-wm.sh)${NC} - Install Sway/Hyprland/etc ${MAGENTA}(Desktop selected, Wayland, root)${NC}"
+    echo "  ${CYAN}D)${NC} ${YELLOW}Desktop Tools${NC} ${GREEN}(231-desktop-tools.sh)${NC} - Install LibreOffice/GIMP/Firefox/etc ${MAGENTA}(DE/WM installed, root)${NC}"
     echo ""
-    echo "  ${CYAN}2)${NC} System Configuration (101-configure-system.sh)"
-    echo "     ${YELLOW}???${NC} Configure timezone, locale, hostname, GRUB"
-    echo "     ${YELLOW}???${NC} Requires: Chroot environment, root privileges"
-    echo ""
-    echo "  ${CYAN}3)${NC} Desktop Installation (201-desktop-install.sh)"
-    echo "     ${YELLOW}???${NC} Install Cinnamon desktop, LightDM, create user"
-    echo "     ${YELLOW}???${NC} Requires: Booted system, root privileges"
-    echo ""
-    echo "  ${CYAN}4)${NC} YAY Installation (211-install-yay.sh)"
-    echo "     ${YELLOW}???${NC} Install YAY AUR helper"
-    echo "     ${YELLOW}???${NC} Requires: Regular user (NOT root)"
-    echo ""
-    echo "  ${CYAN}5)${NC} Packages Installation (212-install-packages.sh)"
-    echo "     ${YELLOW}???${NC} Install Linux Mint packages and themes"
-    echo "     ${YELLOW}???${NC} Requires: YAY installed, regular user (NOT root)"
-    echo ""
-    echo "  ${CYAN}6)${NC} Clear progress and exit"
-    echo "  ${CYAN}7)${NC} Exit without changes"
+    echo "  ${CYAN}X)${NC} Clear progress and exit"
+    echo "  ${CYAN}0)${NC} Exit without changes"
     echo ""
     
-    read -p "Choose script to run [1-7]: " choice
+    read -r -p "Choose script to run [1-9, A-D, X, 0]: " choice
     
     case "$choice" in
         1) RUN_SCRIPT="$INSTALL_DIR/001-base-install.sh"; NEEDS_ROOT=true ;;
-        2) RUN_SCRIPT="$INSTALL_DIR/101-configure-system.sh"; NEEDS_ROOT=true ;;
-        3) RUN_SCRIPT="$INSTALL_DIR/201-desktop-install.sh"; NEEDS_ROOT=true ;;
-        4) RUN_SCRIPT="$INSTALL_DIR/211-install-yay.sh"; NEEDS_ROOT=false ;;
-        5) RUN_SCRIPT="$INSTALL_DIR/212-install-packages.sh"; NEEDS_ROOT=false ;;
-        6)
+        2) RUN_SCRIPT="$INSTALL_DIR/002-shell-editor-select.sh"; NEEDS_ROOT=true ;;
+        3) RUN_SCRIPT="$INSTALL_DIR/003-system-install.sh"; NEEDS_ROOT=true ;;
+        4) RUN_SCRIPT="$INSTALL_DIR/101-configure-system.sh"; NEEDS_ROOT=true ;;
+        5) RUN_SCRIPT="$INSTALL_DIR/201-user-setup.sh"; NEEDS_ROOT=true ;;
+        6) RUN_SCRIPT="$INSTALL_DIR/211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
+        7) RUN_SCRIPT="$INSTALL_DIR/212-cli-tools.sh"; NEEDS_ROOT=false ;;
+        8) RUN_SCRIPT="$INSTALL_DIR/213-display-server.sh"; NEEDS_ROOT=true ;;
+        9) RUN_SCRIPT="$INSTALL_DIR/220-desktop-select.sh"; NEEDS_ROOT=true ;;
+        [Aa]) RUN_SCRIPT="$INSTALL_DIR/221-desktop-environment.sh"; NEEDS_ROOT=true ;;
+        [Bb]) RUN_SCRIPT="$INSTALL_DIR/222-window-manager.sh"; NEEDS_ROOT=true ;;
+        [Cc]) RUN_SCRIPT="$INSTALL_DIR/223-wayland-wm.sh"; NEEDS_ROOT=true ;;
+        [Dd]) RUN_SCRIPT="$INSTALL_DIR/231-desktop-tools.sh"; NEEDS_ROOT=true ;;
+        [Xx])
             print_warning "This will clear all progress markers"
-            read -p "Are you sure? (yes/no): " confirm
-            if [ "$confirm" = "yes" ]; then
+            read -r -p "Are you sure? (yes/no): " confirm
+            if [ "${confirm:-}" = "yes" ]; then
                 clear_progress
                 print_info "Progress cleared"
             fi
-            exit 0
+            return 0
             ;;
-        7)
-            print_info "Exiting..."
+        0)
+            print_info "Exiting without changes"
             exit 0
             ;;
         *)
-            print_error "Invalid option"
+            print_error_detailed "Invalid option" \
+                "The selected menu choice is not recognized in manual mode" \
+                "Manual mode allows selecting any installation step" \
+                "Choose a valid script number from the list above"
             exit 1
             ;;
     esac
@@ -133,21 +142,28 @@ show_manual_menu() {
     # Validate permissions
     if [ "$NEEDS_ROOT" = true ]; then
         if ! check_root; then
-            print_error "This script requires root privileges"
-            print_info "Run with: sudo bash $0 --manual"
+            print_error_detailed "This script requires root privileges" \
+                "Manual mode scripts may require system-level access" \
+                "Root privileges are needed for system modifications" \
+                "Run with: sudo bash $0 --manual"
             exit 1
         fi
     else
         if check_root; then
-            print_error "This script must NOT be run as root"
-            print_info "Run as regular user: bash $0 --manual"
+            print_error_detailed "This script must NOT be run as root" \
+                "Manual mode scripts may require user-level execution" \
+                "Running as root could cause permission or configuration issues" \
+                "Run as regular user: bash $0 --manual"
             exit 1
         fi
     fi
     
     # Verify script exists
     if [ ! -f "$RUN_SCRIPT" ]; then
-        print_error "Script not found: $RUN_SCRIPT"
+        print_error_detailed "Script not found: $RUN_SCRIPT" \
+            "The requested installation script is missing from the install directory" \
+            "Check if the script exists and has correct permissions" \
+            "Run: ls -la install/ | grep $RUN_SCRIPT"
         exit 1
     fi
     
@@ -162,6 +178,9 @@ show_manual_menu() {
 show_alie_banner
 show_warning_banner
 
+# Set up signal handling for graceful exit
+trap 'echo ""; print_warning "Installation cancelled by user (Ctrl+C)"; exit 130' INT
+
 # Detect environment
 ENV=$(detect_environment)
 print_step "Environment Detection"
@@ -169,17 +188,19 @@ print_success "Detected environment: $ENV"
 
 # Check installation progress
 STEP=$(get_installation_step)
+STEP="${STEP:-0}"
+STEP_NAME=$(get_installation_step_name)
+NEXT_STEP_NAME=$(get_next_installation_step_name)
+
 if [ "$STEP" != "0" ]; then
     echo ""
     print_info "Installation progress detected!"
-    print_success "Last completed step: $STEP"
+    print_success "Last completed step: $STEP ($STEP_NAME)"
     echo ""
 fi
 
 # Check for manual mode flag
-MANUAL_MODE=false
-if [ "$1" = "--manual" ] || [ "$1" = "-m" ]; then
-    MANUAL_MODE=true
+if [ "${1:-}" = "--manual" ] || [ "${1:-}" = "-m" ]; then
     print_info "Manual mode enabled - you can choose any step"
     echo ""
     show_manual_menu
@@ -196,52 +217,109 @@ case "$ENV" in
             echo ""
             echo "What would you like to do?"
             echo "  1) Continue/Retry base installation (001-base-install.sh)"
-            echo "  2) Start fresh (clear progress and reinstall)"
-            echo "  3) Exit"
-            read -p "Choose an option [1-3]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Start fresh (clear progress and reinstall)"
+            echo "  4) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-4]: " choice
+            else
+                read -r -p "Choose an option [1,3,4]: " choice
+            fi
             
             case "$choice" in
+                1)
+                    # Continue with base installation
+                    ;;
                 2)
-                    print_warning "This will clear all progress markers"
-                    read -p "Are you sure? (yes/no): " confirm
-                    if [ "$confirm" = "yes" ]; then
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
+            print_error_detailed "$NEXT_STEP_NAME not found in $INSTALL_DIR" \
+                "Cannot proceed to next installation step" \
+                "Check if all installation scripts are present in the install directory" \
+                "Run: ls -la $INSTALL_DIR"
+                                exit 1
+                            fi
+                            bash "$INSTALL_DIR/$NEXT_STEP_NAME"
+                            exit 0
+                        else
+                            print_info "Cancelled. Continuing with base installation."
+                        fi
+                    else
+                        print_error_detailed "Invalid menu option selected" \
+                            "The installation menu requires a valid numeric choice to proceed" \
+                            "Choose from the available options (1-4) shown above" \
+                            "Review the menu options and enter a valid number"
+                        exit 1
+                    fi
+                    ;;
+                3)
+                    print_warning "This will clear all progress markers and configuration files"
+                    read -r -p "Are you sure? (yes/no): " confirm
+                    if [ "${confirm:-}" = "yes" ]; then
                         clear_progress
-                        print_info "Progress cleared. Re-run the installer."
+                        print_success "Progress cleared. Re-run the installer to start fresh."
                         exit 0
                     else
                         print_info "Cancelled"
                         exit 0
                     fi
                     ;;
-                3)
+                4)
                     print_info "Exiting..."
                     exit 0
+                    ;;
+                *)
+                    print_error_detailed "Invalid menu option selected" \
+                        "The installation menu requires a valid numeric choice to proceed" \
+                        "Choose from the available options (1-4) shown above" \
+                        "Review the menu options and enter a valid number"
+                    exit 1
                     ;;
             esac
         else
             echo "Available actions:"
             echo "  1) Install base system (001-base-install.sh)"
-            echo "  2) Exit"
+            echo "  2) Manual script selection (choose any step)"
+            echo "  3) Exit"
             echo ""
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-3]: " choice
             
-            if [ "$choice" = "2" ]; then
-                print_info "Exiting..."
-                exit 0
-            fi
+            case "$choice" in
+                2)
+                    show_manual_menu
+                    ;;
+                3)
+                    print_info "Exiting..."
+                    exit 0
+                    ;;
+            esac
         fi
         
         # Run base installation
         if ! check_root; then
-            print_error "This script must be run as root in the live environment."
-            print_info "Run: sudo bash $0"
+            print_error_detailed "This script must be run as root in the live environment" \
+                "Base installation requires root privileges to partition disks and install system files" \
+                "Running without root access would fail at the first partitioning or mounting step" \
+                "Run: sudo bash $0"
             exit 1
         fi
         
         print_info "Starting base installation..."
         
         if [ ! -f "$INSTALL_DIR/001-base-install.sh" ]; then
-            print_error "001-base-install.sh not found in $INSTALL_DIR"
+            print_error_detailed "001-base-install.sh not found in $INSTALL_DIR" \
+                "Base installation script is required to start the installation process" \
+                "Ensure all ALIE scripts are present in the install directory" \
+                "Run: ls -la $INSTALL_DIR/001-base-install.sh"
             exit 1
         fi
         
@@ -258,10 +336,40 @@ case "$ENV" in
             echo ""
             echo "What would you like to do?"
             echo "  1) Reconfigure system (101-configure-system.sh)"
-            echo "  2) Exit chroot and reboot"
-            read -p "Choose an option [1-2]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Exit chroot and reboot"
             
-            if [ "$choice" = "2" ]; then
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-3]: " choice
+            else
+                read -r -p "Choose an option [1,3]: " choice
+            fi
+            
+            if [ "$choice" = "2" ] && [ -n "$NEXT_STEP_NAME" ]; then
+                print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                print_warning "Configuration from previous steps will be preserved."
+                print_warning "Variables from this step will be overwritten if they exist."
+                echo ""
+                read -r -p "Are you sure? (yes/no): " confirm
+                if [ "${confirm:-}" = "yes" ]; then
+                    if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
+                        print_error_detailed "$NEXT_STEP_NAME not found in $INSTALL_DIR" \
+                            "Cannot proceed to next installation step" \
+                            "The required installation script is missing from the install directory" \
+                            "Check if all installation scripts are present: ls -la $INSTALL_DIR"
+                        exit 1
+                    fi
+                    bash "$INSTALL_DIR/$NEXT_STEP_NAME"
+                    exit 0
+                else
+                    print_info "Cancelled. Continuing with system configuration."
+                    choice="1"
+                fi
+            fi
+            
+            if [ "$choice" = "3" ]; then
                 print_info "Exit chroot and follow instructions to reboot"
                 exit 0
             fi
@@ -270,7 +378,7 @@ case "$ENV" in
             echo "  1) Configure system (101-configure-system.sh)"
             echo "  2) Exit"
             echo ""
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exiting..."
@@ -280,14 +388,20 @@ case "$ENV" in
         
         # Run system configuration
         if ! check_root; then
-            print_error "This script must be run as root in chroot."
+            print_error_detailed "Root privileges required for chroot system configuration" \
+                "System configuration scripts must run as root to modify system files" \
+                "This prevents permission errors when configuring timezone, locale, and bootloader" \
+                "Run: sudo bash $0"
             exit 1
         fi
         
         print_info "Starting system configuration..."
         
         if [ ! -f "$INSTALL_DIR/101-configure-system.sh" ]; then
-            print_error "101-configure-system.sh not found in $INSTALL_DIR"
+            print_error_detailed "101-configure-system.sh not found in $INSTALL_DIR" \
+                "System configuration script is required for chroot environment setup" \
+                "This script configures timezone, locale, hostname, and bootloader" \
+                "Ensure the script exists: ls -la $INSTALL_DIR/101-configure-system.sh"
             exit 1
         fi
         
@@ -304,10 +418,40 @@ case "$ENV" in
             echo ""
             echo "Next steps:"
             echo "  1) Install YAY (run as regular user)"
-            echo "  2) Exit"
-            read -p "Choose an option [1-2]: " choice
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Exit"
             
-            if [ "$choice" = "2" ]; then
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-3]: " choice
+            else
+                read -r -p "Choose an option [1,3]: " choice
+            fi
+            
+            if [ "$choice" = "2" ] && [ -n "$NEXT_STEP_NAME" ]; then
+                print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                print_warning "Configuration from previous steps will be preserved."
+                print_warning "Variables from this step will be overwritten if they exist."
+                echo ""
+                read -r -p "Are you sure? (yes/no): " confirm
+                if [ "${confirm:-}" = "yes" ]; then
+                    if [ ! -f "$INSTALL_DIR/$NEXT_STEP_NAME" ]; then
+                        print_error_detailed "$NEXT_STEP_NAME not found in $INSTALL_DIR" \
+                            "Cannot proceed to next installation step" \
+                            "Check if all installation scripts are present in the install directory" \
+                            "Run: ls -la $INSTALL_DIR"
+                        exit 1
+                    fi
+                    bash "$INSTALL_DIR/$NEXT_STEP_NAME"
+                    exit 0
+                else
+                    print_info "Cancelled. Installing YAY."
+                    choice="1"
+                fi
+            fi
+            
+            if [ "$choice" = "3" ]; then
                 print_info "Exiting..."
                 exit 0
             fi
@@ -317,10 +461,10 @@ case "$ENV" in
             exit 0
         else
             echo "Available actions:"
-            echo "  1) Install desktop environment (201-desktop-install.sh)"
+            echo "  1) Setup user and privileges (201-user-setup.sh)"
             echo "  2) Exit"
             echo ""
-            read -p "Choose an option [1-2]: " choice
+            read -r -p "Choose an option [1-2]: " choice
             
             if [ "$choice" = "2" ]; then
                 print_info "Exiting..."
@@ -328,21 +472,26 @@ case "$ENV" in
             fi
         fi
         
-        # Run desktop installation
+        # Run user setup
         if ! check_root; then
-            print_error "This script must be run as root."
-            print_info "Run: sudo bash $0"
+            print_error_detailed "Root privileges required for user setup" \
+                "User setup scripts must run as root to create users and configure system privileges" \
+                "This prevents permission errors when setting up sudo and user groups" \
+                "Run: sudo bash $0"
             exit 1
         fi
         
-        print_info "Starting desktop installation..."
+        print_info "Starting user setup..."
         
-        if [ ! -f "$INSTALL_DIR/201-desktop-install.sh" ]; then
-            print_error "201-desktop-install.sh not found in $INSTALL_DIR"
+        if [ ! -f "$INSTALL_DIR/201-user-setup.sh" ]; then
+            print_error_detailed "201-user-setup.sh not found in $INSTALL_DIR" \
+                "User setup script is required to create desktop user and configure privileges" \
+                "This script sets up sudo, user groups, and basic user environment" \
+                "Verify script exists: ls -la $INSTALL_DIR/201-user-setup.sh"
             exit 1
         fi
         
-        bash "$INSTALL_DIR/201-desktop-install.sh"
+        bash "$INSTALL_DIR/201-user-setup.sh"
         ;;
         
     "installed-desktop")
@@ -354,58 +503,195 @@ case "$ENV" in
         fi
         
         # Check progress and show appropriate options
-        if [ "$STEP" -ge "5" ]; then
+        if [ "$STEP" -ge "8" ]; then
             print_success "Full installation completed!"
             echo ""
             print_info "All ALIE components are installed."
+            echo "  Display server (Xorg/Wayland)"
+            echo "  Desktop environment or Window Manager"
+            echo "  AUR helper and CLI tools"
             echo "You can re-run individual scripts if needed."
             exit 0
-        elif [ "$STEP" -ge "4" ]; then
-            print_success "YAY is installed. Ready for package installation."
+        elif [ "$STEP" -ge "6" ]; then
+            print_success "CLI tools installed. Ready for display server setup."
             echo ""
             echo "Available actions:"
-            echo "  1) Install all packages (212-install-packages.sh)"
-            echo "  2) Exit"
-            read -p "Choose an option [1-2]: " choice
+            echo "  1) Setup display server (213-display-server.sh) - as root"
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Desktop selection - DE/WM (220-desktop-select.sh) - as root"
+            echo "  4) Install desktop tools (231-desktop-tools.sh) - as root"
+            echo "  5) Exit"
             
-            if [ "$choice" = "2" ]; then
-                print_info "Exiting..."
-                exit 0
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-5]: " choice
+            else
+                read -r -p "Choose an option [1,3-5]: " choice
             fi
             
-            NEXT_SCRIPT="212-install-packages.sh"
-        else
+            case "$choice" in
+                1) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                2) 
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            NEXT_SCRIPT="$NEXT_STEP_NAME"
+                            NEEDS_ROOT=true
+                        else
+                            print_info "Cancelled. Choose another option."
+                        fi
+                    else
+                        print_error_detailed "Invalid menu option selected" \
+                            "The installation menu requires a valid numeric choice to proceed" \
+                            "Choose from the available options (1-5) shown above" \
+                            "Review the menu options and enter a valid number"
+                        exit 1
+                    fi
+                    ;;
+                3) NEXT_SCRIPT="220-desktop-select.sh"; NEEDS_ROOT=true ;;
+                4) NEXT_SCRIPT="231-desktop-tools.sh"; NEEDS_ROOT=true ;;
+                5) print_info "Exiting..."; exit 0 ;;
+                *) print_error_detailed "Invalid menu option selected" \
+                    "The installation menu requires a valid numeric choice to proceed" \
+                    "Choose from the available options (1-5) shown above" \
+                    "Review the menu options and enter a valid number"
+                exit 1 ;;
+            esac
+        elif [ "$STEP" -ge "5" ]; then
+            print_success "AUR helper installed. Ready for CLI tools."
+            echo ""
             echo "Available actions:"
-            echo "  1) Install YAY (211-install-yay.sh)"
-            echo "  2) Install all packages (212-install-packages.sh) - requires YAY"
-            echo "  3) Exit"
-            read -p "Choose an option [1-3]: " choice
+            echo "  1) Install CLI tools (212-cli-tools.sh) - as user"
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Setup display server (213-display-server.sh) - as root"
+            echo "  4) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-4]: " choice
+            else
+                read -r -p "Choose an option [1,3,4]: " choice
+            fi
             
             case "$choice" in
-                1) NEXT_SCRIPT="211-install-yay.sh" ;;
-                2) NEXT_SCRIPT="212-install-packages.sh" ;;
-                3)
+                1) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
+                2)
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            NEXT_SCRIPT="$NEXT_STEP_NAME"
+                            NEEDS_ROOT=false
+                        else
+                            print_info "Cancelled. Choose another option."
+                        fi
+                    else
+                        print_error_detailed "Invalid option" \
+                            "The selected menu option is not valid for the current installation state" \
+                            "Choose from the available options shown in the menu above" \
+                            "Review the menu and select a valid numeric option"
+                        exit 1
+                    fi
+                    ;;
+                3) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                4) print_info "Exiting..."; exit 0 ;;
+                *) print_error_detailed "Invalid menu option selected" \
+                    "The installation menu requires a valid numeric choice to proceed" \
+                    "Choose from the available options (1-4) shown above" \
+                    "Review the menu options and enter a valid number"
+                exit 1 ;;
+            esac
+        else
+            echo "Available actions:"
+            echo "  1) Install AUR helper (211-install-aur-helper.sh) - as user"
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                echo "  2) Continue with next step ($NEXT_STEP_NAME)"
+            fi
+            echo "  3) Install CLI tools (212-cli-tools.sh) - requires AUR helper"
+            echo "  4) Setup display server (213-display-server.sh) - as root"
+            echo "  5) Exit"
+            
+            if [ -n "$NEXT_STEP_NAME" ]; then
+                read -r -p "Choose an option [1-5]: " choice
+            else
+                read -r -p "Choose an option [1,3-5]: " choice
+            fi
+            
+            case "$choice" in
+                1) NEXT_SCRIPT="211-install-aur-helper.sh"; NEEDS_ROOT=false ;;
+                2)
+                    if [ -n "$NEXT_STEP_NAME" ]; then
+                        print_warning "Continuing with $NEXT_STEP_NAME from the beginning."
+                        print_warning "Configuration from previous steps will be preserved."
+                        print_warning "Variables from this step will be overwritten if they exist."
+                        echo ""
+                        read -r -p "Are you sure? (yes/no): " confirm
+                        if [ "${confirm:-}" = "yes" ]; then
+                            NEXT_SCRIPT="$NEXT_STEP_NAME"
+                            NEEDS_ROOT=false
+                        else
+                            print_info "Cancelled. Choose another option."
+                        fi
+                    else
+                        print_error_detailed "Invalid menu option selected" \
+                            "The installation menu requires a valid numeric choice to proceed" \
+                            "Choose from the available options (1-5) shown above" \
+                            "Review the menu options and enter a valid number"
+                        exit 1
+                    fi
+                    ;;
+                3) NEXT_SCRIPT="212-cli-tools.sh"; NEEDS_ROOT=false ;;
+                4) NEXT_SCRIPT="213-display-server.sh"; NEEDS_ROOT=true ;;
+                5)
                     print_info "Exiting..."
                     exit 0
                     ;;
                 *)
-                    print_error "Invalid option"
+                    print_error_detailed "Invalid menu option selected" \
+                        "The installation menu requires a valid numeric choice to proceed" \
+                        "Choose from the available options (1-5) shown above" \
+                        "Review the menu options and enter a valid number"
                     exit 1
                     ;;
             esac
         fi
         
-        # Verify not running as root
-        if check_root; then
-            print_error "User scripts must be run as a regular user, not root."
-            print_info "Exit root and run: bash $0"
-            exit 1
+        # Check if needs root privileges
+        if [[ "$NEEDS_ROOT" == "true" ]]; then
+            if ! check_root; then
+                print_error_detailed "Root privileges required for this installation step" \
+                    "The selected script requires root access to modify system files and install packages" \
+                    "Running as regular user would cause permission errors during installation" \
+                    "Run: sudo bash $0"
+                exit 1
+            fi
+        else
+            # Verify not running as root for user scripts
+            if check_root; then
+                print_error_detailed "User scripts must run as regular user, not root" \
+                    "The selected script is designed to run as a regular user to avoid security risks" \
+                    "Running installation scripts as root unnecessarily can cause permission issues" \
+                    "Exit root shell and run: bash $0"
+                exit 1
+            fi
         fi
         
         print_info "Starting $NEXT_SCRIPT..."
         
         if [ ! -f "$INSTALL_DIR/$NEXT_SCRIPT" ]; then
-            print_error "$NEXT_SCRIPT not found in $INSTALL_DIR"
+            print_error_detailed "$NEXT_SCRIPT not found in $INSTALL_DIR" \
+                "The selected installation script is missing from the install directory" \
+                "Cannot proceed with the requested installation step" \
+                "Check script availability: find $INSTALL_DIR -name '*.sh' -type f"
             exit 1
         fi
         
@@ -413,14 +699,17 @@ case "$ENV" in
         ;;
         
     "unknown")
-        print_error "Unable to detect environment."
+        print_error_detailed "Unable to detect current environment" \
+            "ALIE cannot determine if you're in live CD, chroot, or installed system" \
+            "This prevents running the wrong scripts which could damage your system" \
+            "Check your current environment and run the appropriate script manually"
         echo ""
         print_info "Please run the appropriate script manually:"
-        echo "  - From live CD: 001-base-install.sh"
+        echo "  - From live CD: 001-base-install.sh -> (002-shell-editor-select.sh) -> 003-system-install.sh"
         echo "  - In chroot: 101-configure-system.sh"
-        echo "  - After first boot: 201-desktop-install.sh"
-        echo "  - With desktop installed (as user): 211-install-yay.sh"
-        echo "  - With YAY installed (as user): 212-install-packages.sh"
+        echo "  - After first boot: 201-user-setup.sh (as root)"
+        echo "  - As user: 211-install-aur-helper.sh -> 212-cli-tools.sh"
+        echo "  - Display setup (as root): 213-display-server.sh -> 220-desktop-select.sh -> 221/222 -> 231-desktop-tools.sh"
         exit 1
         ;;
 esac

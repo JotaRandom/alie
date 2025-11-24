@@ -1,0 +1,52 @@
+# ALIE Basic Zsh Configuration
+
+# History
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt appendhistory
+setopt sharehistory
+setopt incappendhistory
+setopt hist_ignore_dups
+setopt hist_ignore_space
+
+# Completion
+autoload -Uz compinit
+compinit
+
+# Case-insensitive completion
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
+# Colors
+autoload -U colors && colors
+
+# Prompt
+PS1="%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}%# "
+
+# Key bindings (Emacs style)
+bindkey -e
+
+# Aliases
+alias ls='ls --color=auto'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias grep='grep --color=auto'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias h='history'
+alias df='df -h'
+alias du='du -h'
+alias free='free -h'
+
+# Path
+export PATH="$HOME/.local/bin:$PATH"
+
+# Custom completions directory
+fpath=(~/.zsh/completion $fpath)
+
+# Auto-suggestions (if installed)
+# source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh 2>/dev/null
+
+# Syntax highlighting (if installed)
+# source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null

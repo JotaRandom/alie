@@ -1,0 +1,15 @@
+#!/bin/sh
+# Ejemplo: reglas que aplica `ufw-desktop.sh` (más permisivas para escritorio)
+
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
+ufw limit ssh
+ufw allow http
+ufw allow https
+ufw allow from 192.168.1.0/24
+ufw allow 3000/tcp comment 'React/Node dev server'
+ufw allow 8080/tcp comment 'Alternative HTTP'
+ufw allow 5432/tcp comment 'PostgreSQL'
+ufw allow 5353/udp
+# ufw enable

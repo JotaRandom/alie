@@ -1,0 +1,26 @@
+# ALIE - Global sudo defaults
+# More secure and user-friendly sudo settings
+
+# Keep environment variables that are useful
+Defaults env_keep += "HOME LANG LC_* TZ EDITOR PAGER"
+
+# For GUI applications when using sudo
+Defaults env_keep += "DISPLAY XAUTHORITY"
+
+# Extend timeout to 15 minutes (default is 5)
+Defaults timestamp_timeout=15
+
+# Show asterisks when typing password
+Defaults pwfeedback
+
+# Don't lecture users (suppress the "lecture" on first sudo use)
+Defaults !lecture
+
+# Use a separate log file for sudo commands (security)
+Defaults logfile=/var/log/sudo.log
+
+# Require a tty for sudo (security - prevents some attacks)
+# NOTE: `requiretty` can break noninteractive services (systemd, automation).
+# It is commented out by default to avoid surprising failures on Arch systems.
+# Uncomment only if you understand the implications.
+# Defaults requiretty
